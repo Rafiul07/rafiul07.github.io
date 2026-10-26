@@ -215,6 +215,25 @@ details.sec .secBody{margin-top:12px}
 .mbar{height:8px;background:var(--bd);border-radius:8px;margin:12px 0 6px;overflow:hidden}
 .mbar i{display:block;height:100%;background:linear-gradient(90deg,var(--p),var(--s));border-radius:8px}
 .gh{font-size:13px;color:var(--sub);font-weight:700;margin:20px 6px 8px}
+/* member popup: close button stays small, popup never goes past the top of the screen */
+#memBox{padding:24px 16px}
+#memBox .sheet{max-height:calc(100vh - 48px)!important}
+#memBox .row.between > button{flex:none;width:44px;min-height:40px;padding:0}
+/* member cards in the control panel: chip wraps under the name on narrow screens */
+#memberList .mhead{flex-wrap:wrap}
+#memberList .mhead .grow{flex:1 1 150px}
+#memberList .mhead .mchip{margin-left:auto}
+/* member popup on phones: bottom sheet, full width, name takes its own row */
+@media (max-width:600px){
+  #memBox{padding:0;align-items:flex-end}
+  #memBox .sheet{max-width:100%;border-radius:22px 22px 0 0;max-height:92vh!important;padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px))}
+  #memBox .mgrid{grid-template-columns:1fr 1fr}
+  #memBox .mgrid .mf:first-child{grid-column:1/-1}
+  #memBox .mav{width:48px;height:48px;font-size:19px}
+  #memBox .hero .big{font-size:clamp(30px,10vw,40px)}
+  #memBox .card{padding:14px}
+  #memBox .row.between{gap:10px}
+}
 </style>
 </head>
 <body>
@@ -911,11 +930,11 @@ function entryRow(x) {
   if (isClosed(x)) {
     acts = `<span class="sub">🔒 ${lang === 'bn' ? 'মাস বন্ধ' : 'Month closed'}</span>`;
   } else if (own) {
-    acts = locked ? lockTxt : ownEdit;   // approved entries are locked for everyone, admin included
+    acts = locked ? lockTxt + (isMgr ? mgrEdit : '') : ownEdit;   // admin can still edit/delete approved entries
   } else if (!isMgr) {
     acts = '';
   } else if (locked) {
-    acts = lockTxt;
+    acts = lockTxt + mgrEdit;   // admin: edit / delete even after approval
   } else {
     acts = mgrEdit;
   }
