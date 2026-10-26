@@ -269,6 +269,7 @@ details.sec .secBody{margin-top:12px}
           <div class="grow"><div class="lbl" data-i18n="date"></div><input id="fDate" type="date"></div>
           <div class="grow"><div class="lbl" data-i18n="amount"></div><input id="fAmt" type="text" inputmode="decimal" placeholder="1,500"></div>
         </div>
+        <div id="fMemberBox" class="hidden"><div class="lbl" id="fMemberLbl"></div><select id="fMember"></select></div>
         <div class="lbl" data-i18n="note"></div>
         <input id="fNote">
         <div class="lbl" data-i18n="paySlip"></div>
@@ -405,6 +406,11 @@ let lastSum = '';
 let lastStatus = {}, deferredPrompt = null;
 let notes = [];
 let openAdminNext = false;
+/* Admin mode: the person keeps their own identity (me). Admin-only writes go through a second
+   Firebase session that is signed in as admin only while the admin panel is unlocked. */
+let adminUnlocked = false, adminSess = null, adminDb = null, adminUnsubs = [];
+const ADB = () => (me === MANAGER ? db : (adminDb || db));
+const ADBAuth = () => (me === MANAGER ? auth : (adminSess ? adminSess.auth() : auth));
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -461,7 +467,7 @@ const depOf = e => { const m = memberOf(e); return m ? num(m.deposit) : 0; };
 const nameOf = e => { const m = memberOf(e); return m && m.name ? m.name : e.split('@')[0].toUpperCase(); };
 function scoped() { return month === 'all' ? entries : entries.filter(x => String(x.date).slice(0, 7) === month); }
 const bazarOf = e => scoped().filter(x => x.memberEmail === e).reduce((a, x) => a + num(x.amount), 0);
-function allEmails() { return [...new Set([...members.map(m => m.email), ...entries.map(x => x.memberEmail)])].filter(e => e !== MANAGER); }
+function allEmails() { return [...new Set([...members.map(m => m.email), ...entries.map(x => x.memberEmail)])]; }
 function calc(list = scoped()) {
   const em = allEmails();
   const tB = list.reduce((a, x) => a + num(x.amount), 0);
@@ -492,6 +498,7 @@ function login() {
 async function logout() {
   try {
     unsubs.forEach(u => u()); unsubs = [];
+    if (adminSess) await adminSess.auth().signOut().catch(() => {});
     await auth.signOut();
     await db.terminate();       // release the Firestore instance before clearing its cache
     await db.clearPersistence();
@@ -504,6 +511,8 @@ let logs = [];
 let notice = '';
 let closedMonths = [];
 auth.onAuthStateChanged(async user => {
+  adminUnlocked = false; adminDb = null; adminUnsubs.forEach(u => u()); adminUnsubs = [];
+  if (adminSess) { adminSess.delete().catch(() => {}); adminSess = null; }
   unsubs.forEach(u => u()); unsubs = [];
   members = []; entries = []; summary = null; lastSum = ''; lastStatus = {};
   clearSlipCache();
@@ -538,8 +547,9 @@ auth.onAuthStateChanged(async user => {
     unsubs.push(db.collection('logs').orderBy('at', 'desc').limit(30).onSnapshot(s => {
       logs = s.docs.map(d => d.data()); if (page === 'settings') render();
     }, () => {}));
-  } else {
-    // first login adds the member automatically (admin can rename / change days & deposit later)
+  }
+  {
+    // first login adds the member automatically (admin too, since admin shares costs) (admin can rename / change days & deposit later)
     db.collection('members').doc(me).get().then(s => {
       if (!s.exists) db.collection('members').doc(me).set({ email: me, name: me.split('@')[0].toUpperCase(), days: 30, deposit: 0 });
     }).catch(() => {});
@@ -579,7 +589,7 @@ function renderNav() {
   $('nav').style.gridTemplateColumns = `repeat(${keys.length},1fr)`;
   const pend = isMgr ? entries.filter(x => x.status !== 'approved').length : 0;
   $('nav').innerHTML = keys.map(k =>
-    `<button class="${page === k ? 'on' : ''}" onclick="go('${k}')"><svg viewBox="0 0 24 24">${ICON[k]}</svg>${t(k)}${k === 'entries' && pend ? `<span class="dot">${pend}</span>` : ''}</button>`).join('');
+    `<button class="${page === k ? 'on' : ''}" onclick="go('${k}')"><svg viewBox="0 0 24 24">${ICON[k]}</svg>${t(k)}${k === 'admin' && pend ? `<span class="dot">${pend}</span>` : ''}</button>`).join('');
 }
 /* Pull down from the very top to refresh (works in the Home Screen app too) */
 let pY0 = 0, pDy = 0, pOn = false;
@@ -637,15 +647,31 @@ function renderNotes() {
 /* Members see the Admin tab; opening it asks for the admin password. Signing in as admin
    switches this device to the admin account (Firebase checks the password; wrong password changes nothing). */
 async function unlockAdmin() {
+  if (isMgr) { go('admin'); return; }
   const pw = await sheet({ title: t('enterAdminPw'), type: 'password', raw: true });
   if (!pw) return;
-  openAdminNext = true;
+  let sess = null;
   try {
-    await auth.signInWithEmailAndPassword(MANAGER, pw);
+    sess = firebase.initializeApp(FB_CONFIG, 'adminSess' + Date.now());
+    await sess.auth().signInWithEmailAndPassword(MANAGER, pw);
   } catch (e) {
-    openAdminNext = false;
-    toast(t('wrongPw'), true);
+    if (sess) sess.delete().catch(() => {});
+    toast(t('wrongPw'), true); return;
   }
+  if (adminSess) adminSess.delete().catch(() => {});
+  adminSess = sess;
+  adminDb = sess.firestore();   // no offline cache for the admin session
+  adminUnlocked = true;
+  isMgr = true;
+  startAdminListeners();
+  go('admin');
+}
+/* admin-only live data (activity log) comes through the admin session */
+function startAdminListeners() {
+  adminUnsubs.forEach(u => u()); adminUnsubs = [];
+  adminUnsubs.push(ADB().collection('logs').orderBy('at', 'desc').limit(30).onSnapshot(s => {
+    logs = s.docs.map(d => d.data()); if (page === 'settings' || page === 'admin') render();
+  }, () => {}));
 }
 async function postNote() {
   const el = $('noteTxt'); const text = el.value.trim();
@@ -659,7 +685,7 @@ async function postNote() {
 async function delNote(id) {
   const ok = await sheet({ title: lang === 'bn' ? 'এই নোট মুছবে?' : 'Delete this note?', input: false, okText: t('del') });
   if (!ok) return;
-  db.collection('notes').doc(id).delete().then(() => toast(t('deleted'))).catch(showErr);
+  (isMgr ? ADB() : db).collection('notes').doc(id).delete().then(() => toast(t('deleted'))).catch(showErr);
 }
 
 /* ===== Pay-slip photos live in slips/{entryId}, not in entries ===== */
@@ -668,7 +694,7 @@ const slipPending = {};
 function getSlip(id) {
   if (id in slipCache) return Promise.resolve(slipCache[id]);
   if (!slipPending[id]) {
-    slipPending[id] = db.collection('slips').doc(id).get()
+    slipPending[id] = (isMgr ? ADB() : db).collection('slips').doc(id).get()
       .then(s => { slipCache[id] = s.exists ? s.data().data : null; return slipCache[id]; })
       .catch(() => undefined) // permission/network error: not cached, retried on next render
       .finally(() => { delete slipPending[id]; });
@@ -700,7 +726,7 @@ function pushSummary(c) {
   const key = [c.tB.toFixed(2), c.tD, c.rate.toFixed(4)].join('|');
   if (key === lastSum) return;
   lastSum = key;
-  db.collection('summary').doc('main')
+  ADB().collection('summary').doc('main')
     .set({ tB: c.tB, tD: c.tD, rate: c.rate, updated: Date.now() })
     .catch(() => {});
 }
@@ -818,6 +844,16 @@ const byNewest = (a, b) => String(b.date).localeCompare(String(a.date)) || num(b
 /* ================= ENTRIES ================= */
 function renderEntries() {
   $('formCard').classList.remove('hidden');
+  $('fMemberBox').classList.toggle('hidden', !isMgr || !!editId);
+  if (isMgr) {
+    $('fMemberLbl').innerText = lang === 'bn' ? 'কার নামে এন্ট্রি' : 'Entry for';
+    const sel = $('fMember'), key = allEmails().join(',');
+    if (sel.dataset.key !== key) {
+      const keep = sel.value || me;
+      sel.innerHTML = allEmails().map(e => `<option value="${esc(e)}">${esc(nameOf(e))}${e === me ? ' (' + (lang === 'bn' ? 'আমি' : 'me') + ')' : ''}</option>`).join('');
+      sel.value = keep; sel.dataset.key = key;
+    }
+  }
   $('filterBox').classList.remove('hidden');
   const q = $('qSearch').value.trim().toLowerCase();
   $('filterSel').innerHTML = isMgr ? `
@@ -866,7 +902,7 @@ function entryRow(x) {
   } else if (locked) {
     acts = lockTxt + mgrEdit;
   } else {
-    acts = `<button class="ok" onclick="approve('${x.id}')">${t('approve')}</button><button class="warn" onclick="needFix('${x.id}')">${t('askFix')}</button>` + mgrEdit;
+    acts = mgrEdit;
   }
   const who = (isMgr || !mine) ? `<div class="sub">${esc(nameOf(x.memberEmail))}</div>` : '';
   const rs = x.status === 'needs_fix' && x.reason ? `<div style="color:var(--warn);font-size:12.5px;margin-top:4px">${t('reason')}: ${esc(x.reason)}</div>` : '';
@@ -929,19 +965,21 @@ async function saveEntry() {
   $('fMsg').innerText = '…'; $('fMsg').classList.remove('err');
   try {
     const photo = f ? await compress(f) : null;
+    const W = isMgr ? ADB() : db;
     if (editId) {
       const upd = { date, amount: amt, note };
       if (!isMgr) { upd.status = 'submitted'; upd.reason = ''; } // member edits go back to review
-      await db.collection('entries').doc(editId).update(upd);
+      await W.collection('entries').doc(editId).update(upd);
       if (photo) {
-        await db.collection('slips').doc(editId).set({ data: photo });
+        await W.collection('slips').doc(editId).set({ data: photo });
         slipCache[editId] = photo;
       }
     } else {
       // entry first (the slip rule checks that the entry exists), then the photo
-      const ref = await db.collection('entries').add({ memberEmail: me, date, amount: amt, note, status: 'submitted', reason: '', createdAt: Date.now() });
+      const who = isMgr && $('fMember') ? $('fMember').value : me;
+      const ref = await W.collection('entries').add({ memberEmail: who, date, amount: amt, note, status: isMgr ? 'approved' : 'submitted', reason: '', createdAt: Date.now() });
       try {
-        await db.collection('slips').doc(ref.id).set({ data: photo });
+        await W.collection('slips').doc(ref.id).set({ data: photo });
         slipCache[ref.id] = photo;
       } catch (e) {
         await ref.delete().catch(() => {}); // no entry without its pay slip
@@ -961,7 +999,7 @@ async function toggleClose() {
   const m = String(v).trim();
   if (!/^\d{4}-\d{2}$/.test(m)) { toast(t('needDateAmt'), true); return; }
   const next = closedMonths.includes(m) ? closedMonths.filter(x => x !== m) : [...closedMonths, m];
-  db.collection('settings').doc('app').set({ closedMonths: next }, { merge: true })
+  ADB().collection('settings').doc('app').set({ closedMonths: next }, { merge: true })
     .then(() => { toast(t('saved')); logAct((next.includes(m) ? 'Month closed · ' : 'Month reopened · ') + m); }).catch(showErr);
 }
 /* who pays whom: greedy matching of debtors to creditors */
@@ -979,7 +1017,7 @@ function settlements(r) {
   }
   return out;
 }
-function logAct(text) { db.collection('logs').add({ text, by: me, at: Date.now() }).catch(() => {}); }
+function logAct(text) { ADB().collection('logs').add({ text, by: me, at: Date.now() }).catch(() => {}); }
 async function approve(id) {
   const x = entries.find(e => e.id === id) || {};
   const ok = await sheet({
@@ -987,7 +1025,7 @@ async function approve(id) {
     input: false, okText: t('approve')
   });
   if (!ok) return;
-  db.collection('entries').doc(id).update({ status: 'approved', reason: '' })
+  ADB().collection('entries').doc(id).update({ status: 'approved', reason: '' })
     .then(() => logAct('Approved · ' + nameOf(x.memberEmail) + ' · ' + f2(x.amount))).catch(showErr);
 }
 async function needFix(id) {
@@ -995,7 +1033,7 @@ async function needFix(id) {
   if (r === null) return;
   if (!r) { toast(t('reasonPrompt'), true); return; }
   const x = entries.find(e => e.id === id) || {};
-  db.collection('entries').doc(id).update({ status: 'needs_fix', reason: r })
+  ADB().collection('entries').doc(id).update({ status: 'needs_fix', reason: r })
     .then(() => logAct('Fix asked · ' + nameOf(x.memberEmail) + ' · ' + r)).catch(showErr);
 }
 async function changeAmt(id) {
@@ -1004,16 +1042,17 @@ async function changeAmt(id) {
   if (v === null) return;
   const n = num(v);
   if (!(n > 0)) { toast(t('needDateAmt'), true); return; }
-  db.collection('entries').doc(id).update({ amount: n })
+  ADB().collection('entries').doc(id).update({ amount: n })
     .then(() => logAct('Amount ' + x.amount + ' → ' + n + ' · ' + nameOf(x.memberEmail))).catch(showErr);
 }
 async function delEntry(id) {
   const ok = await sheet({ title: t('confirmDel'), input: false, okText: t('del') });
   if (!ok) return;
   const x = entries.find(e => e.id === id) || {};
-  const b = db.batch(); // entry and its pay slip go together
-  b.delete(db.collection('entries').doc(id));
-  b.delete(db.collection('slips').doc(id));
+  const DB = isMgr ? ADB() : db;
+  const b = DB.batch(); // entry and its pay slip go together
+  b.delete(DB.collection('entries').doc(id));
+  b.delete(DB.collection('slips').doc(id));
   b.commit().then(() => {
     delete slipCache[id];
     toast(t('deleted'));
@@ -1062,11 +1101,11 @@ function renderMembers() {
 async function removeMember(email) {
   const ok = await sheet({ title: t('memberRemoveWarn'), input: false, okText: t('memberRemove') });
   if (!ok) return;
-  db.collection('members').doc(email).delete().then(() => toast(t('deleted'))).catch(showErr);
+  ADB().collection('members').doc(email).delete().then(() => toast(t('deleted'))).catch(showErr);
 }
 function saveMember(btn) {
   const c = btn.closest('.mcard'), email = c.dataset.email;
-  db.collection('members').doc(email).set({
+  ADB().collection('members').doc(email).set({
     email,
     name: c.querySelector('.mn').value.trim(),
     days: num(c.querySelector('.md').value),
@@ -1090,7 +1129,7 @@ async function addMember() {
         await sec.delete();
       }
     }
-    const ref = db.collection('members').doc(email);
+    const ref = ADB().collection('members').doc(email);
     const s = await ref.get();
     const fallback = email.split('@')[0].toUpperCase();
     if (s.exists) await ref.update({ name: name || s.data().name || fallback });
@@ -1174,7 +1213,16 @@ function renderAdmin() {
   const typed = {};
   ['nEmail', 'nName', 'nPw'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
 
-  let h = gh(isBn ? 'মেস' : 'Mess');
+  const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
+  let h = `<div class="card"><h3>${isBn ? `অপেক্ষমাণ এন্ট্রি (${pending.length})` : `Waiting approval (${pending.length})`}</h3>`
+    + (pending.length ? pending.map(x => `<div class="entry">${thumbFor(x)}<div class="grow">
+        <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
+        <div class="sub">${esc(nameOf(x.memberEmail))} · ${fmtDate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</div>
+        ${x.reason ? `<div style="color:var(--warn);font-size:12.5px;margin-top:2px">${esc(x.reason)}</div>` : ''}
+        <div class="acts"><button class="ok" onclick="approve('${x.id}')">${t('approve')}</button><button class="warn" onclick="needFix('${x.id}')">${t('askFix')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button></div>
+      </div></div>`).join('') : `<div class="empty">${isBn ? 'কোনো অপেক্ষমাণ এন্ট্রি নেই' : 'Nothing waiting for approval'}</div>`)
+    + `</div>`;
+  h += gh(isBn ? 'মেস' : 'Mess');
   h += sec(t('management'), `
       <div class="lbl" style="margin-top:14px">${isBn ? 'ঘোষণা' : 'Notice'}</div>
       <textarea id="noticeTxt" rows="2" style="width:100%">${esc(notice)}</textarea>
@@ -1216,7 +1264,7 @@ function setLang(v) { lang = v; localStorage.setItem('mh_lang_bn', v); applyLang
 function setThemeMode(v) {
   if (!isMgr) { toast(t('adminOnly'), true); return; }
   theme = v; localStorage.setItem('mh_theme', v); applyTheme(); render();
-  db.collection('settings').doc('app').set({ theme: v }, { merge: true }).catch(showErr);
+  ADB().collection('settings').doc('app').set({ theme: v }, { merge: true }).catch(showErr);
 }
 function setFs(v) { fs = v; localStorage.setItem('mh_fs', v); applyFs(); render(); }
 function applyFs() { document.body.style.fontSize = ({ small: '13px', medium: '15px', large: '18px' })[fs] || '15px'; }
@@ -1246,30 +1294,30 @@ async function resetAll() {
   const pw = await sheet({ title: t('enterAdminPw'), type: 'password', raw: true });
   if (!pw) return;
   try {
-    const user = auth.currentUser;
+    const user = ADBAuth().currentUser;
     await user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, pw));
   } catch (e) { toast(t('wrongPw'), true); return; }
   try {
-    const [eSnap, sSnap] = await Promise.all([db.collection('entries').get(), db.collection('slips').get()]);
+    const [eSnap, sSnap] = await Promise.all([ADB().collection('entries').get(), ADB().collection('slips').get()]);
     const refs = [...eSnap.docs, ...sSnap.docs].map(d => d.ref);
-    let batch = db.batch(), n = 0;
+    let batch = ADB().batch(), n = 0;
     for (const ref of refs) {
       batch.delete(ref); n++;
-      if (n % 400 === 0) { await batch.commit(); batch = db.batch(); }
+      if (n % 400 === 0) { await batch.commit(); batch = ADB().batch(); }
     }
     await batch.commit();
     clearSlipCache();
-    await db.collection('summary').doc('main').set({ tB: 0, tD: 0, rate: 0, updated: Date.now() });
+    await ADB().collection('summary').doc('main').set({ tB: 0, tD: 0, rate: 0, updated: Date.now() });
     toast(t('resetDone'));
   } catch (e) { showErr(e); }
 }
 async function saveNotice() {
-  db.collection('settings').doc('app').set({ notice: $('noticeTxt').value.trim() }, { merge: true })
+  ADB().collection('settings').doc('app').set({ notice: $('noticeTxt').value.trim() }, { merge: true })
     .then(() => { toast(t('saved')); logAct('Notice updated'); }).catch(showErr);
 }
 async function backupJSON() {
   try {
-    const sSnap = await db.collection('slips').get(); // admin can read all slips
+    const sSnap = await ADB().collection('slips').get(); // admin can read all slips
     const slips = sSnap.docs.map(d => ({ id: d.id, data: d.data().data }));
     const data = { exported: new Date().toISOString(), members, entries: entries.map(x => { const { id, ...r } = x; return { id, ...r }; }), slips };
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -1286,21 +1334,21 @@ async function restoreJSON(file) {
   try {
     const d = JSON.parse(await file.text());
     const small = [], slipOps = [];
-    (d.members || []).forEach(m => small.push({ ref: db.collection('members').doc(m.email), data: (({ email, ...r }) => r)(m) }));
+    (d.members || []).forEach(m => small.push({ ref: ADB().collection('members').doc(m.email), data: (({ email, ...r }) => r)(m) }));
     (d.entries || []).forEach(x => {
       const { id, photo, ...r } = x; // old backups carry the photo inside the entry: move it to slips
-      small.push({ ref: db.collection('entries').doc(id), data: { ...r, photo: firebase.firestore.FieldValue.delete() } });
-      if (photo) slipOps.push({ ref: db.collection('slips').doc(id), data: { data: photo } });
+      small.push({ ref: ADB().collection('entries').doc(id), data: { ...r, photo: firebase.firestore.FieldValue.delete() } });
+      if (photo) slipOps.push({ ref: ADB().collection('slips').doc(id), data: { data: photo } });
     });
-    (d.slips || []).forEach(s => slipOps.push({ ref: db.collection('slips').doc(s.id), data: { data: s.data } }));
+    (d.slips || []).forEach(s => slipOps.push({ ref: ADB().collection('slips').doc(s.id), data: { data: s.data } }));
     for (let i = 0; i < small.length; i += 400) {
-      const batch = db.batch();
+      const batch = ADB().batch();
       small.slice(i, i + 400).forEach(o => batch.set(o.ref, o.data, { merge: true }));
       await batch.commit();
     }
     // photos can be ~200 KB each, so keep slip batches small (Firestore caps a batch at 10 MiB)
     for (let i = 0; i < slipOps.length; i += 10) {
-      const batch = db.batch();
+      const batch = ADB().batch();
       slipOps.slice(i, i + 10).forEach(o => batch.set(o.ref, o.data));
       await batch.commit();
     }
@@ -1314,16 +1362,16 @@ async function migrateSlips() {
   const ok = await sheet({ title: lang === 'bn' ? 'পুরোনো ছবি slips-এ সরাবে? একবারই চালাও।' : 'Move old photos to slips? Run once.', input: false, okText: lang === 'bn' ? 'সরাও' : 'Move' });
   if (!ok) return;
   try {
-    const snap = await db.collection('entries').get();
+    const snap = await ADB().collection('entries').get();
     const todo = snap.docs.filter(d => d.data().photo);
     if (!todo.length) { toast(lang === 'bn' ? 'কোনো পুরোনো ছবি নেই' : 'No old photos found'); return; }
     for (let i = 0; i < todo.length; i += 10) {
       const chunk = todo.slice(i, i + 10);
       // copy first, and only then remove the photo from the entry
-      const copy = db.batch();
-      chunk.forEach(d => copy.set(db.collection('slips').doc(d.id), { data: d.data().photo }));
+      const copy = ADB().batch();
+      chunk.forEach(d => copy.set(ADB().collection('slips').doc(d.id), { data: d.data().photo }));
       await copy.commit();
-      const strip = db.batch();
+      const strip = ADB().batch();
       chunk.forEach(d => strip.update(d.ref, { photo: firebase.firestore.FieldValue.delete() }));
       await strip.commit();
     }
@@ -1384,8 +1432,8 @@ function installApp() {
 async function newMonthReset() {
   const ok = await sheet({ title: lang === 'bn' ? 'সবার দিন ৩০ করবে? জমা বদলাবে না।' : 'Set all members to 30 days? Deposits stay.', input: false, okText: lang === 'bn' ? 'করো' : 'Reset' });
   if (!ok) return;
-  const b = db.batch();
-  members.forEach(m => b.update(db.collection('members').doc(m.email), { days: 30 }));
+  const b = ADB().batch();
+  members.forEach(m => b.update(ADB().collection('members').doc(m.email), { days: 30 }));
   b.commit().then(() => { toast(t('saved')); logAct('New month: all days set to 30'); }).catch(showErr);
 }
 
@@ -1427,7 +1475,7 @@ function openMember(email) {
   hydrateSlips();
 }
 function saveMemberFields(email) {
-  db.collection('members').doc(email).set({
+  ADB().collection('members').doc(email).set({
     days: num($('mdDays').value),
     deposit: num($('mdDep').value)
   }, { merge: true }).then(() => { toast(t('saved')); logAct('Days/deposit · ' + email + ' · ' + num($('mdDays').value) + ' / ' + num($('mdDep').value)); if (memOpen) openMember(memOpen); }).catch(showErr);
