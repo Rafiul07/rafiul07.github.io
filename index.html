@@ -1073,7 +1073,7 @@ function renderMembers() {
     return `<div class="card mcard" data-email="${esc(m.email)}">
       <div class="mhead">
         <div class="mav" style="background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>
-        <div class="grow" style="min-width:0"><div class="mname">${esc(nm)}</div><div class="sub" style="word-break:break-all">${esc(m.email)}</div></div>
+        <div class="grow" style="min-width:0;cursor:pointer" onclick="openMember('${esc(m.email)}')"><div class="mname">${esc(nm)} <span class="sub">›</span></div><div class="sub" style="word-break:break-all">${esc(m.email)}</div></div>
         ${chip}
       </div>
       <div class="mbar"><i style="width:${pct}%"></i></div>
@@ -1504,10 +1504,12 @@ function openMember(email) {
   const keepD = sameM && oldD && oldD.value !== oldD.dataset.orig ? oldD.value : null;
   const keepP = sameM && oldP && oldP.value !== oldP.dataset.orig ? oldP.value : null;
   memOpen = email;
-  const all = entries.filter(x => x.memberEmail === email).sort(byNewest);
-  const bazar = bazarOf(email);            // same month scope as the home page
+  const all = scoped().filter(x => x.memberEmail === email).sort(byNewest);   // same month scope as the home page
+  const bazar = bazarOf(email);
   const rate = currentRate();
   const bal = rate == null ? null : balOf(email, rate);
+  const cc = calc();
+  const perHead = cc.em.length ? cc.tB / cc.em.length : 0;
   $('memTitle').innerText = nameOf(email);
   $('memBody').dataset.email = email;
   $('memBody').innerHTML = `<div class="sub" style="word-break:break-all">${esc(email)}</div>
@@ -1515,10 +1517,12 @@ function openMember(email) {
       ${kpi(t('bazar'), f2(bazar))}${kpi(t('days'), daysOf(email))}${kpi(t('deposit'), f2(depOf(email)))}${kpi(t('balance'), bal == null ? '—' : balTag(bal))}
     </div>
     ${rate != null ? `<div class="card" style="margin:0 0 12px"><h3>${lang === 'bn' ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
-      <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? 'বাজার' : 'Bazar'}</span><b class="num">${f2(bazar)}</b></div>
+      <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? 'মেসের মোট বাজার' : 'Total mess bazar'}</span><b class="num">${f2(cc.tB)}</b></div>
+      <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? 'জনপ্রতি ভাগ' : 'Per person share'}</span><b class="num">${f2(perHead)}</b></div>
+      <div class="row between" style="padding:4px 0;border-top:1px solid var(--bd)"><span>${lang === 'bn' ? 'এঁর বাজার' : 'Bazar paid'}</span><b class="num">${f2(bazar)}</b></div>
       <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? 'জমা' : 'Deposit'}</span><b class="num">+ ${f2(depOf(email))}</b></div>
       <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? `খাওয়া (${daysOf(email)} দিন × ${f2(rate)})` : `Meals (${daysOf(email)} days × ${f2(rate)})`}</span><b class="num">− ${f2(daysOf(email) * rate)}</b></div>
-      <div class="row between" style="padding:8px 0;border-top:1px solid var(--bd)"><b>${lang === 'bn' ? 'শেষ হিসাব' : 'Final'}</b><b class="num">${f2(bal)}</b></div>
+      <div class="row between" style="padding:8px 0;border-top:1px solid var(--bd)"><b>${bal >= 0 ? (lang === 'bn' ? 'ফেরত পাবে' : 'Gets back') : (lang === 'bn' ? 'বাকি (দিতে হবে)' : 'Due')}</b><b class="num" style="color:${bal >= 0 ? '#22c55e' : 'var(--bad)'}">${f2(Math.abs(bal))}</b></div>
     </div>` : ''}
     ${isMgr ? `<div class="card" style="margin:0 0 12px">
       <div class="mgrid">
