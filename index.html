@@ -1510,10 +1510,7 @@ function openMember(email) {
   const perHead = cc.em.length ? cc.tB / cc.em.length : 0;
   $('memTitle').innerText = nameOf(email);
   $('memBody').dataset.email = email;
-  $('memBody').innerHTML = `<div class="sub" style="word-break:break-all">${esc(email)}</div>
-    <div class="kpis" style="margin:12px 0">
-      ${kpi(t('bazar'), f2(bazar))}${kpi(t('days'), daysOf(email))}${kpi(t('deposit'), f2(depOf(email)))}${kpi(t('balance'), bal == null ? '—' : balTag(bal))}
-    </div>
+  $('memBody').innerHTML = `<div class="sub" style="word-break:break-all;margin-bottom:12px">${esc(email)}</div>
     ${rate != null ? `<div class="card" style="margin:0 0 12px"><h3>${lang === 'bn' ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
       <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? 'মেসের মোট বাজার' : 'Total mess bazar'}</span><b class="num">${f2(cc.tB)}</b></div>
       <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? 'জনপ্রতি ভাগ' : 'Per person share'}</span><b class="num">${f2(perHead)}</b></div>
@@ -1533,7 +1530,7 @@ function openMember(email) {
         <button class="bad" onclick="closeMember(); removeMember('${esc(email)}')">${t('del')}</button>
       </div>
     </div>` : ''}
-    <div class="card" style="margin:0"><h3>${t('listTitle')}</h3>${all.length ? all.map(entryRow).join('') : `<div class="empty">${t('noEntries')}</div>`}</div>
+    <div class="card" style="margin:0"><h3>${lang === 'bn' ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'}</h3>${all.length ? all.map(entryRow).join('') : `<div class="empty">${t('noEntries')}</div>`}</div>
     <button class="ghost" style="width:100%;margin-top:12px" onclick="closeMember()">← ${t('back')}</button>`;
   if (keepD !== null) $('mdDays').value = keepD;
   if (keepP !== null) $('mdDep').value = keepP;
