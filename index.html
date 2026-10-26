@@ -583,6 +583,12 @@ const ICON = {
 const PAGES = { home: 'pgHome', entries: 'pgEntries', settings: 'pgSettings', admin: 'pgAdmin' };
 
 function renderNav() {
+  // inside the control panel the menu collapses to one "back to member" button
+  if (page === 'admin' && isMgr) {
+    $('nav').style.gridTemplateColumns = '1fr';
+    $('nav').innerHTML = `<button class="on" onclick="go('home')" style="flex-direction:row;justify-content:center;gap:8px;min-height:50px"><svg viewBox="0 0 24 24">${ICON.home}</svg>${lang === 'bn' ? '← সদস্য হিসাবে ফিরে যাও' : '← Back to member'}</button>`;
+    return;
+  }
   const keys = ['home', 'entries'];
   keys.push('settings');
   keys.push('admin');
@@ -1078,16 +1084,8 @@ function renderMembers() {
       </div>
       <div class="mbar"><i style="width:${pct}%"></i></div>
       <div class="sub num" style="display:flex;justify-content:space-between;margin-bottom:8px"><span>${f2(b)} · ${pct}%</span><span>${t('days')} ${m.days ?? 30} · ${t('deposit')} ${f2(m.deposit ?? 0)}</span></div>
-      <div class="mgrid">
-        <label class="mf"><span>${t('nameLbl')}</span><input class="mn" data-orig="${esc(m.name || '')}" value="${esc(m.name || '')}"></label>
-        <label class="mf"><span>${t('days')}</span><input class="md" type="text" inputmode="numeric" data-orig="${m.days ?? 30}" value="${m.days ?? 30}"></label>
-        <label class="mf"><span>${t('deposit')}</span><input class="mp" type="text" inputmode="decimal" data-orig="${m.deposit ?? 0}" value="${m.deposit ?? 0}"></label>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button class="pri grow" onclick="saveMember(this)">${t('save')}</button>
-        <button class="ghost" onclick="openMember('${esc(m.email)}')">${t('memberPage')}</button>
-        <button class="bad" onclick="removeMember('${esc(m.email)}')">${t('del')}</button>
-      </div></div>`;
+      <button class="ghost" style="width:100%;margin-top:4px" onclick="openMember('${esc(m.email)}')">${t('memberPage')} ›</button>
+    </div>`;
   }).join('') || `<div class="card empty">${t('noEntries')}</div>`;
 }
 /* keeps values the admin typed (and has not saved) when the member cards are redrawn */
@@ -1526,19 +1524,26 @@ function openMember(email) {
     </div>` : ''}
     ${isMgr ? `<div class="card" style="margin:0 0 12px">
       <div class="mgrid">
+        <label class="mf"><span>${t('nameLbl')}</span><input id="mdName" type="text" data-orig="${esc(nameOf(email))}" value="${esc(nameOf(email))}"></label>
         <label class="mf"><span>${t('days')}</span><input id="mdDays" type="text" inputmode="numeric" data-orig="${daysOf(email)}" value="${daysOf(email)}"></label>
         <label class="mf"><span>${t('deposit')}</span><input id="mdDep" type="text" inputmode="decimal" data-orig="${depOf(email)}" value="${depOf(email)}"></label>
       </div>
-      <button class="pri" style="width:100%;margin-top:10px" onclick="saveMemberFields('${esc(email)}')">${t('save')}</button>
+      <div class="row" style="margin-top:10px">
+        <button class="pri grow" onclick="saveMemberFields('${esc(email)}')">${t('save')}</button>
+        <button class="bad" onclick="closeMember(); removeMember('${esc(email)}')">${t('del')}</button>
+      </div>
     </div>` : ''}
-    <div class="card" style="margin:0"><h3>${t('listTitle')}</h3>${all.length ? all.map(entryRow).join('') : `<div class="empty">${t('noEntries')}</div>`}</div>`;
+    <div class="card" style="margin:0"><h3>${t('listTitle')}</h3>${all.length ? all.map(entryRow).join('') : `<div class="empty">${t('noEntries')}</div>`}</div>
+    <button class="ghost" style="width:100%;margin-top:12px" onclick="closeMember()">← ${t('back')}</button>`;
   if (keepD !== null) $('mdDays').value = keepD;
   if (keepP !== null) $('mdDep').value = keepP;
   $('memBox').classList.remove('hidden');
   hydrateSlips();
 }
 function saveMemberFields(email) {
+  const nm = $('mdName').value.trim();
   ADB().collection('members').doc(email).set({
+    ...(nm ? { name: nm } : {}),
     days: num($('mdDays').value),
     deposit: num($('mdDep').value)
   }, { merge: true }).then(() => { toast(t('saved')); logAct('Days/deposit · ' + email + ' · ' + num($('mdDays').value) + ' / ' + num($('mdDep').value)); if (memOpen) openMember(memOpen); }).catch(showErr);
