@@ -1508,30 +1508,47 @@ function openMember(email) {
   const bal = rate == null ? null : balOf(email, rate);
   const cc = calc();
   const perHead = cc.em.length ? cc.tB / cc.em.length : 0;
-  $('memTitle').innerText = nameOf(email);
+  const bn = lang === 'bn';
+  const pos = bal != null && bal >= 0;
+  const tone = bal == null ? 'var(--sub)' : pos ? '#22c55e' : 'var(--bad)';
+  const row = (label, val, extra = '') => `<div class="row between" style="padding:7px 0;${extra}"><span class="sub">${label}</span><b class="num">${val}</b></div>`;
+  $('memTitle').innerText = bn ? 'সদস্যের হিসাব' : 'Member account';
   $('memBody').dataset.email = email;
-  $('memBody').innerHTML = `<div class="sub" style="word-break:break-all;margin-bottom:12px">${esc(email)}</div>
-    ${rate != null ? `<div class="card" style="margin:0 0 12px"><h3>${lang === 'bn' ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
-      <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? 'মেসের মোট বাজার' : 'Total mess bazar'}</span><b class="num">${f2(cc.tB)}</b></div>
-      <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? 'জনপ্রতি ভাগ' : 'Per person share'}</span><b class="num">${f2(perHead)}</b></div>
-      <div class="row between" style="padding:4px 0;border-top:1px solid var(--bd)"><span>${lang === 'bn' ? 'এঁর বাজার' : 'Bazar paid'}</span><b class="num">${f2(bazar)}</b></div>
-      <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? 'জমা' : 'Deposit'}</span><b class="num">+ ${f2(depOf(email))}</b></div>
-      <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? `খাওয়া (${daysOf(email)} দিন × ${f2(rate)})` : `Meals (${daysOf(email)} days × ${f2(rate)})`}</span><b class="num">− ${f2(daysOf(email) * rate)}</b></div>
-      <div class="row between" style="padding:8px 0;border-top:1px solid var(--bd)"><b>${bal >= 0 ? (lang === 'bn' ? 'ফেরত পাবে' : 'Gets back') : (lang === 'bn' ? 'বাকি (দিতে হবে)' : 'Due')}</b><b class="num" style="color:${bal >= 0 ? '#22c55e' : 'var(--bad)'}">${f2(Math.abs(bal))}</b></div>
-    </div>` : ''}
-    ${isMgr ? `<div class="card" style="margin:0 0 12px">
+  $('memBody').innerHTML = `
+    <div class="row" style="flex-wrap:nowrap;gap:12px;margin-bottom:12px">
+      <div class="mav" style="background:linear-gradient(135deg,var(--p),var(--s))">${esc(nameOf(email).charAt(0))}</div>
+      <div class="grow" style="min-width:0"><div class="mname">${esc(nameOf(email))}</div><div class="sub" style="word-break:break-all">${esc(email)}</div></div>
+    </div>
+    ${isMgr ? `<details class="sec" style="margin:0 0 14px"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
       <div class="mgrid">
         <label class="mf"><span>${t('nameLbl')}</span><input id="mdName" type="text" data-orig="${esc(nameOf(email))}" value="${esc(nameOf(email))}"></label>
         <label class="mf"><span>${t('days')}</span><input id="mdDays" type="text" inputmode="numeric" data-orig="${daysOf(email)}" value="${daysOf(email)}"></label>
         <label class="mf"><span>${t('deposit')}</span><input id="mdDep" type="text" inputmode="decimal" data-orig="${depOf(email)}" value="${depOf(email)}"></label>
       </div>
-      <div class="row" style="margin-top:10px">
+      <div class="row" style="margin-top:12px">
         <button class="pri grow" onclick="saveMemberFields('${esc(email)}')">${t('save')}</button>
         <button class="bad" onclick="closeMember(); removeMember('${esc(email)}')">${t('del')}</button>
       </div>
+    </div></details>` : ''}
+    <div class="hero" style="margin-bottom:14px">
+      <div class="sub">${bal == null ? (bn ? 'দিন যোগ হলে হিসাব দেখা যাবে' : 'Shows once days are set') : pos ? (bn ? 'ফেরত পাবে' : 'Gets back') : (bn ? 'বাকি (দিতে হবে)' : 'Due')}</div>
+      <div class="big" style="color:${tone}">${bal == null ? '—' : f2(Math.abs(bal))}</div>
+      <div class="sub" style="margin-top:6px">${t('bazar')} ${f2(bazar)} · ${t('days')} ${daysOf(email)} · ${t('deposit')} ${f2(depOf(email))}</div>
+    </div>
+    ${rate != null ? `<div class="card" style="margin:0 0 14px">
+      <h3>${bn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
+      ${row(bn ? 'মেসের মোট বাজার' : 'Total mess bazar', f2(cc.tB))}
+      ${row(bn ? 'জনপ্রতি ভাগ' : 'Per person share', f2(perHead))}
+      ${row(bn ? 'এঁর বাজার' : 'Bazar paid', f2(bazar), 'border-top:1px solid var(--bd)')}
+      ${row(bn ? 'জমা' : 'Deposit', '+ ' + f2(depOf(email)))}
+      ${row(bn ? `খাওয়া (${daysOf(email)} দিন × ${f2(rate)})` : `Meals (${daysOf(email)} days × ${f2(rate)})`, '− ' + f2(daysOf(email) * rate))}
+      <div class="row between" style="padding:10px 0 2px;border-top:1px solid var(--bd)"><b>${pos ? (bn ? 'ফেরত পাবে' : 'Gets back') : (bn ? 'বাকি (দিতে হবে)' : 'Due')}</b><b class="num" style="color:${tone};font-size:18px">${f2(Math.abs(bal))}</b></div>
     </div>` : ''}
-    <div class="card" style="margin:0"><h3>${lang === 'bn' ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'}</h3>${all.length ? all.map(entryRow).join('') : `<div class="empty">${t('noEntries')}</div>`}</div>
-    <button class="ghost" style="width:100%;margin-top:12px" onclick="closeMember()">← ${t('back')}</button>`;
+    <div class="card" style="margin:0 0 14px">
+      <h3>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></h3>
+      ${all.length ? all.map(entryRow).join('') : `<div class="empty">${t('noEntries')}</div>`}
+    </div>
+    <button class="ghost" style="width:100%" onclick="closeMember()">← ${t('back')}</button>`;
   if (keepD !== null) $('mdDays').value = keepD;
   if (keepP !== null) $('mdDep').value = keepP;
   $('memBox').classList.remove('hidden');
