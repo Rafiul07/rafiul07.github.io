@@ -173,7 +173,6 @@ body{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))!important}
 .nav button{min-height:50px;padding:4px 0}
 .nav svg{width:20px;height:20px}
 .toast{bottom:calc(28px + env(safe-area-inset-bottom,0px))!important}
-/* floating menu (old): sits above the Netlify free-plan badge */
 /* ---- design pass ---- */
 button{min-height:44px;transition:transform .12s ease,opacity .12s ease}
 button:active{transform:scale(.97);opacity:.9}
@@ -333,7 +332,7 @@ details.sec .secBody{margin-top:12px}
 </div>
 
 <script>
-const MANAGER = 'admin@gmail.com'; // admin: management only, no own entries
+const MANAGER = 'admin@gmail.com'; // admin account: runs the app and is also a mess member
 
 const FB_CONFIG = {
   apiKey: "AIzaSyDphTQKfSWT6HbYaaFqIE22y9jj6xbtXco",
@@ -467,7 +466,8 @@ const depOf = e => { const m = memberOf(e); return m ? num(m.deposit) : 0; };
 const nameOf = e => { const m = memberOf(e); return m && m.name ? m.name : e.split('@')[0].toUpperCase(); };
 function scoped() { return month === 'all' ? entries : entries.filter(x => String(x.date).slice(0, 7) === month); }
 const bazarOf = e => scoped().filter(x => x.memberEmail === e).reduce((a, x) => a + num(x.amount), 0);
-function allEmails() { return [...new Set([...members.map(m => m.email), ...entries.map(x => x.memberEmail)])]; }
+/* people who share the cost = everyone with a member doc (admin included). A removed member's entries stay in the totals. */
+function allEmails() { return members.map(m => m.email); }
 function calc(list = scoped()) {
   const em = allEmails();
   const tB = list.reduce((a, x) => a + num(x.amount), 0);
@@ -475,7 +475,7 @@ function calc(list = scoped()) {
   return { em, tB, tD, rate: tD > 0 ? tB / tD : 0 };
 }
 /* Rate: manager computes it live; members read the manager's published summary */
-function currentRate() { return calc().rate; }
+function currentRate() { const c = calc(); return c.tD > 0 ? c.rate : null; } // null until someone has days
 function balOf(e, rate) { return bazarOf(e) + depOf(e) - num(rate) * daysOf(e); }
 function balTag(b) {
   const pos = b >= 0;
@@ -549,8 +549,8 @@ auth.onAuthStateChanged(async user => {
     }, () => {}));
   }
   {
-    // first login adds the member automatically (admin too, since admin shares costs) (admin can rename / change days & deposit later)
-    db.collection('members').doc(me).get().then(s => {
+    // only the admin creates its own member doc here; every other member doc is created by the admin in "সব সদস্য"
+    if (me === MANAGER) db.collection('members').doc(me).get().then(s => {
       if (!s.exists) db.collection('members').doc(me).set({ email: me, name: me.split('@')[0].toUpperCase(), days: 30, deposit: 0 });
     }).catch(() => {});
     unsubs.push(db.collection('summary').doc('main').onSnapshot(d => {
@@ -617,6 +617,7 @@ function render() {
   if (!me) return;
   $('roleTag').innerText = isMgr ? t('admin') : t('member');
   if (isMgr && loaded.members && loaded.entries) pushSummary(calc(entries));
+  if (isMgr && loaded.entries && entries.some(x => x.photo)) autoMigrate();
   if (memOpen) openMember(memOpen);
   if (page === 'home') renderHome();
   if (page === 'entries') renderEntries();
@@ -653,6 +654,7 @@ async function unlockAdmin() {
   let sess = null;
   try {
     sess = firebase.initializeApp(FB_CONFIG, 'adminSess' + Date.now());
+    await sess.auth().setPersistence(firebase.auth.Auth.Persistence.NONE); // admin session lives in memory only
     await sess.auth().signInWithEmailAndPassword(MANAGER, pw);
   } catch (e) {
     if (sess) sess.delete().catch(() => {});
@@ -826,6 +828,13 @@ function renderHome() {
         `<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--bd)"><div><b>${esc(nameOf(e))}</b>${e === me ? ' ★' : ''}<div class="sub num">${f2(bazarOf(e))} · ${t('days')} ${daysOf(e)} · ${t('deposit')} ${f2(depOf(e))}</div></div>${balTag(balOf(e, r2))}</div>`).join('') + `</div>`;
     }
   }
+  const rr = currentRate();
+  if (rr != null) {
+    const st = settlements(rr);
+    h += `<div class="card"><h3>${lang === 'bn' ? 'কে কাকে কত দেবে' : 'Who pays whom'}</h3>` + (st.length
+      ? st.map(s => `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${esc(nameOf(s.from))} → ${esc(nameOf(s.to))}</span><b class="num">${f2(s.amt)}</b></div>`).join('')
+      : `<div class="sub">${lang === 'bn' ? 'সবার হিসাব মিলে গেছে' : 'Everyone is settled'}</div>`) + `</div>`;
+  }
   $('hContent').innerHTML = h;
 }
 
@@ -896,11 +905,11 @@ function entryRow(x) {
   if (isClosed(x)) {
     acts = `<span class="sub">🔒 ${lang === 'bn' ? 'মাস বন্ধ' : 'Month closed'}</span>`;
   } else if (own) {
-    acts = locked ? lockTxt + (isMgr ? mgrEdit : '') : ownEdit;
+    acts = locked ? lockTxt : ownEdit;   // approved entries are locked for everyone, admin included
   } else if (!isMgr) {
     acts = '';
   } else if (locked) {
-    acts = lockTxt + mgrEdit;
+    acts = lockTxt;
   } else {
     acts = mgrEdit;
   }
@@ -1028,23 +1037,6 @@ async function approve(id) {
   ADB().collection('entries').doc(id).update({ status: 'approved', reason: '' })
     .then(() => logAct('Approved · ' + nameOf(x.memberEmail) + ' · ' + f2(x.amount))).catch(showErr);
 }
-async function needFix(id) {
-  const r = await sheet({ title: t('reasonPrompt'), value: '', ph: t('reasonHint') });
-  if (r === null) return;
-  if (!r) { toast(t('reasonPrompt'), true); return; }
-  const x = entries.find(e => e.id === id) || {};
-  ADB().collection('entries').doc(id).update({ status: 'needs_fix', reason: r })
-    .then(() => logAct('Fix asked · ' + nameOf(x.memberEmail) + ' · ' + r)).catch(showErr);
-}
-async function changeAmt(id) {
-  const x = entries.find(e => e.id === id); if (!x) return;
-  const v = await sheet({ title: t('amountPrompt'), value: String(x.amount), ph: t('amount') });
-  if (v === null) return;
-  const n = num(v);
-  if (!(n > 0)) { toast(t('needDateAmt'), true); return; }
-  ADB().collection('entries').doc(id).update({ amount: n })
-    .then(() => logAct('Amount ' + x.amount + ' → ' + n + ' · ' + nameOf(x.memberEmail))).catch(showErr);
-}
 async function delEntry(id) {
   const ok = await sheet({ title: t('confirmDel'), input: false, okText: t('del') });
   if (!ok) return;
@@ -1065,7 +1057,7 @@ let mSort = 'name';
 function renderMembers() {
   const q = ($('mSearch') ? $('mSearch').value : '').trim().toLowerCase();
   const rate = currentRate();
-  const rows = members.filter(m => m.email !== MANAGER)
+  const rows = members   // admin is listed too: admin shares the cost
     .filter(m => !q || (nameOf(m.email) + ' ' + m.email).toLowerCase().includes(q))
     .map(m => ({ m, b: bazarOf(m.email), bal: rate != null ? balOf(m.email, rate) : 0 }));
   rows.sort((x, y) => mSort === 'bazar' ? y.b - x.b
@@ -1087,9 +1079,9 @@ function renderMembers() {
       <div class="mbar"><i style="width:${pct}%"></i></div>
       <div class="sub num" style="display:flex;justify-content:space-between;margin-bottom:8px"><span>${f2(b)} · ${pct}%</span><span>${t('days')} ${m.days ?? 30} · ${t('deposit')} ${f2(m.deposit ?? 0)}</span></div>
       <div class="mgrid">
-        <label class="mf"><span>${t('nameLbl')}</span><input class="mn" value="${esc(m.name || '')}"></label>
-        <label class="mf"><span>${t('days')}</span><input class="md" type="text" inputmode="numeric" value="${m.days ?? 30}"></label>
-        <label class="mf"><span>${t('deposit')}</span><input class="mp" type="text" inputmode="decimal" value="${m.deposit ?? 0}"></label>
+        <label class="mf"><span>${t('nameLbl')}</span><input class="mn" data-orig="${esc(m.name || '')}" value="${esc(m.name || '')}"></label>
+        <label class="mf"><span>${t('days')}</span><input class="md" type="text" inputmode="numeric" data-orig="${m.days ?? 30}" value="${m.days ?? 30}"></label>
+        <label class="mf"><span>${t('deposit')}</span><input class="mp" type="text" inputmode="decimal" data-orig="${m.deposit ?? 0}" value="${m.deposit ?? 0}"></label>
       </div>
       <div class="row" style="margin-top:10px">
         <button class="pri grow" onclick="saveMember(this)">${t('save')}</button>
@@ -1098,6 +1090,24 @@ function renderMembers() {
       </div></div>`;
   }).join('') || `<div class="card empty">${t('noEntries')}</div>`;
 }
+/* keeps values the admin typed (and has not saved) when the member cards are redrawn */
+function collectMemKeep() {
+  const out = {};
+  document.querySelectorAll('#memberList .mcard').forEach(c => {
+    ['mn', 'md', 'mp'].forEach(k => {
+      const el = c.querySelector('.' + k);
+      if (el && el.value !== el.dataset.orig) (out[c.dataset.email] = out[c.dataset.email] || {})[k] = el.value;
+    });
+  });
+  return out;
+}
+function applyMemKeep(keep) {
+  Object.entries(keep).forEach(([email, vals]) => {
+    const c = [...document.querySelectorAll('#memberList .mcard')].find(x => x.dataset.email === email);
+    if (c) Object.entries(vals).forEach(([k, v]) => { const el = c.querySelector('.' + k); if (el) el.value = v; });
+  });
+}
+function memSearch() { const k = collectMemKeep(); renderMembers(); applyMemKeep(k); }
 async function removeMember(email) {
   const ok = await sheet({ title: t('memberRemoveWarn'), input: false, okText: t('memberRemove') });
   if (!ok) return;
@@ -1117,6 +1127,7 @@ async function addMember() {
   if (!email.includes('@')) { toast(t('memberEmail'), true); return; }
   try {
     // create the login with a second Firebase app, so the admin stays signed in
+    let existed = false;
     if (pw) {
       if (pw.length < 6) { toast(t('pwShort'), true); return; }
       const sec = firebase.initializeApp(FB_CONFIG, 'userMaker' + Date.now());
@@ -1124,6 +1135,7 @@ async function addMember() {
         await sec.auth().createUserWithEmailAndPassword(email, pw);
       } catch (e) {
         if (e.code !== 'auth/email-already-in-use') throw e;
+        existed = true;   // login was already there: the new password was NOT set
       } finally {
         await sec.auth().signOut();
         await sec.delete();
@@ -1135,7 +1147,7 @@ async function addMember() {
     if (s.exists) await ref.update({ name: name || s.data().name || fallback });
     else await ref.set({ email, name: name || fallback, days: 30, deposit: 0 });
     $('nEmail').value = ''; $('nName').value = ''; $('nPw').value = '';
-    toast(t('saved'));
+    toast(existed ? (lang === 'bn' ? 'এই ইমেইলের login আগে থেকেই আছে, পাসওয়ার্ড বদলায়নি' : 'Login already exists, password not changed') : t('saved'));
   } catch (e) { showErr(e); }
 }
 
@@ -1212,12 +1224,13 @@ function renderAdmin() {
   const gh = label => `<div class="gh">${label}</div>`;
   const active = document.activeElement;
   const keep = active && active.closest && active.closest('#pgAdmin') ? { id: active.id, v: active.value, pos: active.selectionStart } : null;
+  const memKeep = collectMemKeep();
   const typed = {};
   ['nEmail', 'nName', 'nPw', 'mSearch'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
 
   const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
   const tabBtn = (k, label) => `<button class="${admTab === k ? 'pri' : 'ghost'}" style="flex:1" onclick="admTabSet('${k}')">${label}</button>`;
-  let h = `<div class="row" style="gap:8px;margin-bottom:12px">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('members', isBn ? 'সব সদস্য' : 'All members')}${tabBtn('settings', isBn ? 'সেটিংস' : 'Settings')}</div>`;
+  let h = `<div class="row" style="gap:8px;margin-bottom:12px">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('members', isBn ? 'সব সদস্য' : 'All members')}${tabBtn('settings', isBn ? 'মেস সেটিংস' : 'Mess settings')}</div>`;
   if (admTab === 'wait') h += `<div class="card"><h3>${isBn ? `অপেক্ষমাণ এন্ট্রি (${pending.length})` : `Waiting approval (${pending.length})`}</h3>`
     + (pending.length ? pending.map(x => `<div class="entry">${thumbFor(x)}<div class="grow">
         <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
@@ -1245,7 +1258,7 @@ function renderAdmin() {
 
   }
   if (admTab === 'members') {
-  h += `<input id="mSearch" placeholder="${t('search')}" oninput="renderMembers()" style="margin-bottom:10px"><div id="memberList"></div>`;
+  h += `<input id="mSearch" placeholder="${t('search')}" oninput="memSearch()" style="margin-bottom:10px"><div id="memberList"></div>`;
   h += sec(isBn ? 'নতুন সদস্য যোগ' : 'Add member', `
       <input id="nEmail" type="email" placeholder="${isBn ? 'ইমেইল' : 'Email'}">
       <input id="nName" placeholder="${isBn ? 'নাম' : 'Name'}" style="margin-top:8px">
@@ -1268,7 +1281,7 @@ function renderAdmin() {
   }
   $('pgAdmin').innerHTML = h;
   Object.entries(typed).forEach(([i, v]) => { const el = $(i); if (el) el.value = v; });
-  if (admTab === 'members') renderMembers();
+  if (admTab === 'members') { renderMembers(); applyMemKeep(memKeep); }
   if (keep) { const el = $(keep.id); if (el) { el.value = keep.v; el.focus(); try { el.setSelectionRange(keep.pos, keep.pos); } catch (e) {} } }
 }
 
@@ -1391,6 +1404,26 @@ async function migrateSlips() {
     toast(t('saved')); logAct('Photos moved to slips · ' + todo.length);
   } catch (e) { showErr(e); }
 }
+let migrating = false;
+/* Moves legacy photos (entries.photo) into slips/{id}, admin only. Runs by itself, so no old photo stays readable by members. */
+async function autoMigrate() {
+  if (migrating) return; migrating = true;
+  try {
+    const snap = await ADB().collection('entries').get();
+    const todo = snap.docs.filter(d => d.data().photo);
+    for (let i = 0; i < todo.length; i += 10) {
+      const chunk = todo.slice(i, i + 10);
+      const copy = ADB().batch();   // copy first, remove from the entry only after the copy succeeded
+      chunk.forEach(d => copy.set(ADB().collection('slips').doc(d.id), { data: d.data().photo }));
+      await copy.commit();
+      const strip = ADB().batch();
+      chunk.forEach(d => strip.update(d.ref, { photo: firebase.firestore.FieldValue.delete() }));
+      await strip.commit();
+    }
+    if (todo.length) { clearSlipCache(); logAct('Photos moved to slips (auto) · ' + todo.length); }
+  } catch (e) { /* tried again on the next render */ }
+  finally { migrating = false; }
+}
 function exportCSV() {
   const list = scoped().slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -1465,24 +1498,38 @@ function zoomImg(d) { imgZ = Math.min(3, Math.max(1, imgZ + d)); applyImg(); }
 function applyImg() { $('imgBig').style.transform = `rotate(${imgRot}deg) scale(${imgZ})`; }
 
 function openMember(email) {
+  // keep days/deposit the admin is typing when this modal is redrawn by a live update
+  const oldD = $('mdDays'), oldP = $('mdDep');
+  const sameM = $('memBody').dataset.email === email;
+  const keepD = sameM && oldD && oldD.value !== oldD.dataset.orig ? oldD.value : null;
+  const keepP = sameM && oldP && oldP.value !== oldP.dataset.orig ? oldP.value : null;
   memOpen = email;
   const all = entries.filter(x => x.memberEmail === email).sort(byNewest);
-  const bazar = all.reduce((a, x) => a + num(x.amount), 0);
-  const rate = calc(entries).rate;
-  const bal = bazar + depOf(email) - rate * daysOf(email);
+  const bazar = bazarOf(email);            // same month scope as the home page
+  const rate = currentRate();
+  const bal = rate == null ? null : balOf(email, rate);
   $('memTitle').innerText = nameOf(email);
+  $('memBody').dataset.email = email;
   $('memBody').innerHTML = `<div class="sub" style="word-break:break-all">${esc(email)}</div>
     <div class="kpis" style="margin:12px 0">
-      ${kpi(t('bazar'), f2(bazar))}${kpi(t('days'), daysOf(email))}${kpi(t('deposit'), f2(depOf(email)))}${kpi(t('balance'), balTag(bal))}
+      ${kpi(t('bazar'), f2(bazar))}${kpi(t('days'), daysOf(email))}${kpi(t('deposit'), f2(depOf(email)))}${kpi(t('balance'), bal == null ? '—' : balTag(bal))}
     </div>
+    ${rate != null ? `<div class="card" style="margin:0 0 12px"><h3>${lang === 'bn' ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
+      <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? 'বাজার' : 'Bazar'}</span><b class="num">${f2(bazar)}</b></div>
+      <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? 'জমা' : 'Deposit'}</span><b class="num">+ ${f2(depOf(email))}</b></div>
+      <div class="row between" style="padding:4px 0"><span>${lang === 'bn' ? `খাওয়া (${daysOf(email)} দিন × ${f2(rate)})` : `Meals (${daysOf(email)} days × ${f2(rate)})`}</span><b class="num">− ${f2(daysOf(email) * rate)}</b></div>
+      <div class="row between" style="padding:8px 0;border-top:1px solid var(--bd)"><b>${lang === 'bn' ? 'শেষ হিসাব' : 'Final'}</b><b class="num">${f2(bal)}</b></div>
+    </div>` : ''}
     ${isMgr ? `<div class="card" style="margin:0 0 12px">
       <div class="mgrid">
-        <label class="mf"><span>${t('days')}</span><input id="mdDays" type="text" inputmode="numeric" value="${daysOf(email)}"></label>
-        <label class="mf"><span>${t('deposit')}</span><input id="mdDep" type="text" inputmode="decimal" value="${depOf(email)}"></label>
+        <label class="mf"><span>${t('days')}</span><input id="mdDays" type="text" inputmode="numeric" data-orig="${daysOf(email)}" value="${daysOf(email)}"></label>
+        <label class="mf"><span>${t('deposit')}</span><input id="mdDep" type="text" inputmode="decimal" data-orig="${depOf(email)}" value="${depOf(email)}"></label>
       </div>
       <button class="pri" style="width:100%;margin-top:10px" onclick="saveMemberFields('${esc(email)}')">${t('save')}</button>
     </div>` : ''}
     <div class="card" style="margin:0"><h3>${t('listTitle')}</h3>${all.length ? all.map(entryRow).join('') : `<div class="empty">${t('noEntries')}</div>`}</div>`;
+  if (keepD !== null) $('mdDays').value = keepD;
+  if (keepP !== null) $('mdDep').value = keepP;
   $('memBox').classList.remove('hidden');
   hydrateSlips();
 }
