@@ -468,6 +468,7 @@ function sheet({ title, input = true, value = '', type = 'text', ph = '', okText
     if (input) setTimeout(() => i.focus(), 50);
     const done = v => {
       $('sheet').classList.add('hidden');
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); // closes the iPhone keyboard
       $('shOk').onclick = null; $('shCancel').onclick = null; i.onkeydown = null;
       resolve(v);
     };
@@ -636,6 +637,8 @@ function go(p) {
   Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== p));
   render();
   window.scrollTo(0, 0);
+  // iPhone keeps the page offset after the password keyboard closes; scroll to the top again once it settles
+  if (p === 'admin') setTimeout(() => window.scrollTo(0, 0), 350);
 }
 
 function render() {
