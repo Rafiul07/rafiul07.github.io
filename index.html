@@ -707,7 +707,7 @@ function pushSummary(c) {
 
 /* ================= HOME ================= */
 function renderHome() {
-  $('qBar').classList.toggle('hidden', isMgr);
+  $('qBar').classList.remove('hidden');
   let h = '';
   if (notice) h += `<div class="card" style="border-color:var(--p)"><h3>${lang === 'bn' ? 'ঘোষণা' : 'Notice'}</h3><div>${esc(notice)}</div></div>`;
   if (isMgr) {
@@ -748,7 +748,8 @@ function renderHome() {
       </div>`;
     }).join('') + `</div>`;
     h += `<div class="card"><h3>${t('recent')}</h3>` + recentList(entries, 5, true) + `</div>`;
-  } else {
+  }
+  {
     const r = currentRate();
     const bal = r == null ? null : balOf(me, r);
     const isBn = lang === 'bn';
@@ -816,7 +817,7 @@ const byNewest = (a, b) => String(b.date).localeCompare(String(a.date)) || num(b
 
 /* ================= ENTRIES ================= */
 function renderEntries() {
-  $('formCard').classList.toggle('hidden', isMgr);
+  $('formCard').classList.remove('hidden');
   $('filterBox').classList.remove('hidden');
   const q = $('qSearch').value.trim().toLowerCase();
   $('filterSel').innerHTML = isMgr ? `
@@ -849,22 +850,23 @@ function renderEntries() {
 }
 
 function entryRow(x) {
-  const mine = isMgr || x.memberEmail === me;
+  const own = x.memberEmail === me;
+  const mine = isMgr || own;
   const locked = x.status === 'approved';
+  const lockTxt = `<span class="sub">🔒 ${t('locked')}</span>`;
+  const mgrEdit = `<button class="ghost" onclick="changeAmt('${x.id}')">${t('changeAmt')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
+  const ownEdit = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
   let acts = '';
   if (isClosed(x)) {
     acts = `<span class="sub">🔒 ${lang === 'bn' ? 'মাস বন্ধ' : 'Month closed'}</span>`;
-  } else if (!mine) {
+  } else if (own) {
+    acts = locked ? lockTxt + (isMgr ? mgrEdit : '') : ownEdit;
+  } else if (!isMgr) {
     acts = '';
-  } else if (locked && !isMgr) {
-    acts = `<span class="sub">🔒 ${t('locked')}</span>`;
-  } else if (locked && isMgr) {
-    acts = `<span class="sub">🔒 ${t('locked')}</span><button class="ghost" onclick="changeAmt('${x.id}')">${t('changeAmt')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
-  } else if (isMgr) {
-    acts = `<button class="ok" onclick="approve('${x.id}')">${t('approve')}</button><button class="warn" onclick="needFix('${x.id}')">${t('askFix')}</button>`
-      + `<button class="ghost" onclick="changeAmt('${x.id}')">${t('changeAmt')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
+  } else if (locked) {
+    acts = lockTxt + mgrEdit;
   } else {
-    acts = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
+    acts = `<button class="ok" onclick="approve('${x.id}')">${t('approve')}</button><button class="warn" onclick="needFix('${x.id}')">${t('askFix')}</button>` + mgrEdit;
   }
   const who = (isMgr || !mine) ? `<div class="sub">${esc(nameOf(x.memberEmail))}</div>` : '';
   const rs = x.status === 'needs_fix' && x.reason ? `<div style="color:var(--warn);font-size:12.5px;margin-top:4px">${t('reason')}: ${esc(x.reason)}</div>` : '';
