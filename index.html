@@ -199,7 +199,9 @@ details.sec:not([open])>summary::after{transform:rotate(0deg)}
 details.sec.danger{border-color:rgba(248,113,113,.45)}
 details.sec.danger>summary{color:var(--bad)}
 details.sec .secBody{margin-top:12px}
-#imgBox{z-index:2147483000;padding:0;background:rgba(0,0,0,.92)}
+#imgBox{z-index:2147483640;padding:0;background:rgba(0,0,0,.92)}
+/* pay-slip viewer and confirm box must sit above the member popup */
+#sheet{z-index:2147483650}
 #imgBox .viewBar{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;z-index:2}
 #imgBox .viewBar .ghost{background:rgba(255,255,255,.18);color:#fff;min-width:48px;min-height:48px;border-radius:50%;font-size:20px;font-weight:900;padding:0 12px}
 #vBack{font-size:0}
@@ -962,6 +964,7 @@ function resetForm() {
 }
 function startEdit(id) {
   const x = entries.find(e => e.id === id); if (!x) return;
+  closeMember();   // edit happens in the Entries form, so close the member popup that sits on top of it
   editId = id;
   $('fDate').value = x.date; $('fAmt').value = x.amount; $('fNote').value = x.note || ''; $('fPhoto').value = '';
   $('fPrev').innerHTML = '';
