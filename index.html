@@ -890,7 +890,7 @@ function entryRow(x) {
   const mine = isMgr || own;
   const locked = x.status === 'approved';
   const lockTxt = `<span class="sub">🔒 ${t('locked')}</span>`;
-  const mgrEdit = `<button class="ghost" onclick="changeAmt('${x.id}')">${t('changeAmt')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
+  const mgrEdit = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
   const ownEdit = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
   let acts = '';
   if (isClosed(x)) {
@@ -1219,7 +1219,7 @@ function renderAdmin() {
         <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
         <div class="sub">${esc(nameOf(x.memberEmail))} · ${fmtDate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</div>
         ${x.reason ? `<div style="color:var(--warn);font-size:12.5px;margin-top:2px">${esc(x.reason)}</div>` : ''}
-        <div class="acts"><button class="ok" onclick="approve('${x.id}')">${t('approve')}</button><button class="warn" onclick="needFix('${x.id}')">${t('askFix')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button></div>
+        <div class="acts"><button class="ok" onclick="approve('${x.id}')">${t('approve')}</button><button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button></div>
       </div></div>`).join('') : `<div class="empty">${isBn ? 'কোনো অপেক্ষমাণ এন্ট্রি নেই' : 'Nothing waiting for approval'}</div>`)
     + `</div>`;
   h += gh(isBn ? 'মেস' : 'Mess');
