@@ -959,6 +959,8 @@ function renderEntries() {
     : `<div class="empty">${q ? t('noMatch') : t('noEntries')}</div>`;
 }
 
+const cntOf = e => scoped().filter(x => x.memberEmail === e).length;   // entries in the month being viewed
+const bn = () => lang === 'bn';
 function entryRow(x) {
   const own = x.memberEmail === me;
   const mine = isMgr || own;
@@ -966,9 +968,12 @@ function entryRow(x) {
   const lockTxt = `<span class="sub">🔒 ${t('locked')}</span>`;
   const mgrEdit = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
   const ownEdit = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
+  const approveBtn = isMgr && !locked ? `<button class="pri" onclick="approve('${x.id}')">✓ ${t('approve')}</button>` : '';
   let acts = '';
   if (isClosed(x)) {
     acts = `<span class="sub">🔒 ${lang === 'bn' ? 'মাস বন্ধ' : 'Month closed'}</span>`;
+  } else if (isMgr) {
+    acts = approveBtn + (locked ? lockTxt : '') + mgrEdit;   // admin: approve any entry (own or member's), edit/delete always
   } else if (own) {
     acts = locked ? lockTxt + (isMgr ? mgrEdit : '') : ownEdit;   // admin can still edit/delete approved entries
   } else if (!isMgr) {
@@ -1051,7 +1056,7 @@ async function saveEntry() {
     } else {
       // entry first (the slip rule checks that the entry exists), then the photo
       const who = isMgr && $('fMember') ? $('fMember').value : me;
-      const ref = await W.collection('entries').add({ memberEmail: who, date, amount: amt, note, status: isMgr ? 'approved' : 'submitted', reason: '', createdAt: Date.now() });
+      const ref = await W.collection('entries').add({ memberEmail: who, date, amount: amt, note, status: 'submitted', reason: '', createdAt: Date.now() });
       try {
         await W.collection('slips').doc(ref.id).set({ data: photo });
         slipCache[ref.id] = photo;
@@ -1123,7 +1128,7 @@ function renderMembers() {
     return `<div class="card mcard" data-email="${esc(m.email)}" style="cursor:pointer" onclick="openMember('${esc(m.email)}')">
       <div class="mhead">
         <div class="mav" style="background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>
-        <div class="grow" style="min-width:0"><div class="mname">${esc(nm)} <span class="sub">›</span>${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub" style="word-break:break-all">${esc(m.email)}</div></div>
+        <div class="grow" style="min-width:0"><div class="mname">${esc(nm)} <span class="sub">›</span>${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub" style="word-break:break-all">${esc(m.email)} · ${cntOf(m.email)} ${bn() ? 'টি এন্ট্রি' : 'entries'}</div></div>
         ${chip}
       </div>
       <div class="mbar"><i style="width:${pct}%"></i></div>
@@ -1572,7 +1577,7 @@ function openMember(email) {
   $('memBody').innerHTML = `
     <div class="row" style="flex-wrap:nowrap;gap:12px;margin-bottom:12px">
       <div class="mav" style="background:linear-gradient(135deg,var(--p),var(--s))">${esc(nameOf(email).charAt(0))}</div>
-      <div class="grow" style="min-width:0"><div class="mname">${esc(nameOf(email))}</div><div class="sub" style="word-break:break-all">${esc(email)}</div></div>
+      <div class="grow" style="min-width:0"><div class="mname">${esc(nameOf(email))}</div><div class="sub" style="word-break:break-all">${esc(email)} · ${all.length} ${bn ? 'টি এন্ট্রি' : 'entries'}</div></div>
     </div>
     ${isMgr ? `<details class="sec" style="margin:0 0 14px"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
       <div class="mgrid">
