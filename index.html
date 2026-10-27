@@ -257,6 +257,13 @@ details.sec .secBody{margin-top:12px}
   #memBox .card{padding:14px}
   #memBox .row.between{gap:10px}
 }
+/* ⓘ info popups: centred box with a border on every screen size */
+#infoBox{padding:16px;align-items:center;justify-content:center}
+#infoBox .sheet{width:100%;max-width:440px;max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;border:2px solid var(--p);border-radius:16px;padding:16px 18px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+@media (max-width:600px){
+  #infoBox{padding:16px;align-items:center}
+  #infoBox .sheet{max-width:100%;border-radius:16px;max-height:calc(100dvh - 32px);padding:16px 16px}
+}
 </style>
 </head>
 <body>
@@ -673,7 +680,7 @@ function renderNav() {
     $('nav').innerHTML = `<button class="on" onclick="go('home')" style="flex-direction:row;justify-content:center;gap:8px;min-height:54px;font-size:15px;font-weight:800;color:var(--s)"><svg viewBox="0 0 24 24">${ICON.home}</svg>${lang === 'bn' ? '← সদস্য হিসাবে ফিরে যাও' : '← Back to member'}</button>`;
     return;
   }
-  const keys = ['home', 'entries'];
+  const keys = isMgr ? ['home', 'entries'] : ['home'];   // members add entries from the Home popup button
   if (!isMgr) keys.push('settings');   // admin's settings live inside the control panel
   keys.push('admin');
   $('nav').style.gridTemplateColumns = `repeat(${keys.length},1fr)`;
@@ -749,6 +756,7 @@ window.addEventListener('popstate', () => {
 });
 function go(p, fromHistory = false) {
   if (p === 'admin' && !isMgr) { unlockAdmin(); return; }
+  if (p === 'entries' && !isMgr) p = 'home';   // members have no Entries tab
   if (!fromHistory && p !== page) history.pushState({ page: p }, '');
   page = p;
   Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== p));
