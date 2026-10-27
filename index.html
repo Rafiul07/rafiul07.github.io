@@ -219,7 +219,8 @@ details.sec .secBody{margin-top:12px}
 .gh{font-size:13px;color:var(--sub);font-weight:700;margin:20px 6px 8px}
 /* member popup: close button stays small, popup never goes past the top of the screen */
 #memBox{padding:24px 16px}
-#memBox .sheet{max-height:calc(100vh - 48px)!important}
+#memBox .sheet{max-height:calc(100vh - 48px);max-height:calc(100dvh - 48px)!important}
+#memBox .sheet > .row.between{position:sticky;top:-16px;z-index:3;background:var(--card);padding:6px 0 10px;margin-top:-16px}
 #memBox .row.between > button{flex:none;min-height:40px;padding:0 14px;white-space:nowrap}
 /* member cards in the control panel: chip wraps under the name on narrow screens */
 #memberList .mhead{flex-wrap:wrap}
@@ -228,7 +229,7 @@ details.sec .secBody{margin-top:12px}
 /* member popup on phones: bottom sheet, full width, name takes its own row */
 @media (max-width:600px){
   #memBox{padding:0;align-items:flex-end}
-  #memBox .sheet{max-width:100%;border-radius:22px 22px 0 0;max-height:92vh!important;padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px))}
+  #memBox .sheet{max-width:100%;border-radius:22px 22px 0 0;max-height:calc(100dvh - 24px)!important;padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px))}
   #memBox .mgrid{grid-template-columns:1fr 1fr}
   #memBox .mgrid .mf:first-child{grid-column:1/-1}
   #memBox .mav{width:48px;height:48px;font-size:19px}
@@ -343,7 +344,7 @@ details.sec .secBody{margin-top:12px}
 </div>
 
 <div id="memBox" class="sheetWrap hidden" onclick="if (event.target === this) closeMember()">
-  <div class="sheet" style="max-height:88vh;overflow:auto">
+  <div class="sheet" style="max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain">
     <div class="row between" style="flex-wrap:nowrap">
       <div id="memTitle" style="font-weight:800;font-size:17px" class="grow"></div>
       <button class="ghost" id="memBack" onclick="closeMember()"></button>
@@ -1602,6 +1603,7 @@ function openMember(email) {
       <h3>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></h3>
       ${all.length ? all.map(entryRow).join('') : `<div class="empty">${t('noEntries')}</div>`}
     </div>
+    <button class="ghost" style="width:100%;margin-top:4px" onclick="closeMember()">← ${t('back')}</button>
 `;
   if (keepD !== null) $('mdDays').value = keepD;
   if (keepP !== null) $('mdDep').value = keepP;
