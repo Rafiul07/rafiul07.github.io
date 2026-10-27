@@ -236,6 +236,16 @@ details.sec .secBody{margin-top:12px}
   #entryBox{padding:0;align-items:flex-end}
   #entryBox .sheet{max-width:100%;border-radius:22px 22px 0 0;max-height:calc(100dvh - 24px);padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px))}
 }
+/* info popup (ⓘ) */
+#infoBox{padding:24px 16px}
+#infoBox .sheet{width:100%;max-width:520px;max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;padding:16px}
+#entryBody > .card{margin:0;box-shadow:none;border:0;padding:0;background:transparent}
+#entryBody > .card h3{display:none}
+#infoBox .entryClose{flex:0 0 42px;width:42px;min-width:42px;height:42px;min-height:42px;padding:0;border-radius:50%;font-size:18px;font-weight:800;line-height:1}
+@media (max-width:600px){
+  #infoBox{padding:0;align-items:flex-end}
+  #infoBox .sheet{max-width:100%;border-radius:22px 22px 0 0;max-height:calc(100dvh - 24px);padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px))}
+}
 /* member popup on phones: bottom sheet, full width, name takes its own row */
 @media (max-width:600px){
   #memBox{padding:0;align-items:flex-end}
@@ -294,7 +304,7 @@ details.sec .secBody{margin-top:12px}
     </section>
 
     <section id="pgEntries" class="hidden">
-      <div class="card" id="formCard">
+      <div class="card hidden" id="formCard">
         <h3 id="fTitle"></h3>
         <div class="row">
           <div class="grow"><div class="lbl" data-i18n="date"></div><input id="fDate" type="date"></div>
@@ -308,10 +318,11 @@ details.sec .secBody{margin-top:12px}
         <div id="fPrev" style="margin-top:8px"></div>
         <div class="row" style="margin-top:16px">
           <button class="pri grow" data-i18n="save" onclick="saveEntry()"></button>
-          <button id="fCancel" class="ghost hidden" data-i18n="cancel" onclick="resetForm()"></button>
+          <button id="fCancel" class="ghost hidden" data-i18n="cancel" onclick="closeEntryPop()"></button>
         </div>
         <div id="fMsg" class="sub" style="margin-top:8px;min-height:16px"></div>
       </div>
+      <button class="pri" style="width:100%;margin-bottom:14px" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
       <div class="card" id="filterBox">
         <input id="qSearch" data-ph="search" oninput="render()" style="margin-top:0">
         <div class="row" id="filterSel" style="margin-top:8px"></div>
@@ -370,6 +381,16 @@ details.sec .secBody{margin-top:12px}
       <button class="ghost entryClose" id="entryClose" aria-label="close" onclick="closeEntryPop()">✕</button>
     </div>
     <div id="entryBody" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<div id="infoBox" class="sheetWrap hidden" onclick="if (event.target === this) closeInfo()">
+  <div class="sheet infoSheet">
+    <div class="row between" style="flex-wrap:nowrap;align-items:center">
+      <div id="infoTitle" style="font-weight:800;font-size:17px" class="grow"></div>
+      <button class="ghost entryClose" aria-label="close" onclick="closeInfo()">✕</button>
+    </div>
+    <div id="infoBody" style="margin-top:12px"></div>
   </div>
 </div>
 
@@ -676,11 +697,12 @@ document.addEventListener('touchend', () => {
 }, { passive: true });
 
 /* New entry popup: the same form card is moved into the popup and back to the Entries page on close */
-function openEntryPop() {
+function openEntryPop(editing = false) {
   if (!me) return;
-  $('entryTitle').innerText = t('addEntry');
+  $('entryTitle').innerText = editing ? t('editEntry') : t('addEntry');
   $('entryBody').appendChild($('formCard'));
-  resetForm();
+  $('formCard').classList.remove('hidden');
+  if (!editing) resetForm();
   $('entryBox').classList.remove('hidden');
   openLayer('entryBox');
   setTimeout(() => { const a = $('fAmt'); if (a && a.focus && window.innerWidth > 600) a.focus(); }, 80);
@@ -689,6 +711,8 @@ function closeEntryPop() {
   const box = $('entryBox');
   if (!box || box.classList.contains('hidden')) return;
   box.classList.add('hidden');
+  resetForm();   // also clears any edit in progress
+  $('formCard').classList.add('hidden');
   $('pgEntries').prepend($('formCard'));
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   dropLayer('entryBox');
@@ -717,6 +741,7 @@ window.addEventListener('popstate', () => {
     if (top.name === 'memBox') closeMember();
     else if (top.name === 'imgBox') closeImg();
     else if (top.name === 'entryBox') closeEntryPop();
+    else if (top.name === 'infoBox') closeInfo();
     else if (top.name === 'sheet') { const b = $('shCancel'); if (b && b.onclick) b.onclick(); }
     return;
   }
@@ -957,7 +982,6 @@ const byNewest = (a, b) => String(b.date).localeCompare(String(a.date)) || num(b
 
 /* ================= ENTRIES ================= */
 function renderEntries() {
-  $('formCard').classList.remove('hidden');
   $('fMemberBox').classList.toggle('hidden', !isMgr || !!editId);
   if (isMgr) {
     $('fMemberLbl').innerText = lang === 'bn' ? 'কার নামে এন্ট্রি' : 'Entry for';
@@ -1024,14 +1048,21 @@ function explainItems(email, rate) {
   const d = depOf(email), days = daysOf(email);
   return lines.map((t, i) => ({ t, red: (i === 1 && d > 0) || (i === 2 && days !== 30) }));
 }
+function openInfo(title, items) {
+  $('infoTitle').innerText = title;
+  $('infoBody').innerHTML = items.map(x => `<div style="padding:9px 0;border-top:1px solid var(--bd);font-size:14px;${x.red ? 'color:var(--bad);font-weight:700' : ''}">${esc(x.t)}</div>`).join('');
+  $('infoBox').classList.remove('hidden');
+  openLayer('infoBox');
+}
+function closeInfo() {
+  const b = $('infoBox');
+  if (!b || b.classList.contains('hidden')) return;
+  b.classList.add('hidden');
+  dropLayer('infoBox');
+}
+/* ⓘ: full breakdown of one member's balance; deposit and days lines are red when they differ from normal */
 function explain(email) {
-  const bn = lang === 'bn';
-  const ch = explainItems(email, currentRate()).filter(x => x.red).map(x => x.t);
-  sheet({
-    title: (bn ? 'জমা ও দিনের হিসাব — ' : 'Deposit and days — ') + nameOf(email) + '\n\n' +
-      (ch.length ? '• ' + ch.join('\n\n• ') : (bn ? 'জমা ও দিন স্বাভাবিক আছে (জমা নেই, ৩০ দিন)।' : 'Deposit and days are normal (no deposit, 30 days).')),
-    input: false, okText: t('ok')
-  });
+  openInfo((lang === 'bn' ? 'কেন এমন হলো — ' : 'Why — ') + nameOf(email), explainItems(email, currentRate()));
 }
 function explainOld(email) {
   const rate = currentRate();
@@ -1091,8 +1122,7 @@ function startEdit(id) {
   $('fTitle').innerText = t('editEntry');
   $('fCancel').classList.remove('hidden');
   $('fMsg').innerText = ''; $('fMsg').classList.remove('err');
-  if (page !== 'entries') go('entries');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  openEntryPop(true);
 }
 function compress(file) {
   return new Promise((res, rej) => {
