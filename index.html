@@ -11,7 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
-:root{--bg:#0a0a12;--card:#15152a;--card2:#1c1c38;--tx:#f1f1f7;--sub:#8b8ba7;--bd:#262643;--inp:#0d0d1a;--p:#a855f7;--s:#22d3ee;--ok:#34d399;--bad:#f87171;--warn:#fbbf24;--blue:#60a5fa}
+:root{--bg:#0c1a14;--card:rgba(18,38,30,.92);--card2:#15332a;--tx:#e9f3ec;--sub:#8fb3a0;--bd:rgba(180,230,200,.12);--inp:rgba(255,255,255,.04);--p:#e8c15a;--s:#7ee2a8;--ok:#7ee2a8;--bad:#f87171;--warn:#e8c15a;--blue:#7ee2a8}
 body.light{--bg:#f2f4fa;--card:#ffffff;--card2:#f5f6fb;--tx:#14141f;--sub:#60647a;--bd:#e2e5ee;--inp:#f5f6fa}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans Bengali',system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--tx);font-size:15px;line-height:1.45;min-height:100vh;padding-bottom:calc(190px + env(safe-area-inset-bottom,0px));-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
@@ -267,6 +267,13 @@ details.sec .secBody{margin-top:12px}
 /* total mess bazar tile inside the breakdown card */
 .totalTile{border-radius:16px;padding:14px 16px;margin:2px 0 10px;background:linear-gradient(135deg,rgba(168,85,247,.16),rgba(34,211,238,.10));border:1px solid var(--bd)}
 .totalTile .totalAmt{font-size:clamp(24px,8vw,30px);font-weight:900;letter-spacing:-.4px;margin-top:2px}
+/* theme: deep green with gold accents (data-style 4) */
+.num,.big,.kpi b,.hero .big{font-family:Georgia,"Noto Serif Bengali",serif}
+.card,.kpi,.hero{border-radius:22px}
+.pri{color:#1a140a;box-shadow:0 8px 22px rgba(232,193,90,.22)}
+.top{background:rgba(12,26,20,.85)!important;border-bottom:1px solid rgba(180,230,200,.1)}
+.brand{color:#e8c15a!important;background:none!important;-webkit-text-fill-color:#e8c15a;font-family:Georgia,"Noto Serif Bengali",serif}
+.hero{background:linear-gradient(160deg,#1c4a3a,#0f2b22)!important}
 </style>
 </head>
 <body>
