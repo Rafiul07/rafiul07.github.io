@@ -1855,9 +1855,54 @@ function saveMemberFields(email) {
 function closeMember() { memOpen = null; $('memBox').classList.add('hidden'); dropLayer('memBox'); }
 
 /* ================= INIT ================= */
+/* ---- pay slip OCR: reads the total from the photo and fills the amount box (user checks it) ---- */
+function parseSlipAmount(text) {
+  const lines = String(text || '').split(/\r?\n/);
+  const norm = s => s.includes('.') ? s.replace(/,/g, '') : (/,\d{2}$/.test(s) ? s.replace(/,(\d{2})$/, '.$1').replace(/,/g, '') : s.replace(/,/g, ''));
+  const pick = re => {
+    for (const l of lines) {
+      if (!re.test(l) || /qty|tax|কর/i.test(l)) continue;   // skip "Total Qty" and tax lines
+      const m = l.match(/\d[\d,]*(?:\.\d+)?/g);
+      if (m) return norm(m[m.length - 1]);
+    }
+    return null;
+  };
+  return pick(/\bcash\b|নগদ/i) || pick(/total\s*amount|\btotal\b|মোট/i);
+}
+let ocrLoading = null;
+function loadOcr() {
+  if (window.Tesseract) return Promise.resolve();
+  if (!ocrLoading) ocrLoading = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js';
+    s.onload = res;
+    s.onerror = () => { ocrLoading = null; rej(new Error('ocr')); };
+    document.head.appendChild(s);
+  });
+  return ocrLoading;
+}
+function formInfo(m) { const e = $('fMsg'); e.innerText = m; e.classList.remove('err'); }
+async function readSlipAmount(file) {
+  const bn = lang === 'bn';
+  formInfo(bn ? 'ছবি থেকে টাকা পড়া হচ্ছে…' : 'Reading amount from photo…');
+  try {
+    await loadOcr();
+    const worker = await Tesseract.createWorker('eng');
+    const { data } = await worker.recognize(file);
+    await worker.terminate();
+    const amt = parseSlipAmount(data.text);
+    if (!amt) { formInfo(bn ? 'ছবিতে টাকার সংখ্যা পাওয়া যায়নি, নিজে লিখো।' : 'Could not find the amount, type it yourself.'); return; }
+    if ($('fAmt').value.trim()) { formInfo(bn ? `ছবিতে পেলাম ${amt}, কিন্তু টাকার ঘরে আগে থেকে লেখা আছে।` : `Photo shows ${amt}, but the amount box already has a value.`); return; }
+    $('fAmt').value = amt;
+    formInfo(bn ? `ছবি থেকে ${amt} পড়া হয়েছে, ঠিক কিনা দেখে নাও।` : `Read ${amt} from the photo, please check it.`);
+  } catch (e) {
+    formInfo(bn ? 'ছবি পড়া যায়নি (internet লাগবে)। নিজে লিখো।' : 'Could not read the photo (needs internet). Type it yourself.');
+  }
+}
 $('fPhoto').onchange = e => {
   const f = e.target.files[0];
   $('fPrev').innerHTML = f ? `<span class="sub">✓ ${esc(f.name)}</span>` : '';
+  if (f && !$('fAmt').value.trim()) readSlipAmount(f);
 };
 if (window.matchMedia) matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme);
 applyTheme();
