@@ -1279,14 +1279,14 @@ async function delEntry(id) {
   if (!ok) return;
   const x = entries.find(e => e.id === id) || {};
   const DB = isMgr ? ADB() : db;
-  const b = DB.batch(); // entry and its pay slip go together
-  b.delete(DB.collection('entries').doc(id));
-  b.delete(DB.collection('slips').doc(id));
-  b.commit().then(() => {
-    delete slipCache[id];
-    toast(t('deleted'));
-    if (isMgr) logAct('Deleted · ' + nameOf(x.memberEmail) + ' · ' + f2(x.amount));
-  }).catch(showErr);
+  // entry first: if this is refused, nothing is removed and the reason is shown
+  try { await DB.collection('entries').doc(id).delete(); }
+  catch (e) { showErr(e); return; }
+  // the pay slip is removed separately; a leftover slip is harmless, so its failure does not block the delete
+  DB.collection('slips').doc(id).delete().catch(() => {});
+  delete slipCache[id];
+  toast(t('deleted'));
+  if (isMgr) logAct('Deleted · ' + nameOf(x.memberEmail) + ' · ' + f2(x.amount));
 }
 
 /* ================= MEMBERS (manager) ================= */
