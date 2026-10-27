@@ -23,8 +23,8 @@ button:active{transform:scale(.97)}
 .warn{background:var(--warn);color:#2a1d00}
 .bad{background:var(--bad);color:#2a0606}
 .ghost{background:transparent;border:1px solid var(--bd)}
-input,select{font:inherit;width:100%;background:var(--inp);color:var(--tx);border:1px solid var(--bd);border-radius:12px;padding:12px;font-size:16px;margin-top:6px;outline:none}
-input:focus,select:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(168,85,247,.18)}
+input,select,textarea{font:inherit;width:100%;background:var(--inp);color:var(--tx);border:1px solid var(--bd);border-radius:12px;padding:12px;font-size:16px;margin-top:6px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(168,85,247,.18)}
 .top{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--bd)}
 .brand{font-weight:900;letter-spacing:.5px;font-size:17px;background:linear-gradient(90deg,var(--p),var(--s));-webkit-background-clip:text;background-clip:text;color:transparent}
 .role{font-size:11px;font-weight:700;letter-spacing:.6px;padding:4px 10px;border-radius:999px;background:var(--card2);color:var(--sub);border:1px solid var(--bd)}
@@ -113,11 +113,11 @@ button{min-height:42px}
 .nav{padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
 .nav button{font-size:12px;min-height:54px}
 .toast{font-size:14px}
-input,select{min-height:46px}
+input,select,textarea{min-height:46px}
 body.light{--bg:#eef1f8}
 body.light .top{background:#ffffff}
 body.light .nav{background:#ffffff}
-body.light input,body.light select{background:#f7f8fc}
+body.light input,body.light select,body.light textarea{background:#f7f8fc}
 @media (max-width:380px){
   body{font-size:14.5px}
   .kpis{grid-template-columns:1fr 1fr;gap:8px}
@@ -159,7 +159,7 @@ body.light .hero{background:linear-gradient(var(--card),var(--card)) padding-box
 .kpi small{font-size:12px;font-weight:600;color:var(--sub);letter-spacing:.1px}
 .kpi b{font-size:clamp(18px,5vw,22px);font-weight:900;letter-spacing:-.3px}
 .hero .big{font-size:clamp(26px,8vw,34px);font-weight:900;letter-spacing:-.5px}
-input,select{border-radius:14px}
+input,select,textarea{border-radius:14px}
 button{border-radius:14px}
 .chip{border-radius:999px}
 .ic{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px;margin-right:5px;opacity:.8}
@@ -459,7 +459,17 @@ function toast(msg, isErr) {
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => el.classList.remove('show'), 2400);
 }
-const showErr = e => toast(t('errPrefix') + (e && e.message ? e.message : e), true);
+const showErr = e => {
+  const code = e && e.code || '';
+  const bn = lang === 'bn';
+  let msg = e && e.message ? e.message : String(e);
+  if (code === 'permission-denied' || /insufficient permissions/i.test(msg))
+    msg = bn ? 'এটা করার অনুমতি নেই। এন্ট্রি অনুমোদিত হলে সদস্য মুছতে পারে না — অ্যাডমিনকে বলো। অ্যাডমিন হলে Firebase Rules publish হয়েছে কিনা দেখো।'
+             : 'Not allowed. Approved entries can only be changed by the admin. If you are the admin, make sure the latest Firestore Rules are published.';
+  else if (code === 'unavailable' || /network|offline/i.test(msg))
+    msg = bn ? 'ইন্টারনেট সংযোগ নেই। আবার চেষ্টা করো।' : 'No internet connection. Try again.';
+  toast(t('errPrefix') + msg, true);
+};
 
 /* In-app sheet: replaces prompt() and confirm() */
 function sheet({ title, input = true, value = '', type = 'text', ph = '', okText, raw = false }) {
@@ -829,7 +839,7 @@ function renderHome() {
     </div>`;
     const depList = c.em.filter(e => depOf(e) !== 0).map(e =>
       `<div class="row between" style="padding:6px 0;border-top:1px solid var(--bd)"><span>${esc(nameOf(e))}</span><b class="num">${f2(depOf(e))}</b></div>`).join('');
-    h += `<div class="card"><div class="row between"><span class="sub">${lang === 'bn' ? 'মেসের হাতে জমা' : 'Deposits held by the mess'}</span><b class="num">${f2(hand)}</b></div>${depList}</div>`;
+    h += `<div class="card"><h3>${lang === 'bn' ? 'মেসের হাতে জমা' : 'Deposits held by the mess'}</h3><div class="row between" style="padding:6px 0 4px"><span class="sub">${lang === 'bn' ? 'মোট' : 'Total'}</span><b class="num" style="font-size:18px">৳ ${f2(hand)}</b></div>${depList}</div>`;
     const sorted = c.em.slice().sort((a, b) => bazarOf(b) - bazarOf(a));
     const maxB = Math.max(1, ...sorted.map(bazarOf));
     h += `<div class="card"><h3>${t('members')}</h3>` + sorted.map(e => {
@@ -853,7 +863,7 @@ function renderHome() {
     const msg = bal == null ? '' : bal >= 0 ? (isBn ? 'তুমি পাবে' : 'You get back') : (isBn ? 'তোমাকে দিতে হবে' : 'You need to pay');
     h += `<div class="hero">
       <div class="sub">${msg || t('balance')}</div>
-      <div class="big" style="color:${tone}">${bal == null ? '—' : f2(Math.abs(bal))}</div>
+      <div class="big" style="color:${tone}">${bal == null ? '—' : '৳ ' + f2(Math.abs(bal))}</div>
       <div class="sub" style="margin-top:8px">${bal == null ? t('noRate') : (isBn ? 'প্রতিদিনের খরচ: ' : 'Cost per day: ') + f2(r)}</div>
     </div>`;
     if (bal != null) {
@@ -1350,8 +1360,13 @@ async function resetAll() {
   if (!pw) return;
   try {
     const user = ADBAuth().currentUser;
+    if (!user) { toast(t('errPrefix') + (lang === 'bn' ? 'আগে অ্যাডমিন হিসেবে লগইন করো' : 'Sign in as admin first'), true); return; }
     await user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, pw));
-  } catch (e) { toast(t('wrongPw'), true); return; }
+  } catch (e) {
+    const wrong = ['auth/wrong-password', 'auth/invalid-credential', 'auth/invalid-login-credentials'].includes(e && e.code);
+    if (wrong) toast(t('wrongPw'), true); else showErr(e);
+    return;
+  }
   try {
     const [eSnap, sSnap] = await Promise.all([ADB().collection('entries').get(), ADB().collection('slips').get()]);
     const refs = [...eSnap.docs, ...sSnap.docs].map(d => d.ref);
@@ -1567,7 +1582,7 @@ function openMember(email) {
     </div></details>` : ''}
     <div class="hero" style="margin-bottom:14px">
       <div class="sub">${bal == null ? (bn ? 'দিন যোগ হলে হিসাব দেখা যাবে' : 'Shows once days are set') : pos ? (bn ? 'ফেরত পাবে' : 'Gets back') : (bn ? 'বাকি (দিতে হবে)' : 'Due')}</div>
-      <div class="big" style="color:${tone}">${bal == null ? '—' : f2(Math.abs(bal))}</div>
+      <div class="big" style="color:${tone}">${bal == null ? '—' : '৳ ' + f2(Math.abs(bal))}</div>
     </div>
     ${rate != null ? `<div class="card" style="margin:0 0 14px">
       <h3>${bn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
