@@ -959,6 +959,29 @@ function renderEntries() {
     : `<div class="empty">${q ? t('noMatch') : t('noEntries')}</div>`;
 }
 
+/* plain-language reasons for a member's balance (shown in the ⓘ info and the popup) */
+function explainLines(email, rate) {
+  const bn = lang === 'bn';
+  if (rate == null) return [bn ? 'দিন যোগ হলে হিসাব দেখা যাবে।' : 'The balance shows once days are set.'];
+  const c = calc(), n = c.em.length || 1;
+  const perHead = c.tB / n, avgDays = c.tD / n;
+  const b = bazarOf(email), d = depOf(email), days = daysOf(email), nm = nameOf(email);
+  const diff = b - perHead;
+  const L = [];
+  if (Math.abs(diff) < 0.005) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, প্রতি সদস্যের ভাগের সমান।` : `You paid ৳${f2(b)}, equal to the share per member.`);
+  else if (diff > 0) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, ভাগের (৳${f2(perHead)}) চেয়ে ৳${f2(diff)} বেশি। এই টাকা ${nm}-কে ফেরত দেওয়া হবে।` : `You paid ৳${f2(b)}, ৳${f2(diff)} more than the share (৳${f2(perHead)}). This is added back to you.`);
+  else L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, ভাগের (৳${f2(perHead)}) চেয়ে ৳${f2(-diff)} কম। এই টাকা ${nm}-কে দিতে হবে।` : `You paid ৳${f2(b)}, ৳${f2(-diff)} less than the share (৳${f2(perHead)}). You owe this.`);
+  L.push(d > 0 ? (bn ? `${nm}-এর জমা ৳${f2(d)} আছে, তাই হিসাবে যোগ হয়েছে।` : `Deposit of ৳${f2(d)} is added to the balance.`) : (bn ? 'কোনো জমা নেই।' : 'No deposit.'));
+  const dayTxt = days === Math.round(avgDays) ? (bn ? 'গড়ের সমান' : 'same as the average') : days < avgDays ? (bn ? 'গড়ের চেয়ে কম, তাই খাওয়ার খরচ কম' : 'below average, so meal cost is lower') : (bn ? 'গড়ের চেয়ে বেশি, তাই খাওয়ার খরচ বেশি' : 'above average, so meal cost is higher');
+  L.push(bn ? `${nm} ${days} দিন খেয়েছে (মেসের গড় ${avgDays.toFixed(1)} দিন), ${dayTxt}।` : `You had ${days} days (mess average ${avgDays.toFixed(1)}), ${dayTxt}.`);
+  L.push(bn ? `${nm}-এর খাওয়ার খরচ = ${days} দিন × ৳${f2(rate)} = ৳${f2(days * rate)}।` : `Meal cost = ${days} days × ৳${f2(rate)} = ৳${f2(days * rate)}.`);
+  return L;
+}
+function explain(email) {
+  const rate = currentRate();
+  const bn = lang === 'bn';
+  sheet({ title: (bn ? 'কেন এমন হলো — ' : 'Why — ') + nameOf(email) + '\n\n• ' + explainLines(email, rate).join('\n\n• '), input: false, okText: t('ok') });
+}
 const cntOf = e => scoped().filter(x => x.memberEmail === e).length;   // entries in the month being viewed
 const bn = () => lang === 'bn';
 function entryRow(x) {
@@ -1129,6 +1152,7 @@ function renderMembers() {
       <div class="mhead">
         <div class="mav" style="background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>
         <div class="grow" style="min-width:0"><div class="mname">${esc(nm)} <span class="sub">›</span>${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub" style="word-break:break-all">${esc(m.email)} · ${cntOf(m.email)} ${bn() ? 'টি এন্ট্রি' : 'entries'}</div></div>
+        <button class="ghost" aria-label="info" title="info" style="min-height:32px;width:32px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(m.email)}')">ⓘ</button>
         ${chip}
       </div>
       <div class="mbar"><i style="width:${pct}%"></i></div>
@@ -1604,6 +1628,10 @@ function openMember(email) {
       ${row(bn ? `খাওয়া (${daysOf(email)} দিন × ${f2(rate)})` : `Meals (${daysOf(email)} days × ${f2(rate)})`, '− ' + f2(daysOf(email) * rate))}
       <div class="row between" style="padding:10px 0 2px;border-top:1px solid var(--bd)"><b>${pos ? (bn ? 'ফেরত পাবে' : 'Gets back') : (bn ? 'বাকি (দিতে হবে)' : 'Due')}</b><b class="num" style="color:${tone};font-size:18px">${f2(Math.abs(bal))}</b></div>
     </div>` : ''}
+    <div class="card" style="margin:0 0 14px">
+      <h3>ⓘ ${bn ? 'কেন এমন হলো' : 'Why this amount'}</h3>
+      ${explainLines(email, rate).map(l => `<div style="padding:7px 0;border-top:1px solid var(--bd);font-size:14px">${esc(l)}</div>`).join('')}
+    </div>
     <div class="card" style="margin:0 0 14px">
       <h3>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></h3>
       ${all.length ? all.map(entryRow).join('') : `<div class="empty">${t('noEntries')}</div>`}
