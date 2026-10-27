@@ -236,6 +236,18 @@ details.sec .secBody{margin-top:12px}
   #entryBox{padding:0;align-items:flex-end}
   #entryBox .sheet{max-width:100%;border-radius:22px 22px 0 0;max-height:calc(100dvh - 24px);padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px))}
 }
+/* notes popup */
+#notesBox{padding:24px 16px}
+#notesBox .sheet{width:100%;max-width:520px;max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;padding:16px}
+#entryBody > .card{margin:0;box-shadow:none;border:0;padding:0;background:transparent}
+#entryBody > .card h3{display:none}
+#notesBox .entryClose{flex:0 0 42px;width:42px;min-width:42px;height:42px;min-height:42px;padding:0;border-radius:50%;font-size:18px;font-weight:800;line-height:1}
+@media (max-width:600px){
+  #notesBox{padding:0;align-items:flex-end}
+  #notesBox .sheet{max-width:100%;border-radius:22px 22px 0 0;max-height:calc(100dvh - 24px);padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px))}
+}
+#notesBody > .card{margin:0;box-shadow:none;border:0;padding:0;background:transparent}
+#notesBody > .card > h3{display:none}
 /* info popup (ⓘ) */
 #infoBox{padding:24px 16px}
 #infoBox .sheet{width:100%;max-width:520px;max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;padding:16px}
@@ -303,10 +315,11 @@ details.sec .secBody{margin-top:12px}
 
   <main class="wrap">
     <section id="pgHome">
-      <div class="card" id="notesCard">
-        <div id="qBar" class="hidden" style="margin-bottom:14px">
-          <button class="pri" style="width:100%" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
-        </div>
+      <div class="card" id="qBar" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button class="pri" style="width:100%" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
+        <button class="ghost" id="notesOpenBtn" onclick="openNotesPop()" style="width:100%"></button>
+      </div>
+      <div class="card hidden" id="notesCard">
         <h3 id="notesTitle"></h3>
         <textarea id="noteTxt" rows="2" maxlength="300" style="width:100%"></textarea>
         <button class="pri" style="width:100%;margin-top:8px" onclick="postNote()" id="notePost"></button>
@@ -403,6 +416,16 @@ details.sec .secBody{margin-top:12px}
       <button class="ghost entryClose" aria-label="close" onclick="closeInfo()">✕</button>
     </div>
     <div id="infoBody" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<div id="notesBox" class="sheetWrap hidden" onclick="if (event.target === this) closeNotesPop()">
+  <div class="sheet entrySheet">
+    <div class="row between" style="flex-wrap:nowrap;align-items:center">
+      <div id="notesBoxTitle" style="font-weight:800;font-size:17px" class="grow"></div>
+      <button class="ghost entryClose" aria-label="close" onclick="closeNotesPop()">✕</button>
+    </div>
+    <div id="notesBody" style="margin-top:12px"></div>
   </div>
 </div>
 
@@ -709,6 +732,24 @@ document.addEventListener('touchend', () => {
   pOn = false;
 }, { passive: true });
 
+/* Notes popup: the notes card is moved into the popup and back to the Home page on close */
+function openNotesPop() {
+  if (!me) return;
+  $('notesBody').appendChild($('notesCard'));
+  $('notesCard').classList.remove('hidden');
+  $('notesBoxTitle').innerText = lang === 'bn' ? 'সবার নোট' : 'Notes for everyone';
+  $('notesBox').classList.remove('hidden');
+  openLayer('notesBox');
+  renderNotes();
+}
+function closeNotesPop() {
+  const box = $('notesBox');
+  if (!box || box.classList.contains('hidden')) return;
+  box.classList.add('hidden');
+  $('notesCard').classList.add('hidden');
+  $('pgHome').insertBefore($('notesCard'), $('hContent'));
+  dropLayer('notesBox');
+}
 /* New entry popup: the same form card is moved into the popup and back to the Entries page on close */
 function openEntryPop(editing = false) {
   if (!me) return;
@@ -755,6 +796,7 @@ window.addEventListener('popstate', () => {
     else if (top.name === 'imgBox') closeImg();
     else if (top.name === 'entryBox') closeEntryPop();
     else if (top.name === 'infoBox') closeInfo();
+    else if (top.name === 'notesBox') closeNotesPop();
     else if (top.name === 'sheet') { const b = $('shCancel'); if (b && b.onclick) b.onclick(); }
     return;
   }
@@ -794,6 +836,7 @@ function renderNotes() {
   $('notesTitle').innerText = isBn ? 'সবার নোট' : 'Notes for everyone';
   $('noteTxt').placeholder = isBn ? 'যেমন: বাজার লাগবে: চিনি, মাংস' : 'e.g. Need sugar, meat';
   $('notePost').innerText = isBn ? 'নোট দাও' : 'Post note';
+  if ($('notesOpenBtn')) $('notesOpenBtn').innerText = (isBn ? 'সবার নোট' : 'Notes') + ' (' + notes.length + ')';
 
   box.innerHTML = notes.length ? notes.map(n => {
     const when = n.at ? new Date(n.at).toLocaleString(isBn ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
