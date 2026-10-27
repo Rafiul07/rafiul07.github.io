@@ -264,6 +264,9 @@ details.sec .secBody{margin-top:12px}
   #infoBox{padding:16px;align-items:center}
   #infoBox .sheet{max-width:100%;border-radius:16px;max-height:calc(100dvh - 32px);padding:16px 16px}
 }
+/* total mess bazar tile inside the breakdown card */
+.totalTile{border-radius:16px;padding:14px 16px;margin:2px 0 10px;background:linear-gradient(135deg,rgba(168,85,247,.16),rgba(34,211,238,.10));border:1px solid var(--bd)}
+.totalTile .totalAmt{font-size:clamp(24px,8vw,30px);font-weight:900;letter-spacing:-.4px;margin-top:2px}
 </style>
 </head>
 <body>
@@ -897,24 +900,6 @@ function renderHome() {
     const months = [...new Set(entries.map(x => String(x.date).slice(0, 7)).filter(Boolean))].sort().reverse();
     h += `<div class="chips">${['all', ...months].map(m =>
       `<button class="chip ${month === m ? 'on' : ''}" onclick="month='${m}';render()">${m === 'all' ? t('allMonths') : monthLabel(m)}</button>`).join('')}</div>`;
-    h += `<div class="kpis">
-      ${kpi(t('bazarTotal'), f2(c.tB))}
-      ${kpi(t('perPerson'), f2(c.em.length ? c.tB / c.em.length : 0))}
-      ${kpi(t('dayRate'), f2(c.rate))}
-      ${kpi(t('pending'), pend)}
-    </div>`;
-    const hand = c.em.reduce((a, e) => a + depOf(e), 0);
-    const ms = scoped();
-    const apprSum = ms.filter(x => x.status === 'approved').reduce((a, x) => a + num(x.amount), 0);
-    const totDays = c.em.reduce((a, e) => a + daysOf(e), 0);
-    h += `<div class="card"><h3>${month === 'all' ? (lang === 'bn' ? 'সব মাসের সারাংশ' : 'All-time summary') : monthLabel(month) + (lang === 'bn' ? ' — সারাংশ' : ' — summary')}</h3>
-      <div class="row between" style="padding:4px 0"><span class="sub">${lang === 'bn' ? 'এন্ট্রি সংখ্যা' : 'Entries'}</span><b class="num">${ms.length}</b></div>
-      <div class="row between" style="padding:4px 0"><span class="sub">${lang === 'bn' ? 'অনুমোদিত বাজার' : 'Approved bazar'}</span><b class="num">${f2(apprSum)}</b></div>
-      <div class="row between" style="padding:4px 0"><span class="sub">${lang === 'bn' ? 'মোট দিন' : 'Total days'}</span><b class="num">${totDays}</b></div>
-    </div>`;
-    const depList = c.em.filter(e => depOf(e) !== 0).map(e =>
-      `<div class="row between" style="padding:6px 0;border-top:1px solid var(--bd)"><span>${esc(nameOf(e))}</span><b class="num">${f2(depOf(e))}</b></div>`).join('');
-    h += `<div class="card"><h3>${lang === 'bn' ? 'মেসের হাতে জমা' : 'Deposits held by the mess'}</h3><div class="row between" style="padding:6px 0 4px"><span class="sub">${lang === 'bn' ? 'মোট' : 'Total'}</span><b class="num" style="font-size:18px">৳ ${f2(hand)}</b></div>${depList}</div>`;
     const sorted = c.em.slice().sort((a, b) => bazarOf(b) - bazarOf(a));
     const maxB = Math.max(1, ...sorted.map(bazarOf));
     h += `<div class="card"><h3>${t('members')}</h3>` + sorted.map(e => {
@@ -943,6 +928,10 @@ function renderHome() {
     </div>`;
     if (bal != null) {
       h += `<div class="card"><h3>${isBn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
+        <div class="totalTile">
+          <div class="sub">${isBn ? 'মেসের মোট বাজার' : 'Total mess bazar'}</div>
+          <div class="totalAmt num">৳ ${f2(calc().tB)}</div>
+        </div>
         <div class="row between" style="padding:6px 0"><span>${isBn ? 'তুমি বাজার দিয়েছ' : 'You paid for bazar'}</span><b class="num">${f2(bazarOf(me))}</b></div>
         <div class="row between" style="padding:6px 0"><span>${isBn ? 'তোমার জমা' : 'Your deposit'}</span><b class="num">+ ${f2(depOf(me))}</b></div>
         <div class="row between" style="padding:6px 0"><span>${isBn ? `তোমার খাওয়ার খরচ (${dy} দিন × ${f2(r)})` : `Your meal cost (${dy} days × ${f2(r)})`}</span><b class="num">− ${f2(share)}</b></div>
