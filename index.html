@@ -208,6 +208,8 @@ details.sec .secBody{margin-top:12px}
 #vBack::before{content:'✕';font-size:22px;font-weight:900}
 #imgBig{max-width:100vw;max-height:86vh;width:auto;height:auto;object-fit:contain;border-radius:0;touch-action:pinch-zoom}
 #fMsg.err{color:#e5484d;font-weight:700}
+#noteMic.on{background:linear-gradient(135deg,#e8c15a,#7ee2a8);color:#1a140a;animation:pulseMic 1s infinite}
+@keyframes pulseMic{50%{opacity:.6}}
 #memberList .mhead{display:flex;align-items:center;gap:12px}
 .mav{width:44px;height:44px;border-radius:50%;color:#fff;font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center;flex:none}
 .mname{font-weight:800;font-size:16px}
@@ -308,13 +310,16 @@ details.sec .secBody{margin-top:12px}
 
   <main class="wrap">
     <section id="pgHome">
-      <div id="qBar" class="card hidden">
-        <button class="pri" style="width:100%" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
-      </div>
       <div class="card" id="notesCard">
+        <div id="qBar" class="hidden" style="margin-bottom:14px">
+          <button class="pri" style="width:100%" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
+        </div>
         <h3 id="notesTitle"></h3>
         <textarea id="noteTxt" rows="2" maxlength="300" style="width:100%"></textarea>
-        <button class="pri" style="width:100%;margin-top:8px" onclick="postNote()" id="notePost"></button>
+        <div class="row" style="margin-top:8px;flex-wrap:nowrap">
+          <button class="ghost" id="noteMic" aria-label="voice" title="voice" onclick="toggleMic()" style="flex:0 0 52px;width:52px;min-height:46px;padding:0;font-size:20px">🎤</button>
+          <button class="pri" style="flex:1" onclick="postNote()" id="notePost"></button>
+        </div>
         <div id="notesList" style="margin-top:6px"></div>
       </div>
       <div id="hContent"></div>
@@ -793,12 +798,36 @@ function render() {
 }
 
 /* ===== Shared notes: anyone can post; author or admin can delete ===== */
+/* voice input for notes (uses the browser's speech recognition where it exists; otherwise the keyboard mic still works) */
+let recog = null;
+function toggleMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const bn = lang === 'bn';
+  if (!SR) { toast(bn ? 'এই ফোনে ভয়েস সাপোর্ট নেই। keyboard-এর মাইক ব্যবহার করো।' : 'Voice is not supported here. Use the keyboard mic.', true); return; }
+  if (recog) { recog.stop(); return; }
+  recog = new SR();
+  recog.lang = bn ? 'bn-BD' : 'en-US';
+  recog.interimResults = false;
+  recog.maxAlternatives = 1;
+  recog.onresult = e => {
+    const txt = [...e.results].map(r => r[0].transcript).join(' ').trim();
+    const ta = $('noteTxt');
+    ta.value = (ta.value ? ta.value.trim() + ' ' : '') + txt;
+    ta.value = ta.value.slice(0, 300);
+  };
+  recog.onerror = e => toast((bn ? 'ভয়েস সমস্যা: ' : 'Voice error: ') + (e.error || ''), true);
+  recog.onend = () => { recog = null; $('noteMic').classList.remove('on'); };
+  $('noteMic').classList.add('on');
+  try { recog.start(); } catch (e) { recog = null; $('noteMic').classList.remove('on'); }
+}
 function renderNotes() {
   const box = $('notesList'); if (!box) return;
   const isBn = lang === 'bn';
   $('notesTitle').innerText = isBn ? 'সবার নোট' : 'Notes for everyone';
   $('noteTxt').placeholder = isBn ? 'যেমন: বাজার লাগবে: চিনি, মাংস' : 'e.g. Need sugar, meat';
   $('notePost').innerText = isBn ? 'নোট দাও' : 'Post note';
+  if ($('noteMic')) $('noteMic').classList.toggle('hidden', !(window.SpeechRecognition || window.webkitSpeechRecognition));
+  if ($('noteMic')) $('noteMic').style.background = '';
   box.innerHTML = notes.length ? notes.map(n => {
     const when = n.at ? new Date(n.at).toLocaleString(isBn ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
     const canDel = n.by === me || isMgr;
