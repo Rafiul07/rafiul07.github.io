@@ -259,7 +259,7 @@ details.sec .secBody{margin-top:12px}
 }
 /* ⓘ info popups: centred box with a border on every screen size */
 #infoBox{padding:16px;align-items:center;justify-content:center}
-#infoBox .sheet{width:100%;max-width:440px;max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;border:2px solid var(--p);border-radius:16px;padding:16px 18px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+#infoBox .sheet{width:100%;max-width:480px;max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;border:2px solid var(--p);border-radius:16px;padding:16px 18px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
 @media (max-width:600px){
   #infoBox{padding:16px;align-items:center}
   #infoBox .sheet{max-width:100%;border-radius:16px;max-height:calc(100dvh - 32px);padding:16px 16px}
@@ -434,7 +434,7 @@ en: {
   submitted:'Waiting', needs_fix:'Needs fix', approved:'Approved',
   addMember:'Add member', memberEmail:'Member email', nameLbl:'Name', add:'Add',
   memberHint:'Enter email, name and a temporary password. The login is created automatically.',
-  memberCount:'members', admin:'Admin', controlPanel:'Control panel', member:'Member', resetData:'Reset all entries', resetWarn:'All entries and pay slips will be deleted. Members stay. This cannot be undone.', enterAdminPw:'Enter admin password to confirm', resetDone:'All entries were reset', dangerZone:'Danger zone', resetAll:'Delete all', month:'Month', allMonths:'All months', exportCsv:'Download CSV', search:'Search name or note', memberRemove:'Remove member', memberRemoveWarn:'Remove this member? Their entries stay.', memberPage:'Account', rotate:'Rotate', zoomIn:'Zoom +', zoomOut:'Zoom −', noMatch:'No match', themeByAdmin:'Theme is set by the admin', adminOnly:'Only the admin can change this', changePw:'Change password', curPw:'Current password', newPw:'New password', confPw:'Confirm new password', pwShort:'At least 6 characters', pwMismatch:'Passwords do not match', wrongPw:'Current password is wrong', pwChanged:'Password changed', locked:'Locked', back:'Back', paySlip:'Pay slip (required)', needSlip:'Pay slip photo is required. Without it the entry will NOT be saved.', viewSlip:'Tap to view pay slip',
+  memberCount:'members', admin:'Admin', controlPanel:'Control panel', member:'Member', resetData:'Reset all entries', resetWarn:'All entries, pay slips and notes will be deleted. Every member days go back to 30 and deposit to 0. Members stay. This cannot be undone.', enterAdminPw:'Enter admin password to confirm', resetDone:'All entries were reset', dangerZone:'Danger zone', resetAll:'Delete all', month:'Month', allMonths:'All months', exportCsv:'Download CSV', search:'Search name or note', memberRemove:'Remove member', memberRemoveWarn:'Remove this member? Their entries stay.', memberPage:'Account', rotate:'Rotate', zoomIn:'Zoom +', zoomOut:'Zoom −', noMatch:'No match', themeByAdmin:'Theme is set by the admin', adminOnly:'Only the admin can change this', changePw:'Change password', curPw:'Current password', newPw:'New password', confPw:'Confirm new password', pwShort:'At least 6 characters', pwMismatch:'Passwords do not match', wrongPw:'Current password is wrong', pwChanged:'Password changed', locked:'Locked', back:'Back', paySlip:'Pay slip (required)', needSlip:'Pay slip photo is required. Without it the entry will NOT be saved.', viewSlip:'Tap to view pay slip',
   quickEntry:'Quick entry', preferences:'Preferences', language:'Language', theme:'Theme', dark:'Dark', light:'Light', auto:'Auto',
   fontSize:'Font size', small:'Small', medium:'Medium', large:'Big',
   management:'Mess management', manageMembers:'Members, days & deposit', account:'Account',
@@ -455,7 +455,7 @@ bn: {
   submitted:'অপেক্ষমাণ', needs_fix:'সংশোধন দরকার', approved:'অনুমোদিত',
   addMember:'সদস্য যোগ', memberEmail:'সদস্যের ইমেইল', nameLbl:'নাম', add:'যোগ',
   memberHint:'ইমেইল, নাম আর একটা অস্থায়ী পাসওয়ার্ড দাও। লগইন নিজে থেকেই তৈরি হবে।',
-  memberCount:'জন', admin:'অ্যাডমিন', controlPanel:'কন্ট্রোল প্যানেল', member:'সদস্য', resetData:'সব এন্ট্রি রিসেট', resetWarn:'সব এন্ট্রি ও পে-স্লিপ মুছে যাবে। সদস্যরা থাকবে। এটা ফেরানো যাবে না।', enterAdminPw:'নিশ্চিত করতে অ্যাডমিন পাসওয়ার্ড দাও', resetDone:'সব এন্ট্রি রিসেট হয়েছে', dangerZone:'বিপজ্জনক এলাকা', resetAll:'সব মুছো', month:'মাস', allMonths:'সব মাস', exportCsv:'CSV ডাউনলোড', search:'নাম বা বিবরণ খুঁজুন', memberRemove:'সদস্য মুছো', memberRemoveWarn:'এই সদস্যকে মুছবে? তার এন্ট্রিগুলো থাকবে।', memberPage:'হিসাব', rotate:'ঘোরাও', zoomIn:'বড়', zoomOut:'ছোট', noMatch:'মিলছে না', themeByAdmin:'থিম অ্যাডমিন ঠিক করে দেয়', adminOnly:'এটা শুধু অ্যাডমিন বদলাতে পারবে', changePw:'পাসওয়ার্ড পরিবর্তন', curPw:'বর্তমান পাসওয়ার্ড', newPw:'নতুন পাসওয়ার্ড', confPw:'নতুন পাসওয়ার্ড আবার লেখো', pwShort:'কমপক্ষে ৬ অক্ষর', pwMismatch:'দুটো পাসওয়ার্ড মিলছে না', wrongPw:'বর্তমান পাসওয়ার্ড ভুল', pwChanged:'পাসওয়ার্ড বদলানো হয়েছে', locked:'লক করা', back:'ফিরে যাও', paySlip:'পে-স্লিপ (বাধ্যতামূলক)', needSlip:'পে-স্লিপের ছবি ছাড়া এন্ট্রি সেভ হবে না। ছবি যোগ করে আবার Save দাও।', viewSlip:'পে-স্লিপ দেখতে ট্যাপ করো',
+  memberCount:'জন', admin:'অ্যাডমিন', controlPanel:'কন্ট্রোল প্যানেল', member:'সদস্য', resetData:'সব এন্ট্রি রিসেট', resetWarn:'সব এন্ট্রি, পে-স্লিপ ও নোট মুছে যাবে। প্রত্যেক সদস্যের দিন ৩০ আর জমা ০ হবে। সদস্যরা থাকবে। এটা ফেরানো যাবে না।', enterAdminPw:'নিশ্চিত করতে অ্যাডমিন পাসওয়ার্ড দাও', resetDone:'সব এন্ট্রি রিসেট হয়েছে', dangerZone:'বিপজ্জনক এলাকা', resetAll:'সব মুছো', month:'মাস', allMonths:'সব মাস', exportCsv:'CSV ডাউনলোড', search:'নাম বা বিবরণ খুঁজুন', memberRemove:'সদস্য মুছো', memberRemoveWarn:'এই সদস্যকে মুছবে? তার এন্ট্রিগুলো থাকবে।', memberPage:'হিসাব', rotate:'ঘোরাও', zoomIn:'বড়', zoomOut:'ছোট', noMatch:'মিলছে না', themeByAdmin:'থিম অ্যাডমিন ঠিক করে দেয়', adminOnly:'এটা শুধু অ্যাডমিন বদলাতে পারবে', changePw:'পাসওয়ার্ড পরিবর্তন', curPw:'বর্তমান পাসওয়ার্ড', newPw:'নতুন পাসওয়ার্ড', confPw:'নতুন পাসওয়ার্ড আবার লেখো', pwShort:'কমপক্ষে ৬ অক্ষর', pwMismatch:'দুটো পাসওয়ার্ড মিলছে না', wrongPw:'বর্তমান পাসওয়ার্ড ভুল', pwChanged:'পাসওয়ার্ড বদলানো হয়েছে', locked:'লক করা', back:'ফিরে যাও', paySlip:'পে-স্লিপ (বাধ্যতামূলক)', needSlip:'পে-স্লিপের ছবি ছাড়া এন্ট্রি সেভ হবে না। ছবি যোগ করে আবার Save দাও।', viewSlip:'পে-স্লিপ দেখতে ট্যাপ করো',
   quickEntry:'দ্রুত এন্ট্রি', preferences:'পছন্দ', language:'ভাষা', theme:'থিম', dark:'ডার্ক', light:'লাইট', auto:'অটো',
   fontSize:'ফন্ট সাইজ', small:'ছোট', medium:'মাঝারি', large:'বড়',
   management:'মেস ব্যবস্থাপনা', manageMembers:'সদস্য, দিন ও জমা', account:'অ্যাকাউন্ট',
@@ -1058,7 +1058,7 @@ function explainItems(email, rate) {
 }
 function openInfo(title, items) {
   $('infoTitle').innerText = title;
-  $('infoBody').innerHTML = items.map(x => `<div style="padding:9px 0;border-top:1px solid var(--bd);font-size:14px;${x.red ? 'color:var(--bad);font-weight:700' : ''}">${esc(x.t)}</div>`).join('');
+  $('infoBody').innerHTML = items.map(x => `<div style="padding:12px 0;border-top:1px solid var(--bd);font-size:16px;line-height:1.6;${x.red ? 'color:var(--bad);font-weight:700' : ''}">${esc(x.t)}</div>`).join('');
   $('infoBox').classList.remove('hidden');
   openLayer('infoBox');
 }
@@ -1386,7 +1386,7 @@ function renderAdmin() {
   if (!isMgr) return;
   const isBn = lang === 'bn';
   const sec = (title, body, open = false, cls = '') =>
-    `<details class="sec ${cls}" ${open ? 'open' : ''}><summary>${title}</summary><div class="secBody">${body}</div></details>`;
+    `<details class="sec ${cls}" ${open ? 'open' : ''} ontoggle="if(this.open)this.scrollIntoView({behavior:'smooth',block:'nearest'})"><summary>${title}</summary><div class="secBody">${body}</div></details>`;
   const gh = label => `<div class="gh">${label}</div>`;
   const active = document.activeElement;
   const keep = active && active.closest && active.closest('#pgAdmin') ? { id: active.id, v: active.value, pos: active.selectionStart } : null;
@@ -1494,11 +1494,16 @@ async function resetAll() {
     return;
   }
   try {
-    const [eSnap, sSnap] = await Promise.all([ADB().collection('entries').get(), ADB().collection('slips').get()]);
-    const refs = [...eSnap.docs, ...sSnap.docs].map(d => d.ref);
+    const [eSnap, sSnap, nSnap, mSnap] = await Promise.all([
+      ADB().collection('entries').get(), ADB().collection('slips').get(),
+      ADB().collection('notes').get(), ADB().collection('members').get()]);
+    const ops = [
+      ...eSnap.docs.map(d => ['del', d.ref]), ...sSnap.docs.map(d => ['del', d.ref]), ...nSnap.docs.map(d => ['del', d.ref]),
+      ...mSnap.docs.map(d => ['reset', d.ref])];   // members stay, but days go back to 30 and deposit to 0
     let batch = ADB().batch(), n = 0;
-    for (const ref of refs) {
-      batch.delete(ref); n++;
+    for (const [kind, ref] of ops) {
+      if (kind === 'del') batch.delete(ref); else batch.update(ref, { days: 30, deposit: 0 });
+      n++;
       if (n % 400 === 0) { await batch.commit(); batch = ADB().batch(); }
     }
     await batch.commit();
