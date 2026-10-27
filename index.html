@@ -649,7 +649,8 @@ document.addEventListener('touchmove', e => {
   if (pOn) pDy = e.touches[0].clientY - pY0;
 }, { passive: true });
 document.addEventListener('touchend', () => {
-  if (pOn && pDy > 90) { toast('রিফ্রেশ হচ্ছে…'); setTimeout(() => location.reload(), 300); }
+  const typing = document.activeElement && document.activeElement.matches && document.activeElement.matches('input,textarea,select');
+  if (pOn && pDy > 90 && !typing) { toast('রিফ্রেশ হচ্ছে…'); setTimeout(() => location.reload(), 300); }
   pOn = false;
 }, { passive: true });
 
@@ -784,7 +785,7 @@ function getSlip(id) {
 function clearSlipCache() { Object.keys(slipCache).forEach(k => delete slipCache[k]); }
 /* Placeholder for a slip; hydrateSlips() swaps it for the image once loaded */
 function thumbFor(x) {
-  if (x.photo) return `<img class="thumb" src="${x.photo}" alt="" onclick="openImg(this.src)">`; // legacy field, before migration
+  if (x.photo) return `<img class="thumb" src="${esc(x.photo)}" alt="" onclick="openImg(this.src)">`; // legacy field, before migration
   return `<div class="thumb slipBox" data-slip="${esc(x.id)}" title="${t('viewSlip')}"></div>`;
 }
 function hydrateSlips() {
@@ -1549,6 +1550,10 @@ function openMember(email) {
   const sameM = $('memBody').dataset.email === email;
   const keepD = sameM && oldD && oldD.value !== oldD.dataset.orig ? oldD.value : null;
   const keepP = sameM && oldP && oldP.value !== oldP.dataset.orig ? oldP.value : null;
+  const oldN = $('mdName');
+  const keepN = sameM && oldN && oldN.value !== oldN.dataset.orig ? oldN.value : null;
+  const oldDet = $('memBody').querySelector('details');
+  const keepOpen = sameM && oldDet ? oldDet.open : false;
   memOpen = email;
   const all = scoped().filter(x => x.memberEmail === email).sort(byNewest);   // same month scope as the home page
   const bazar = bazarOf(email);
@@ -1600,6 +1605,9 @@ function openMember(email) {
 `;
   if (keepD !== null) $('mdDays').value = keepD;
   if (keepP !== null) $('mdDep').value = keepP;
+  if (keepN !== null && $('mdName')) $('mdName').value = keepN;
+  const newDet = $('memBody').querySelector('details');
+  if (newDet && keepOpen) newDet.open = true;
   $('memBox').classList.remove('hidden');
   openLayer('memBox');
   hydrateSlips();
