@@ -594,10 +594,12 @@ const depOf = e => { const m = memberOf(e); return m ? num(m.deposit) : 0; };
 const nameOf = e => { const m = memberOf(e); return m && m.name ? m.name : e.split('@')[0].toUpperCase(); };
 function scoped() { return month === 'all' ? entries : entries.filter(x => String(x.date).slice(0, 7) === month); }
 /* money math counts only approved entries; pending (submitted) entries are not in any balance yet */
-function approvedScoped() { return scoped().filter(x => x.status === 'approved'); }
+/* the main admin only controls the app: its entries (if any) are not part of the mess money */
+function approvedScoped() { return scoped().filter(x => x.status === 'approved' && x.memberEmail !== MANAGER); }
 const bazarOf = e => approvedScoped().filter(x => x.memberEmail === e).reduce((a, x) => a + num(x.amount), 0);
 /* people who share the cost = everyone with a member doc (admin included). A removed member's entries stay in the totals. */
-function allEmails() { return members.map(m => m.email); }
+/* the main admin account is not a mess member: it does not share the cost (no days, no balance) */
+function allEmails() { return members.filter(m => m.email !== MANAGER).map(m => m.email); }
 function calc(list = approvedScoped()) {
   const em = allEmails();
   const tB = list.reduce((a, x) => a + num(x.amount), 0);
