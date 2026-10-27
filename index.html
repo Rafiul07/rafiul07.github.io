@@ -833,7 +833,7 @@ function go(p, fromHistory = false) {
 function render() {
   if (!me) return;
   $('roleTag').innerText = isMgr ? t('admin') : t('member');
-  if (isMgr && loaded.members && loaded.entries) pushSummary(calc(entries));
+  if (isMgr && loaded.members && loaded.entries) pushSummary(calc());
   if (isMgr && loaded.entries && entries.some(x => x.photo)) autoMigrate();
   if (memOpen) openMember(memOpen);
   if (page === 'home') renderHome();
