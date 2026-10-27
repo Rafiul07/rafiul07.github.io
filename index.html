@@ -220,7 +220,7 @@ details.sec .secBody{margin-top:12px}
 /* member popup: close button stays small, popup never goes past the top of the screen */
 #memBox{padding:24px 16px}
 #memBox .sheet{max-height:calc(100vh - 48px)!important}
-#memBox .row.between > button{flex:none;width:44px;min-height:40px;padding:0}
+#memBox .row.between > button{flex:none;min-height:40px;padding:0 14px;white-space:nowrap}
 /* member cards in the control panel: chip wraps under the name on narrow screens */
 #memberList .mhead{flex-wrap:wrap}
 #memberList .mhead .grow{flex:1 1 150px}
@@ -346,7 +346,7 @@ details.sec .secBody{margin-top:12px}
   <div class="sheet" style="max-height:88vh;overflow:auto">
     <div class="row between" style="flex-wrap:nowrap">
       <div id="memTitle" style="font-weight:800;font-size:17px" class="grow"></div>
-      <button class="ghost" onclick="closeMember()">✕</button>
+      <button class="ghost" id="memBack" onclick="closeMember()"></button>
     </div>
     <div id="memBody" style="margin-top:12px"></div>
   </div>
@@ -429,8 +429,12 @@ let openAdminNext = false;
 /* Admin mode: the person keeps their own identity (me). Admin-only writes go through a second
    Firebase session that is signed in as admin only while the admin panel is unlocked. */
 let adminUnlocked = false, adminSess = null, adminDb = null, adminUnsubs = [];
-const ADB = () => (me === MANAGER ? db : (adminDb || db));
-const ADBAuth = () => (me === MANAGER ? auth : (adminSess ? adminSess.auth() : auth));
+let adminLogsOn = false;
+/* admin rights: the main admin account, or a member whose member doc has admin: true */
+const isAdminRow = e => e === MANAGER || !!((memberOf(e) || {}).admin);
+const accountAdmin = () => isAdminRow(me);
+const ADB = () => (accountAdmin() ? db : (adminDb || db));
+const ADBAuth = () => (accountAdmin() ? auth : (adminSess ? adminSess.auth() : auth));
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -533,7 +537,7 @@ let logs = [];
 let notice = '';
 let closedMonths = [];
 auth.onAuthStateChanged(async user => {
-  adminUnlocked = false; adminDb = null; adminUnsubs.forEach(u => u()); adminUnsubs = [];
+  adminUnlocked = false; adminDb = null; adminUnsubs.forEach(u => u()); adminUnsubs = []; adminLogsOn = false;
   if (adminSess) { adminSess.delete().catch(() => {}); adminSess = null; }
   unsubs.forEach(u => u()); unsubs = [];
   members = []; entries = []; summary = null; lastSum = ''; lastStatus = {};
@@ -551,7 +555,12 @@ auth.onAuthStateChanged(async user => {
 
   // everyone can read members and entries (no photos there); pay slips live in slips/{id}, readable by owner and admin only
   unsubs.push(db.collection('members').onSnapshot(s => {
-    members = s.docs.map(d => ({ email: d.id, ...d.data() })); loaded.members = true; render();
+    members = s.docs.map(d => ({ email: d.id, ...d.data() })); loaded.members = true;
+    // admin rights can come from the member doc too (admin: true), so re-check after every members update
+    isMgr = accountAdmin() || adminUnlocked;
+    if (isMgr && !adminLogsOn) { adminLogsOn = true; startAdminListeners(); }
+    if (!isMgr && adminLogsOn) { adminUnsubs.forEach(u => u()); adminUnsubs = []; adminLogsOn = false; }
+    render();
   }, () => {}));
   unsubs.push(db.collection('entries').onSnapshot(s => {
     const prev = lastStatus;
@@ -612,7 +621,7 @@ function renderNav() {
     return;
   }
   const keys = ['home', 'entries'];
-  keys.push('settings');
+  if (!isMgr) keys.push('settings');   // admin's settings live inside the control panel
   keys.push('admin');
   $('nav').style.gridTemplateColumns = `repeat(${keys.length},1fr)`;
   const pend = isMgr ? entries.filter(x => x.status !== 'approved').length : 0;
@@ -842,17 +851,13 @@ function renderHome() {
     const fixes = entries.filter(x => x.memberEmail === me && x.status === 'needs_fix');
     if (fixes.length) h += `<div class="card" style="border-color:var(--warn)"><h3 style="color:var(--warn)">${lang === 'bn' ? 'সংশোধন দরকার' : 'Needs fix'}</h3><div class="sub" style="margin-bottom:6px">${lang === 'bn' ? 'নিচের কারণ দেখে এন্ট্রিটি এডিট করে আবার জমা দাও।' : 'Check the reason below, edit the entry and submit again.'}</div>` + fixes.map(x =>
       `<div class="row between" style="padding:6px 0"><span><b class="num">${f2(x.amount)}</b> · ${fmtDate(x.date)}</span><span style="color:var(--warn);font-size:13px">${esc(x.reason || '')}</span></div>`).join('') + `</div>`;
-    h += `<div class="kpis three">
-      ${kpi(t('bazar'), f2(bazarOf(me)))}
-      ${kpi(t('days'), daysOf(me))}
-      ${kpi(t('deposit'), f2(depOf(me)))}
-    </div>`;
-    h += `<div class="card"><h3>${t('recent')}</h3>` + recentList(entries.filter(x => x.memberEmail === me), 5, true) + `</div>`;
+    // bazar / days / deposit already sit in the hero card above, so no separate tiles
+    if (!isMgr) h += `<div class="card"><h3>${t('recent')}</h3>` + recentList(entries.filter(x => x.memberEmail === me), 5, true) + `</div>`;
     h += `<div class="card"><h3>${t('statusCount')}</h3>` + ['submitted', 'needs_fix', 'approved'].map(s =>
       `<div class="row between" style="padding:6px 0"><span class="badge ${STATUS_CLS[s]}">${t(s)}</span><b class="num">${entries.filter(x => x.memberEmail === me && x.status === s).length}</b></div>`
     ).join('') + `</div>`;
     const r2 = currentRate();
-    if (r2 != null) {
+    if (r2 != null && !isMgr) {   // admin already sees everyone in the members card above
       const ov = allEmails().slice().sort((a, b) => bazarOf(b) - bazarOf(a));
       h += `<div class="card"><h3>${lang === 'bn' ? 'সবার হিসাব' : 'Everyone'}</h3>` + ov.map(e =>
         `<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--bd)"><div><b>${esc(nameOf(e))}</b>${e === me ? ' ★' : ''}<div class="sub num">${f2(bazarOf(e))} · ${t('days')} ${daysOf(e)} · ${t('deposit')} ${f2(depOf(e))}</div></div>${balTag(balOf(e, r2))}</div>`).join('') + `</div>`;
@@ -1104,12 +1109,11 @@ function renderMembers() {
     return `<div class="card mcard" data-email="${esc(m.email)}">
       <div class="mhead">
         <div class="mav" style="background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>
-        <div class="grow" style="min-width:0;cursor:pointer" onclick="openMember('${esc(m.email)}')"><div class="mname">${esc(nm)} <span class="sub">›</span></div><div class="sub" style="word-break:break-all">${esc(m.email)}</div></div>
+        <div class="grow" style="min-width:0;cursor:pointer" onclick="openMember('${esc(m.email)}')"><div class="mname">${esc(nm)} <span class="sub">›</span>${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub" style="word-break:break-all">${esc(m.email)}</div></div>
         ${chip}
       </div>
       <div class="mbar"><i style="width:${pct}%"></i></div>
       <div class="sub num" style="display:flex;justify-content:space-between;margin-bottom:8px"><span>${f2(b)} · ${pct}%</span><span>${t('days')} ${m.days ?? 30} · ${t('deposit')} ${f2(m.deposit ?? 0)}</span></div>
-      <button class="ghost" style="width:100%;margin-top:4px" onclick="openMember('${esc(m.email)}')">${t('memberPage')} ›</button>
     </div>`;
   }).join('') || `<div class="card empty">${t('noEntries')}</div>`;
 }
@@ -1196,7 +1200,8 @@ async function shareSummary() {
   } catch (e) { /* share cancelled */ }
 }
 
-function renderSettings() {
+function renderSettings() { $('pgSettings').innerHTML = settingsHtml(); }
+function settingsHtml() {
   const nm = nameOf(me);
   const isBn = lang === 'bn';
   const seg = (fn, opts, cur) => `<div class="seg">${opts.map(([v, l]) =>
@@ -1233,7 +1238,7 @@ function renderSettings() {
       <button class="item" onclick="resetPw()"><span>${t('resetPw')}</span><span class="sub">›</span></button>
       `);
 
-  $('pgSettings').innerHTML = h;
+  return h;
 }
 
 /* ===== Admin panel: all admin-only tools live here ===== */
@@ -1253,7 +1258,7 @@ function renderAdmin() {
 
   const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
   const tabBtn = (k, label) => `<button class="${admTab === k ? 'pri' : 'ghost'}" style="flex:1" onclick="admTabSet('${k}')">${label}</button>`;
-  let h = `<div class="row" style="gap:8px;margin-bottom:12px">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('members', isBn ? 'সব সদস্য' : 'All members')}${tabBtn('settings', isBn ? 'মেস সেটিংস' : 'Mess settings')}</div>`;
+  let h = `<div class="row" style="gap:8px;margin-bottom:12px">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('members', isBn ? 'সব সদস্য' : 'All members')}${tabBtn('settings', isBn ? 'সেটিংস' : 'Settings')}</div>`;
   if (admTab === 'wait') h += `<div class="card"><h3>${isBn ? `অপেক্ষমাণ এন্ট্রি (${pending.length})` : `Waiting approval (${pending.length})`}</h3>`
     + (pending.length ? pending.map(x => `<div class="entry">${thumbFor(x)}<div class="grow">
         <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
@@ -1299,7 +1304,8 @@ function renderAdmin() {
   h += sec(isBn ? 'কার্যক্রম (সর্বশেষ ৩০)' : 'Activity (last 30)',
     logs.length ? logs.map(l => `<div class="sub" style="padding:4px 0">${new Date(l.at).toLocaleString()} · ${esc(l.text)}</div>`).join('') : `<div class="empty">${t('noEntries')}</div>`);
 
-  h += sec(t('dangerZone'), `<button class="bad" style="width:100%" onclick="resetAll()">${t('resetData')}</button>`, false, 'danger');
+  h += settingsHtml();   // personal settings: preferences, notifications, account, logout
+  h += sec(t('dangerZone'),`<button class="bad" style="width:100%" onclick="resetAll()">${t('resetData')}</button>`, false, 'danger');
 
   }
   $('pgAdmin').innerHTML = h;
@@ -1538,6 +1544,7 @@ function openMember(email) {
   const tone = bal == null ? 'var(--sub)' : pos ? '#22c55e' : 'var(--bad)';
   const row = (label, val, extra = '') => `<div class="row between" style="padding:7px 0;${extra}"><span class="sub">${label}</span><b class="num">${val}</b></div>`;
   $('memTitle').innerText = bn ? 'সদস্যের হিসাব' : 'Member account';
+  $('memBack').innerText = '← ' + t('back');
   $('memBody').dataset.email = email;
   $('memBody').innerHTML = `
     <div class="row" style="flex-wrap:nowrap;gap:12px;margin-bottom:12px">
@@ -1550,6 +1557,7 @@ function openMember(email) {
         <label class="mf"><span>${t('days')}</span><input id="mdDays" type="text" inputmode="numeric" data-orig="${daysOf(email)}" value="${daysOf(email)}"></label>
         <label class="mf"><span>${t('deposit')}</span><input id="mdDep" type="text" inputmode="decimal" data-orig="${depOf(email)}" value="${depOf(email)}"></label>
       </div>
+      ${email !== MANAGER ? `<button class="ghost" style="width:100%;margin-top:12px" onclick="toggleAdmin('${esc(email)}', ${!isAdminRow(email)})">${isAdminRow(email) ? (bn ? 'অ্যাডমিন থেকে সরাও' : 'Remove admin rights') : (bn ? 'অ্যাডমিন বানাও' : 'Make admin')}</button>` : ''}
       <div class="row" style="margin-top:12px">
         <button class="pri grow" onclick="saveMemberFields('${esc(email)}')">${t('save')}</button>
         <button class="bad" onclick="closeMember(); removeMember('${esc(email)}')">${t('del')}</button>
@@ -1558,7 +1566,6 @@ function openMember(email) {
     <div class="hero" style="margin-bottom:14px">
       <div class="sub">${bal == null ? (bn ? 'দিন যোগ হলে হিসাব দেখা যাবে' : 'Shows once days are set') : pos ? (bn ? 'ফেরত পাবে' : 'Gets back') : (bn ? 'বাকি (দিতে হবে)' : 'Due')}</div>
       <div class="big" style="color:${tone}">${bal == null ? '—' : f2(Math.abs(bal))}</div>
-      <div class="sub" style="margin-top:6px">${t('bazar')} ${f2(bazar)} · ${t('days')} ${daysOf(email)} · ${t('deposit')} ${f2(depOf(email))}</div>
     </div>
     ${rate != null ? `<div class="card" style="margin:0 0 14px">
       <h3>${bn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
@@ -1573,11 +1580,26 @@ function openMember(email) {
       <h3>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></h3>
       ${all.length ? all.map(entryRow).join('') : `<div class="empty">${t('noEntries')}</div>`}
     </div>
-    <button class="ghost" style="width:100%" onclick="closeMember()">← ${t('back')}</button>`;
+`;
   if (keepD !== null) $('mdDays').value = keepD;
   if (keepP !== null) $('mdDep').value = keepP;
   $('memBox').classList.remove('hidden');
   hydrateSlips();
+}
+/* admin can give or take admin rights from any member; the main admin account cannot be changed here */
+async function toggleAdmin(email, make) {
+  if (email === MANAGER) return;
+  const who = nameOf(email);
+  const ok = await sheet({
+    title: make
+      ? (lang === 'bn' ? `${who} কে অ্যাডমিন বানাবে? সে সব কিছু দেখতে ও বদলাতে পারবে।` : `Make ${who} an admin? They get full access.`)
+      : (lang === 'bn' ? `${who} এর অ্যাডমিন অধিকার সরাবে?` : `Remove admin rights from ${who}?`),
+    input: false, okText: make ? (lang === 'bn' ? 'অ্যাডমিন বানাও' : 'Make admin') : (lang === 'bn' ? 'সরাও' : 'Remove')
+  });
+  if (!ok) return;
+  ADB().collection('members').doc(email).set({ admin: make }, { merge: true })
+    .then(() => { toast(t('saved')); logAct((make ? 'Made admin · ' : 'Removed admin · ') + email); if (memOpen) openMember(memOpen); })
+    .catch(showErr);
 }
 function saveMemberFields(email) {
   const nm = $('mdName').value.trim();
