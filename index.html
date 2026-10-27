@@ -994,8 +994,8 @@ function renderEntries() {
   const q = $('qSearch').value.trim().toLowerCase();
   $('filterSel').innerHTML = isMgr ? `
       <select class="grow" style="margin-top:0" onchange="filt.m=this.value;render()">
-        <option value="all">${t('allMembers')}</option>
-        ${allEmails().map(e => `<option value="${esc(e)}" ${filt.m === e ? 'selected' : ''}>${esc(nameOf(e))}</option>`).join('')}
+        ${isMgr ? `<option value="all">${t('allMembers')}</option>` : ''}
+        ${(isMgr ? allEmails() : [me]).map(e => `<option value="${esc(e)}" ${filt.m === e || (!isMgr && filt.m !== e) ? 'selected' : ''}>${esc(nameOf(e))}</option>`).join('')}
       </select>
       <select class="grow" style="margin-top:0" onchange="filt.s=this.value;render()">
         <option value="all">${t('allStatus')}</option>
@@ -1003,6 +1003,7 @@ function renderEntries() {
       </select>` : '';
   const list = entries.filter(x => {
     if (isMgr) {
+      if (!isMgr && x.memberEmail !== me) return false;
       if (filt.m !== 'all' && x.memberEmail !== filt.m) return false;
       if (filt.s !== 'all' && x.status !== filt.s) return false;
       if (month !== 'all' && String(x.date).slice(0, 7) !== month) return false;
