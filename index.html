@@ -1108,10 +1108,10 @@ function renderMembers() {
     const hue = [...m.email].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
     const pct = Math.round(b / tot * 100);
     const chip = rate == null ? '' : `<span class="mchip ${bal >= 0 ? 'g' : 'r'}">${bal >= 0 ? '↑ ' + t('refund') : '↓ ' + t('due')}: ${f2(Math.abs(bal))}</span>`;
-    return `<div class="card mcard" data-email="${esc(m.email)}">
+    return `<div class="card mcard" data-email="${esc(m.email)}" style="cursor:pointer" onclick="openMember('${esc(m.email)}')">
       <div class="mhead">
         <div class="mav" style="background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>
-        <div class="grow" style="min-width:0;cursor:pointer" onclick="openMember('${esc(m.email)}')"><div class="mname">${esc(nm)} <span class="sub">›</span>${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub" style="word-break:break-all">${esc(m.email)}</div></div>
+        <div class="grow" style="min-width:0"><div class="mname">${esc(nm)} <span class="sub">›</span>${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub" style="word-break:break-all">${esc(m.email)}</div></div>
         ${chip}
       </div>
       <div class="mbar"><i style="width:${pct}%"></i></div>
