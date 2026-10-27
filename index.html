@@ -1001,13 +1001,6 @@ function renderHome() {
             <div class="sub" style="font-size:12px">${isBn ? 'প্রতিদিনের খরচ: ' : 'Cost per day: '}${f2(r)}</div>
           </div>
         </div>
-        <div class="sub" style="margin:4px 0 6px">${isBn ? 'প্রতিজনের বাজার' : 'Bazar per person'}</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:8px">
-          ${allEmails().map(e => `<div style="border:1px solid ${e === me ? 'var(--p)' : 'var(--bd)'};border-radius:12px;padding:8px 10px;background:var(--card2)">
-            <div class="sub" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nameOf(e))}${e === me ? (isBn ? ' (তুমি)' : ' (you)') : ''}</div>
-            <div class="num" style="font-weight:800;font-size:17px">৳ ${f2(bazarOf(e))}</div>
-          </div>`).join('')}
-        </div>
         <div class="row between" style="padding:6px 0"><span>${isBn ? 'তুমি বাজার দিয়েছ' : 'You paid for bazar'}</span><b class="num">${f2(bazarOf(me))}</b></div>
         <div class="row between" style="padding:6px 0"><span>${isBn ? 'তোমার জমা' : 'Your deposit'}</span><b class="num">+ ${f2(depOf(me))}</b></div>
         <div class="row between" style="padding:6px 0"><span>${isBn ? `তোমার খাওয়ার খরচ (${dy} দিন × ${f2(r)})` : `Your meal cost (${dy} days × ${f2(r)})`}</span><b class="num">− ${f2(share)}</b></div>
