@@ -593,10 +593,12 @@ const daysOf = e => { const m = memberOf(e); return m && m.days != null ? num(m.
 const depOf = e => { const m = memberOf(e); return m ? num(m.deposit) : 0; };
 const nameOf = e => { const m = memberOf(e); return m && m.name ? m.name : e.split('@')[0].toUpperCase(); };
 function scoped() { return month === 'all' ? entries : entries.filter(x => String(x.date).slice(0, 7) === month); }
-const bazarOf = e => scoped().filter(x => x.memberEmail === e).reduce((a, x) => a + num(x.amount), 0);
+/* money math counts only approved entries; pending (submitted) entries are not in any balance yet */
+function approvedScoped() { return scoped().filter(x => x.status === 'approved'); }
+const bazarOf = e => approvedScoped().filter(x => x.memberEmail === e).reduce((a, x) => a + num(x.amount), 0);
 /* people who share the cost = everyone with a member doc (admin included). A removed member's entries stay in the totals. */
 function allEmails() { return members.map(m => m.email); }
-function calc(list = scoped()) {
+function calc(list = approvedScoped()) {
   const em = allEmails();
   const tB = list.reduce((a, x) => a + num(x.amount), 0);
   const tD = em.reduce((a, e) => a + daysOf(e), 0);
@@ -1093,17 +1095,20 @@ function explainLines(email, rate) {
   const bn = lang === 'bn';
   if (rate == null) return [bn ? 'দিন যোগ হলে হিসাব দেখা যাবে।' : 'The balance shows once days are set.'];
   const c = calc(), n = c.em.length || 1;
-  const perHead = c.tB / n, avgDays = c.tD / n;
+  const avgDays = c.tD / n;
   const b = bazarOf(email), d = depOf(email), days = daysOf(email), nm = nameOf(email);
-  const diff = b - perHead;
+  const share = days * rate;               // meal cost = the member's share of the mess cost
+  const diff = b - share;
   const L = [];
-  if (Math.abs(diff) < 0.005) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, প্রতি সদস্যের ভাগের সমান।` : `You paid ৳${f2(b)}, equal to the share per member.`);
-  else if (diff > 0) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, ভাগের (৳${f2(perHead)}) চেয়ে ৳${f2(diff)} বেশি। এই টাকা ${nm}-কে ফেরত দেওয়া হবে।` : `You paid ৳${f2(b)}, ৳${f2(diff)} more than the share (৳${f2(perHead)}). This is added back to you.`);
-  else L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, ভাগের (৳${f2(perHead)}) চেয়ে ৳${f2(-diff)} কম। এই টাকা ${nm}-কে দিতে হবে।` : `You paid ৳${f2(b)}, ৳${f2(-diff)} less than the share (৳${f2(perHead)}). You owe this.`);
+  if (Math.abs(diff) < 0.005) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ ৳${f2(share)}, সমান।` : `You paid ৳${f2(b)}, equal to your meal cost ৳${f2(share)}.`);
+  else if (diff > 0) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ (৳${f2(share)}) এর চেয়ে ৳${f2(diff)} বেশি। এই টাকা ${nm}-কে ফেরত দেওয়া হবে।` : `You paid ৳${f2(b)}, ৳${f2(diff)} more than your meal cost (৳${f2(share)}). This is added back to you.`);
+  else L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ (৳${f2(share)}) এর চেয়ে ৳${f2(-diff)} কম। এই টাকা ${nm}-কে দিতে হবে।` : `You paid ৳${f2(b)}, ৳${f2(-diff)} less than your meal cost (৳${f2(share)}). You owe this.`);
   L.push(d > 0 ? (bn ? `${nm}-এর জমা ৳${f2(d)} আছে, তাই হিসাবে যোগ হয়েছে।` : `Deposit of ৳${f2(d)} is added to the balance.`) : (bn ? 'কোনো জমা নেই।' : 'No deposit.'));
   const dayTxt = days === Math.round(avgDays) ? (bn ? 'গড়ের সমান' : 'same as the average') : days < avgDays ? (bn ? 'গড়ের চেয়ে কম, তাই খাওয়ার খরচ কম' : 'below average, so meal cost is lower') : (bn ? 'গড়ের চেয়ে বেশি, তাই খাওয়ার খরচ বেশি' : 'above average, so meal cost is higher');
   L.push(bn ? `${nm} ${days} দিন খেয়েছে (মেসের গড় ${avgDays.toFixed(1)} দিন), ${dayTxt}।` : `You had ${days} days (mess average ${avgDays.toFixed(1)}), ${dayTxt}.`);
-  L.push(bn ? `${nm}-এর খাওয়ার খরচ = ${days} দিন × ৳${f2(rate)} = ৳${f2(days * rate)}।` : `Meal cost = ${days} days × ৳${f2(rate)} = ৳${f2(days * rate)}.`);
+  L.push(bn ? `${nm}-এর খাওয়ার খরচ = ${days} দিন × ৳${f2(rate)} = ৳${f2(share)}।` : `Meal cost = ${days} days × ৳${f2(rate)} = ৳${f2(share)}.`);
+  const net = b + d - share;
+  L.push(bn ? `মোট হিসাব = বাজার ৳${f2(b)} + জমা ৳${f2(d)} − খাওয়া ৳${f2(share)} = ${net >= 0 ? '+' : '−'} ৳${f2(Math.abs(net))}।` : `Balance = paid ৳${f2(b)} + deposit ৳${f2(d)} − meal ৳${f2(share)} = ${net >= 0 ? '+' : '−'} ৳${f2(Math.abs(net))}.`);
   return L;
 }
 /* same lines, but the deposit and days lines are flagged red when they differ from the default (no deposit, 30 days) */
