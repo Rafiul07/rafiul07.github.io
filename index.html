@@ -977,7 +977,23 @@ function explainLines(email, rate) {
   L.push(bn ? `${nm}-এর খাওয়ার খরচ = ${days} দিন × ৳${f2(rate)} = ৳${f2(days * rate)}।` : `Meal cost = ${days} days × ৳${f2(rate)} = ৳${f2(days * rate)}.`);
   return L;
 }
+/* same lines, but the deposit and days lines are flagged red when they differ from the default (no deposit, 30 days) */
+function explainItems(email, rate) {
+  const lines = explainLines(email, rate);
+  if (rate == null) return lines.map(t => ({ t, red: false }));
+  const d = depOf(email), days = daysOf(email);
+  return lines.map((t, i) => ({ t, red: (i === 1 && d > 0) || (i === 2 && days !== 30) }));
+}
 function explain(email) {
+  const bn = lang === 'bn';
+  const ch = explainItems(email, currentRate()).filter(x => x.red).map(x => x.t);
+  sheet({
+    title: (bn ? 'জমা ও দিনের হিসাব — ' : 'Deposit and days — ') + nameOf(email) + '\n\n' +
+      (ch.length ? '• ' + ch.join('\n\n• ') : (bn ? 'জমা ও দিন স্বাভাবিক আছে (জমা নেই, ৩০ দিন)।' : 'Deposit and days are normal (no deposit, 30 days).')),
+    input: false, okText: t('ok')
+  });
+}
+function explainOld(email) {
   const rate = currentRate();
   const bn = lang === 'bn';
   sheet({ title: (bn ? 'কেন এমন হলো — ' : 'Why — ') + nameOf(email) + '\n\n• ' + explainLines(email, rate).join('\n\n• '), input: false, okText: t('ok') });
@@ -1630,7 +1646,7 @@ function openMember(email) {
     </div>` : ''}
     <div class="card" style="margin:0 0 14px">
       <h3>ⓘ ${bn ? 'কেন এমন হলো' : 'Why this amount'}</h3>
-      ${explainLines(email, rate).map(l => `<div style="padding:7px 0;border-top:1px solid var(--bd);font-size:14px">${esc(l)}</div>`).join('')}
+      ${explainItems(email, rate).map(x => `<div style="padding:7px 0;border-top:1px solid var(--bd);font-size:14px;${x.red ? 'color:var(--bad);font-weight:700' : ''}">${esc(x.t)}</div>`).join('')}
     </div>
     <div class="card" style="margin:0 0 14px">
       <h3>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></h3>
