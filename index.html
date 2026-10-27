@@ -267,8 +267,10 @@ details.sec .secBody{margin-top:12px}
   #infoBox .sheet{max-width:100%;border-radius:16px;max-height:calc(100dvh - 32px);padding:16px 16px}
 }
 /* total mess bazar tile inside the breakdown card */
+.totalGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:2px 0 10px}
+.totalGrid .totalTile{margin:0;min-width:0}
 .totalTile{border-radius:16px;padding:14px 16px;margin:2px 0 10px;background:linear-gradient(135deg,rgba(168,85,247,.16),rgba(34,211,238,.10));border:1px solid var(--bd)}
-.totalTile .totalAmt{font-size:clamp(24px,8vw,30px);font-weight:900;letter-spacing:-.4px;margin-top:2px}
+.totalTile .totalAmt{font-size:clamp(19px,5.6vw,26px);font-weight:900;letter-spacing:-.4px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:clip}
 </style>
 </head>
 <body>
@@ -951,16 +953,19 @@ function renderHome() {
     const dy = daysOf(me), share = r == null ? 0 : r * dy;
     const tone = bal == null ? 'inherit' : bal >= 0 ? '#22c55e' : 'var(--bad)';
     const msg = bal == null ? '' : bal >= 0 ? (isBn ? 'তুমি পাবে' : 'You get back') : (isBn ? 'তোমাকে দিতে হবে' : 'You need to pay');
-    h += `<div class="hero">
-      <div class="sub">${msg || t('balance')}</div>
-      <div class="big" style="color:${tone}">${bal == null ? '—' : '৳ ' + f2(Math.abs(bal))}</div>
-      <div class="sub" style="margin-top:8px">${bal == null ? t('noRate') : (isBn ? 'প্রতিদিনের খরচ: ' : 'Cost per day: ') + f2(r)}</div>
-    </div>`;
+    if (bal == null) h += `<div class="card"><div class="sub">${t('noRate')}</div></div>`;
     if (bal != null) {
       h += `<div class="card"><h3>${isBn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
-        <div class="totalTile">
-          <div class="sub">${isBn ? 'মেসের মোট বাজার' : 'Total mess bazar'}</div>
-          <div class="totalAmt num">৳ ${f2(calc().tB)}</div>
+        <div class="totalGrid">
+          <div class="totalTile">
+            <div class="sub">${isBn ? 'মেসের মোট বাজার' : 'Total mess bazar'}</div>
+            <div class="totalAmt num">৳ ${f2(calc().tB)}</div>
+          </div>
+          <div class="totalTile">
+            <div class="sub">${msg}</div>
+            <div class="totalAmt num" style="color:${tone}">৳ ${f2(Math.abs(bal))}</div>
+            <div class="sub" style="font-size:12px">${isBn ? 'প্রতিদিনের খরচ: ' : 'Cost per day: '}${f2(r)}</div>
+          </div>
         </div>
         <div class="row between" style="padding:6px 0"><span>${isBn ? 'তুমি বাজার দিয়েছ' : 'You paid for bazar'}</span><b class="num">${f2(bazarOf(me))}</b></div>
         <div class="row between" style="padding:6px 0"><span>${isBn ? 'তোমার জমা' : 'Your deposit'}</span><b class="num">+ ${f2(depOf(me))}</b></div>
