@@ -850,7 +850,7 @@ function renderHome() {
       return `<div class="mrow" onclick="openMember('${esc(e)}')">
         <div class="row between" style="flex-wrap:nowrap;align-items:center">
           <div class="row" style="gap:10px;flex-wrap:nowrap;min-width:0">${av(e)}<div style="min-width:0"><b>${esc(nameOf(e))}</b><div class="sub num">${t('bazar')} ${f2(bazarOf(e))} · ${t('days')} ${daysOf(e)}</div></div></div>
-          <div style="text-align:right;flex-shrink:0;white-space:nowrap"><span class="num" style="font-weight:800;font-size:15px;color:${pos ? '#22c55e' : 'var(--bad)'}">${pos ? '+' : '−'} ${f2(Math.abs(b))}</span> <span class="sub" style="font-size:11px">${pos ? (lang === 'bn' ? 'পাবে' : 'gets back') : (lang === 'bn' ? 'দেবে' : 'owes')}</span></div>
+          <div style="text-align:right;flex-shrink:0;white-space:nowrap;display:flex;align-items:center;gap:8px"><button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(e)}')">ⓘ</button><span class="num" style="font-weight:800;font-size:15px;color:${pos ? '#22c55e' : 'var(--bad)'}">${pos ? '+' : '−'} ${f2(Math.abs(b))}</span> <span class="sub" style="font-size:11px">${pos ? (lang === 'bn' ? 'পাবে' : 'gets back') : (lang === 'bn' ? 'দেবে' : 'owes')}</span></div>
         </div>
       </div>`;
     }).join('') + `</div>`;
@@ -897,7 +897,7 @@ function renderHome() {
     if (r2 != null && !isMgr) {   // admin already sees everyone in the members card above
       const ov = allEmails().slice().sort((a, b) => bazarOf(b) - bazarOf(a));
       h += `<div class="card"><h3>${lang === 'bn' ? 'সবার হিসাব' : 'Everyone'}</h3>` + ov.map(e =>
-        `<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--bd)"><div><b>${esc(nameOf(e))}</b>${e === me ? ' ★' : ''}<div class="sub num">${f2(bazarOf(e))} · ${t('days')} ${daysOf(e)} · ${t('deposit')} ${f2(depOf(e))}</div></div>${balTag(balOf(e, r2))}</div>`).join('') + `</div>`;
+        `<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--bd)"><div><b>${esc(nameOf(e))}</b>${e === me ? ' ★' : ''}<div class="sub num">${f2(bazarOf(e))} · ${t('days')} ${daysOf(e)} · ${t('deposit')} ${f2(depOf(e))}</div></div><div class="row" style="gap:8px;flex-wrap:nowrap">${balTag(balOf(e, r2))}<button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="explain('${esc(e)}')">ⓘ</button></div></div>`).join('') + `</div>`;
     }
   }
   $('hContent').innerHTML = h;
