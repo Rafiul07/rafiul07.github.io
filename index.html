@@ -2037,10 +2037,6 @@ function openMember(email) {
       <div class="mav" style="background:linear-gradient(135deg,var(--p),var(--s))">${esc(nameOf(email).charAt(0))}</div>
       <div class="grow" style="min-width:0"><div class="mname">${esc(nameOf(email))}</div><div class="sub" style="word-break:break-all">${esc(email)} · ${all.length} ${bn ? 'টি এন্ট্রি' : 'entries'}</div></div>
     </div>
-    <div class="hero" style="margin-bottom:14px">
-      <div class="sub">${bal == null ? (bn ? 'দিন যোগ হলে হিসাব দেখা যাবে' : 'Shows once days are set') : pos ? (bn ? 'ফেরত পাবে' : 'Gets back') : (bn ? 'বাকি (দিতে হবে)' : 'Due')}</div>
-      <div class="big" style="color:${tone}">${bal == null ? '—' : '৳ ' + f2(Math.abs(bal))}</div>
-    </div>
     ${rate != null ? `<div class="card" style="margin:0 0 14px">
       <h3>${bn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
       ${row(bn ? 'মেসের মোট বাজার' : 'Total mess bazar', f2(cc.tB))}
