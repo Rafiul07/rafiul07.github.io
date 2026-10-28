@@ -382,15 +382,15 @@ body.th-ocean::before,body.th-forest::before,body.th-sunset::before,body.th-rose
 .login input{font-size:16px}
 @media (max-height:620px){.loginHero{margin-bottom:12px}.avRing{width:72px;height:72px;margin-bottom:8px}}
 
-/* ---- member home: "আমার হিসাব" card bigger ---- */
-#balCard{padding:clamp(18px,5vw,24px)}
-#balCard h3{font-size:clamp(20px,5.6vw,24px)}
-#balCard .row.between{padding:14px 0 !important}
-#balCard b{font-size:clamp(17px,4.8vw,19px)}
-#balCard .sub{font-size:clamp(13px,3.8vw,15px)}
-#balCard .num{font-size:clamp(15px,4.4vw,17px)}
-#balCard .badge,#balCard .mchip{font-size:clamp(12px,3.4vw,14px);padding:5px 12px}
-#balCard .ghost{font-size:14px;min-height:36px}
+/* ---- member home: "আমার হিসাব" and "সব সদস্য" cards bigger ---- */
+#balCard,#allCard{padding:clamp(18px,5vw,24px)}
+#balCard h3,#allCard h3{font-size:clamp(20px,5.6vw,24px)}
+#balCard .row.between,#allCard .row.between{padding:14px 0 !important}
+#balCard b,#allCard b{font-size:clamp(17px,4.8vw,19px)}
+#balCard .sub,#allCard .sub{font-size:clamp(13px,3.8vw,15px)}
+#balCard .num,#allCard .num{font-size:clamp(15px,4.4vw,17px)}
+#balCard .badge,#balCard .mchip,#allCard .badge,#allCard .mchip{font-size:clamp(12px,3.4vw,14px);padding:5px 12px}
+#balCard .ghost,#allCard .ghost{font-size:14px;min-height:36px}
 /* ---- control panel: compact member cards ---- */
 .mcompact{padding:12px 14px}
 .mcompact .mchip{font-size:11px;white-space:nowrap;padding:3px 8px}
@@ -1197,14 +1197,17 @@ function renderHome() {
     ).join('') + `</div>`;
     const r2 = currentRate();
     if (r2 != null && !isMgr) {   // admin already sees everyone in the members card above
-      // a member sees only their own row here; other members' balances stay hidden
-      // own row always first; when "সব সদস্য" is open, the others follow by bazar (highest first)
-      const ovAll = allView ? [me, ...allEmails().filter(e => e !== me).sort((a, b) => bazarOf(b) - bazarOf(a))] : [me];
-      const ov = ovAll.slice(0, balLimit);
-      const ovMore = allView && ovAll.length > balLimit ? `<button class="ghost" style="width:100%;margin-top:10px;min-height:40px" onclick="balMore()">${lang === 'bn' ? 'আরও দেখাও' : 'Show more'} (${ovAll.length - balLimit})</button>` : '';
-      const tgl = lang === 'bn' ? (allView ? 'শুধু আমি' : 'সব সদস্য') : (allView ? 'Only me' : 'All members');
-      h += `<div class="card" id="balCard" style="border:2px solid var(--p);box-shadow:0 0 0 3px rgba(168,85,247,.12)"><div class="row between" style="margin-bottom:6px;flex-wrap:nowrap"><h3 style="margin:0">${lang === 'bn' ? 'আমার হিসাব' : 'My account'}</h3><button class="ghost" style="min-height:32px;padding:4px 12px;font-size:13px;white-space:nowrap" onclick="toggleAllView()">${allView ? '▴ ' + (lang === 'bn' ? 'শুধু আমি' : 'Only me') : '▾ ' + (lang === 'bn' ? 'সব সদস্য' : 'All members')}</button></div>` + ov.map(e =>
-        `<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="memberSummary('${esc(e)}')"><div class="row" style="gap:8px;flex-wrap:nowrap;min-width:0"><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nameOf(e))}</b>${e === me ? ' ★' : ''}</div><div class="row" style="gap:8px;flex-wrap:nowrap"><span class="num" style="font-weight:700">${f2(bazarOf(e))}</span>${balTag(balOf(e, r2))}<button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(e)}')">ⓘ</button></div></div>`).join('') + `<button class="chip ${allView ? 'on' : ''}" style="width:100%;margin-top:12px;min-height:40px" ${ovMore}</div>`;
+      // a member: own card always; "সব সদস্য" opens a separate card below with the others
+      const bnL = lang === 'bn';
+      const rowHtml = e => `<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="memberSummary('${esc(e)}')"><div class="row" style="gap:8px;flex-wrap:nowrap;min-width:0"><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nameOf(e))}</b>${e === me ? ' ★' : ''}</div><div class="row" style="gap:8px;flex-wrap:nowrap"><span class="num" style="font-weight:700">${f2(bazarOf(e))}</span>${balTag(balOf(e, r2))}<button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(e)}')">ⓘ</button></div></div>`;
+      const topBtn = `<button class="ghost" style="min-height:32px;padding:4px 12px;font-size:13px;white-space:nowrap" onclick="toggleAllView()">${allView ? '▴ ' + (bnL ? 'শুধু আমি' : 'Only me') : '▾ ' + (bnL ? 'সব সদস্য' : 'All members')}</button>`;
+      h += `<div class="card" id="balCard" style="border:2px solid var(--p);box-shadow:0 0 0 3px rgba(168,85,247,.12)"><div class="row between" style="margin-bottom:6px;flex-wrap:nowrap"><h3 style="margin:0">${bnL ? 'আমার হিসাব' : 'My account'}</h3>${topBtn}</div>${rowHtml(me)}</div>`;
+      if (allView) {
+        const others = allEmails().filter(e => e !== me).sort((a, b) => bazarOf(b) - bazarOf(a));
+        const shown = others.slice(0, balLimit);
+        const more = others.length > balLimit ? `<button class="ghost" style="width:100%;margin-top:10px;min-height:40px" onclick="balMore()">${bnL ? 'আরও দেখাও' : 'Show more'} (${others.length - balLimit})</button>` : '';
+        h += `<div class="card" id="allCard" style="border:2px solid var(--s);box-shadow:0 0 0 3px rgba(34,211,238,.12);margin-top:14px"><h3 style="margin:0 0 6px">${bnL ? 'সব সদস্য' : 'All members'} <span class="sub">(${others.length})</span></h3>${shown.map(rowHtml).join('')}${more}</div>`;
+      }
     }
   }
   $('hContent').innerHTML = h;
