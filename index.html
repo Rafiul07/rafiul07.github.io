@@ -1483,13 +1483,13 @@ function settingsHtml() {
       <div class="lbl">${t('theme')}</div>${seg('setThemeMode', [['dark', t('dark')], ['light', t('light')], ['auto', t('auto')]], theme)}
       ${isMgr ? '' : `<div class="sub" style="margin-top:6px">${t('themeByAdmin')}</div>`}
       <div class="lbl">${t('fontSize')}</div>${seg('setFs', [['small', t('small')], ['medium', t('medium')], ['large', t('large')]], fs)}
-      <div class="sample">${isBn ? 'এই লেখাটা এখন এই সাইজে দেখাবে।' : 'This is how text will look at this size.'}</div>`, true);
+      <div class="sample">${isBn ? 'এই লেখাটা এখন এই সাইজে দেখাবে।' : 'This is how text will look at this size.'}</div>`, false);
 
   h += sec(isBn ? 'নোটিফিকেশন ও ফোন' : 'Notifications & phone', `
       <div class="sub" style="margin-bottom:8px">${isBn ? 'অনুমোদন বা সংশোধনের খবর ফোনে পাবে। iPhone-এ আগে অ্যাপটি হোম স্ক্রিনে যোগ করতে হবে।' : 'Get alerts for approvals or fix requests. On iPhone, add the app to Home Screen first.'}</div>
       ${nperm === 'granted' ? `<span class="badge b-ok">${isBn ? 'চালু আছে' : 'On'}</span>` : nperm === 'unsupported' ? `<span class="sub">${isBn ? 'এই ব্রাউজারে সমর্থিত নয়' : 'Not supported in this browser'}</span>` : `<button class="pri" style="width:100%" onclick="enableNotif()">${isBn ? 'নোটিফিকেশন চালু করো' : 'Turn on notifications'}</button>`}
       <div class="sub" style="margin:14px 0 6px">${isBn ? 'iPhone: Safari-তে নিচের Share (⬆) চাপো, তারপর "Add to Home Screen" চাপো।' : 'iPhone: in Safari tap Share (⬆), then "Add to Home Screen".'}</div>
-      ${deferredPrompt ? `<button class="pri" style="width:100%" onclick="installApp()">${isBn ? 'ইনস্টল করো' : 'Install'}</button>` : ''}`, true);
+      ${deferredPrompt ? `<button class="pri" style="width:100%" onclick="installApp()">${isBn ? 'ইনস্টল করো' : 'Install'}</button>` : ''}`, false);
 
   h += gh(isBn ? 'অ্যাকাউন্ট' : 'Account');
   h += sec(t('account'), `
@@ -1557,7 +1557,7 @@ function renderAdmin() {
       <button class="item" onclick="backupJSON()"><span>${isBn ? 'ব্যাকআপ ডাউনলোড (JSON)' : 'Download backup (JSON)'}</span><span class="sub">›</span></button>
       <button class="item" onclick="$('restoreFile').click()"><span>${isBn ? 'ব্যাকআপ থেকে ফিরিয়ে আনো' : 'Restore from backup'}</span><span class="sub">›</span></button>
       <button class="item" onclick="migrateSlips()"><span>${isBn ? 'পুরোনো ছবি slips-এ সরাও (একবার)' : 'Move old photos to slips (run once)'}</span><span class="sub">›</span></button>
-      <input type="file" id="restoreFile" accept="application/json,.json" class="hidden" onchange="restoreJSON(this.files[0])">`, true);
+      <input type="file" id="restoreFile" accept="application/json,.json" class="hidden" onchange="restoreJSON(this.files[0])">`, false);
 
   h += sec(isBn ? 'কার্যক্রম (সর্বশেষ ৩০)' : 'Activity (last 30)',
     logs.length ? logs.map(l => `<div class="sub" style="padding:4px 0">${new Date(l.at).toLocaleString()} · ${esc(l.text)}</div>`).join('') : `<div class="empty">${t('noEntries')}</div>`);
