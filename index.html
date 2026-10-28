@@ -419,6 +419,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 .meRole{font-size:13px;font-weight:800;padding:6px 14px;border-radius:999px;white-space:nowrap}
 .meOut{width:100%;margin-top:14px;padding:12px;border-radius:14px;font-size:clamp(15px,4vw,16px);font-weight:800;color:var(--bad,#ff6b6b);background:color-mix(in srgb,var(--bad,#ff6b6b) 12%,transparent);border:1px solid color-mix(in srgb,var(--bad,#ff6b6b) 40%,transparent);cursor:pointer}
 .meOut:active{transform:scale(.98)}
+.pwWrap{position:relative}.pwWrap input{width:100%;padding-right:46px}.eyeBtn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;font-size:18px;cursor:pointer;padding:4px;min-height:0}
 </style>
 </head>
 <body>
@@ -436,13 +437,14 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
     <div class="lbl" data-i18n="email"></div>
     <input id="lEmail" type="email" autocomplete="username" style="font-size:16px">
     <div class="lbl" data-i18n="password"></div>
-    <input id="lPass" type="password" autocomplete="current-password" style="font-size:16px">
+    <div class="pwWrap"><input id="lPass" type="password" autocomplete="current-password" style="font-size:16px"><button type="button" class="eyeBtn" onclick="togglePw(this)" aria-label="show password">👁</button></div>
     <div id="signupFields" class="hidden">
-      <div class="lbl" id="lblPass2"></div><input id="sPass2" type="password" autocomplete="new-password" style="font-size:16px">
+      <div class="lbl" id="lblPass2"></div><div class="pwWrap"><input id="sPass2" type="password" autocomplete="new-password" style="font-size:16px"><button type="button" class="eyeBtn" onclick="togglePw(this)" aria-label="show password">👁</button></div>
       <div class="lbl" id="lblName"></div><input id="sName" type="text" autocomplete="name" style="font-size:16px">
-      <div class="lbl" id="lblPhone"></div><input id="sPhone" type="tel" autocomplete="tel" style="font-size:16px">
+      <button class="pri" id="signupSubmit" onclick="signup()" style="width:100%;margin-top:16px"></button>
+      <button class="ghost" id="signupBack" onclick="signupCancel()" style="width:100%;margin-top:8px"></button>
     </div>
-    <button class="pri" data-i18n="login" onclick="login()" style="width:100%;margin-top:18px"></button>
+    <button class="pri" id="loginBtn" data-i18n="login" onclick="login()" style="width:100%;margin-top:18px"></button>
     <button class="ghost" id="signupBtn" onclick="signupStart()" style="width:100%;margin-top:10px"></button>
     <button class="ghost" id="forgotBtn" onclick="forgot()" style="width:100%;margin-top:6px;font-size:14px"></button>
     <div id="lMsg" class="sub" style="color:var(--bad);margin-top:10px;min-height:16px"></div>
@@ -773,24 +775,34 @@ const STATUS_CLS = { submitted: 'b-sub', needs_fix: 'b-warn', approved: 'b-ok' }
 
 /* ================= AUTH ================= */
 /* new person: creates the account, then asks the owner to approve (requests/{email}) */
-/* first tap shows the sign-up fields; the next tap submits */
+/* first tap on "Create account" opens the sign-up view; the submit button is at the bottom */
 function signupStart() {
-  const f = $('signupFields');
-  if (f.classList.contains('hidden')) { f.classList.remove('hidden'); $('lMsg').innerText = ''; return; }
-  signup();
+  $('signupFields').classList.remove('hidden');
+  ['loginBtn', 'signupBtn', 'forgotBtn'].forEach(id => { $(id).style.display = 'none'; });
+  $('lMsg').innerText = '';
+}
+function signupCancel() {
+  $('signupFields').classList.add('hidden');
+  ['loginBtn', 'signupBtn', 'forgotBtn'].forEach(id => { $(id).style.display = ''; });
+  $('lMsg').innerText = '';
+}
+/* show / hide a password field */
+function togglePw(btn) {
+  const i = btn.parentElement.querySelector('input');
+  i.type = i.type === 'password' ? 'text' : 'password';
+  btn.textContent = i.type === 'password' ? '👁' : '🙈';
 }
 async function signup() {
   const e = $('lEmail').value.trim().toLowerCase(), p = $('lPass').value, p2 = $('sPass2').value;
-  const nm = $('sName').value.trim(), ph = $('sPhone').value.trim();
+  const nm = $('sName').value.trim();
   const bn = lang === 'bn', msg = m => { $('lMsg').style.color = 'var(--bad)'; $('lMsg').innerText = m; };
   if (!e) return msg(bn ? 'ইমেইল দাও' : 'Enter your email');
   if (p.length < 6) return msg(bn ? 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষর' : 'Password must be at least 6 characters');
   if (p !== p2) return msg(bn ? 'দুটো পাসওয়ার্ড মিলছে না' : 'Passwords do not match');
   if (!nm) return msg(bn ? 'পুরো নাম লেখো' : 'Enter your full name');
-  if (ph.replace(/\D/g, '').length < 8) return msg(bn ? 'সঠিক মোবাইল নম্বর দাও' : 'Enter a valid mobile number');
   try {
     await auth.createUserWithEmailAndPassword(e, p);
-    await sendReq({ name: nm, phone: ph });
+    await sendReq({ name: nm });
   } catch (err) {
     msg(bn ? 'অ্যাকাউন্ট খোলা গেলো না (ইমেইল আগে থেকেই থাকতে পারে)' : 'Could not create the account (the email may already exist)');
   }
@@ -2067,7 +2079,8 @@ function applyLang() {
   const setT = (id, v) => { const el = $(id); if (el) el.innerText = v; };
   setT('lblPass2', lang === 'bn' ? 'পাসওয়ার্ড আবার লেখো' : 'Confirm password');
   setT('lblName', lang === 'bn' ? 'পুরো নাম' : 'Full name');
-  setT('lblPhone', lang === 'bn' ? 'মোবাইল নম্বর' : 'Mobile number');
+  setT('signupSubmit', lang === 'bn' ? 'অ্যাকাউন্ট খুলুন' : 'Create account');
+  setT('signupBack', lang === 'bn' ? 'লগইনে ফিরে যাও' : 'Back to login');
   document.querySelectorAll('#loginLang button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
   render();
 }
