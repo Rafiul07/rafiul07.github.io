@@ -385,6 +385,7 @@ body.th-ocean::before,body.th-forest::before,body.th-sunset::before,body.th-rose
 /* ---- admin member popup: compact entry rows ---- */
 .miniRow{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--bd);align-items:flex-start}
 .miniThumb{width:44px;height:44px;flex-shrink:0;border-radius:10px;object-fit:cover}
+.slipIcon{display:grid;place-items:center;font-size:20px;border:1px solid var(--bd);background:var(--card2);cursor:pointer;padding:0}
 .miniInfo{flex:1;min-width:0}
 .miniRow .acts{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
 .miniRow .acts button{min-height:30px;padding:4px 10px;font-size:12px}
@@ -627,7 +628,8 @@ let loaded = { members: false, entries: false };
 let filt = { m: 'all', s: 'all' };
 let month = 'all', memOpen = null, imgRot = 0, imgZ = 1;
 let allView = false;
-let memLimit = 5;   // admin member popup: entries shown so far (5 at a time)   // member home: show only me, or everyone (toggle at the bottom of the "আমার হিসাব" card)
+let memLimit = 5;   // admin member popup: entries shown so far (5 at a time)
+let memMonth = '';  // admin member popup: month shown in the list (empty = this month)   // member home: show only me, or everyone (toggle at the bottom of the "আমার হিসাব" card)
 /* toggle, then keep the account card on screen so the user stays in the members area */
 function toggleAllView() {
   allView = !allView; render();
@@ -1978,15 +1980,18 @@ function zoomImg(d) { imgZ = Math.min(3, Math.max(1, imgZ + d)); applyImg(); }
 function applyImg() { $('imgBig').style.transform = `rotate(${imgRot}deg) scale(${imgZ})`; }
 
 /* compact entry row for the admin member popup: small slip, amount, date, status, actions */
+function openSlipOf(id) {
+  getSlip(id).then(src => { if (src) openImg(src); else if (src === null) toast(t('needSlip'), true); });
+}
 function miniRow(x) {
-  const th = thumbFor(x).replace('class="thumb', 'class="thumb miniThumb');
-  return `<div class="miniRow">${th}<div class="miniInfo">
+  return `<div class="miniRow"><button class="miniThumb slipIcon" title="${t('viewSlip')}" onclick="openSlipOf('${x.id}')">🧾</button><div class="miniInfo">
     <div class="row between" style="flex-wrap:nowrap;align-items:center"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
     <div class="sub">${CAL}${fmtDate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</div>
     <div class="acts">${actsOf(x)}</div>
   </div></div>`;
 }
 function memMore() { memLimit += 5; openMember(memOpen); }
+function memMonthSet(m) { memMonth = m; memLimit = 5; openMember(memOpen); }
 function openMember(email) {
   // keep days/deposit the admin is typing when this modal is redrawn by a live update
   const oldD = $('mdDays'), oldP = $('mdDep');
@@ -1999,7 +2004,12 @@ function openMember(email) {
   const oldDet = $('memBody').querySelector('details.mgrDet');
   const keepOpen = sameM && oldDet ? oldDet.open : false;
   memOpen = email;
-  const all = scoped().filter(x => x.memberEmail === email).sort(byNewest);   // same month scope as the home page
+  if (!sameM) memMonth = '';
+  const thisMonth = today().slice(0, 7);
+  const pickM = memMonth || thisMonth;
+  const allM = [...new Set([thisMonth, ...entries.filter(x => x.memberEmail === email).map(x => String(x.date).slice(0, 7))])].sort().reverse();
+  const all = entries.filter(x => x.memberEmail === email && String(x.date).slice(0, 7) === pickM).sort(byNewest);
+  const monthPick = `<select style="margin:0 0 10px" onchange="memMonthSet(this.value)">${allM.map(m => `<option value="${m}" ${m === pickM ? 'selected' : ''}>${monthLabel(m)}</option>`).join('')}</select>`;
   const bazar = bazarOf(email);
   const rate = currentRate();
   const bal = rate == null ? null : balOf(email, rate);
@@ -2035,6 +2045,7 @@ function openMember(email) {
     </div></details>
     <div class="card" style="margin:0 0 14px">
       <h3>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></h3>
+      ${monthPick}
       ${all.length ? all.slice(0, memLimit).map(miniRow).join('') + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
     </div>
     ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
