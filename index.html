@@ -1170,7 +1170,7 @@ function renderHome() {
       const ov = (allView ? allEmails() : allEmails().filter(e => e === me)).sort((a, b) => bazarOf(b) - bazarOf(a));
       const tgl = lang === 'bn' ? (allView ? 'শুধু আমি' : 'সব সদস্য') : (allView ? 'Only me' : 'All members');
       h += `<div class="card" id="balCard" style="border:2px solid var(--p);box-shadow:0 0 0 3px rgba(168,85,247,.12)"><h3 style="margin:0 0 6px">${lang === 'bn' ? 'আমার হিসাব' : 'My account'}</h3>` + ov.map(e =>
-        `<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--bd)"><div><b>${esc(nameOf(e))}</b>${e === me ? ' ★' : ''}<div class="sub num">${f2(bazarOf(e))} · ${t('days')} ${daysOf(e)} · ${t('deposit')} ${f2(depOf(e))}</div></div><div class="row" style="gap:8px;flex-wrap:nowrap">${balTag(balOf(e, r2))}<button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="explain('${esc(e)}')">ⓘ</button></div></div>`).join('') + `<button class="chip ${allView ? 'on' : ''}" style="width:100%;margin-top:12px;min-height:40px" onclick="toggleAllView()">${tgl}</button></div>`;
+        `<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="memberSummary('${esc(e)}')"><div><b>${esc(nameOf(e))}</b>${e === me ? ' ★' : ''}<div class="sub num">${f2(bazarOf(e))} · ${t('days')} ${daysOf(e)} · ${t('deposit')} ${f2(depOf(e))}</div></div><div class="row" style="gap:8px;flex-wrap:nowrap">${balTag(balOf(e, r2))}<button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(e)}')">ⓘ</button></div></div>`).join('') + `<button class="chip ${allView ? 'on' : ''}" style="width:100%;margin-top:12px;min-height:40px" onclick="toggleAllView()">${tgl}</button></div>`;
     }
   }
   $('hContent').innerHTML = h;
@@ -1272,6 +1272,22 @@ function closeInfo() {
   if (!b || b.classList.contains('hidden')) return;
   b.classList.add('hidden');
   dropLayer('infoBox');
+}
+/* tap a member row (member home): summary + approved bazar amounts only */
+function memberSummary(email) {
+  const bn = lang === 'bn';
+  const list = scoped().filter(x => x.memberEmail === email && x.status === 'approved').sort(byNewest);
+  const row = (l, v) => `<div class="row between" style="padding:6px 0"><span class="sub">${l}</span><b class="num">${v}</b></div>`;
+  const head = row(bn ? 'মোট বাজার' : 'Total bazar', f2(bazarOf(email)))
+    + row(t('days'), daysOf(email))
+    + row(t('deposit'), f2(depOf(email)));
+  const items = list.length
+    ? list.map(x => `<div style="padding:10px 0;border-top:1px solid var(--bd)"><b class="num" style="font-size:17px">${f2(x.amount)}</b></div>`).join('')
+    : `<div class="empty">${bn ? 'কোনো অনুমোদিত বাজার নেই' : 'No approved bazar'}</div>`;
+  $('infoTitle').innerText = nameOf(email);
+  $('infoBody').innerHTML = head + `<div class="sub" style="margin:14px 0 2px">${bn ? 'বাজার এন্ট্রি' : 'Bazar entries'}</div>` + items;
+  $('infoBox').classList.remove('hidden');
+  openLayer('infoBox');
 }
 /* ⓘ: full breakdown of one member's balance; deposit and days lines are red when they differ from normal */
 function explain(email) {
