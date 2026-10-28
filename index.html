@@ -381,6 +381,11 @@ body.th-ocean::before,body.th-forest::before,body.th-sunset::before,body.th-rose
 .login input{font-size:16px}
 @media (max-height:620px){.loginHero{margin-bottom:12px}.avRing{width:72px;height:72px;margin-bottom:8px}}
 
+/* ---- admin tab bar: 3 equal columns, same height, no broken wrapping ---- */
+.admTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.admTab{min-height:56px;padding:8px 6px;font-size:clamp(13px,3.7vw,15px);font-weight:800;line-height:1.25;white-space:normal;text-align:center;display:flex;align-items:center;justify-content:center;border-radius:16px;word-break:keep-all;overflow-wrap:anywhere}
+.admTab.pri{box-shadow:0 8px 20px -10px var(--p)}
+
 /* ---- settings: account card ---- */
 .meCard{background:linear-gradient(135deg,color-mix(in srgb,var(--p) 22%,var(--card)),color-mix(in srgb,var(--s,var(--p)) 12%,var(--card)));border:1px solid color-mix(in srgb,var(--p) 45%,var(--bd));padding:clamp(16px,4vw,20px)}
 .meTop{display:flex;align-items:center;gap:clamp(10px,3vw,16px);flex-wrap:wrap}
@@ -1590,8 +1595,8 @@ function renderAdmin() {
   ['nEmail', 'nName', 'nPw', 'mSearch'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
 
   const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
-  const tabBtn = (k, label) => `<button class="${admTab === k ? 'pri' : 'ghost'}" style="flex:1" onclick="admTabSet('${k}')">${label}</button>`;
-  let h = `<div class="row" style="gap:8px;margin-bottom:12px">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('members', isBn ? 'সব সদস্য' : 'All members')}${tabBtn('settings', isBn ? 'সেটিংস' : 'Settings')}</div>`;
+  const tabBtn = (k, label) => `<button class="admTab ${admTab === k ? 'pri' : 'ghost'}" onclick="admTabSet('${k}')">${label}</button>`;
+  let h = `<div class="admTabs">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('members', isBn ? 'সব সদস্য' : 'All members')}${tabBtn('settings', isBn ? 'সেটিংস' : 'Settings')}</div>`;
   if (admTab === 'wait') h += `<div class="card"><h3>${isBn ? `অপেক্ষমাণ এন্ট্রি (${pending.length})` : `Waiting approval (${pending.length})`}</h3>`
     + (pending.length ? pending.map(x => `<div class="entry">${thumbFor(x)}<div class="grow">
         <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
