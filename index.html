@@ -439,6 +439,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
     <input id="lPass" type="password" autocomplete="current-password" style="font-size:16px">
     <button class="pri" data-i18n="login" onclick="login()" style="width:100%;margin-top:18px"></button>
     <button class="ghost" id="signupBtn" onclick="signup()" style="width:100%;margin-top:10px"></button>
+    <button class="ghost" id="forgotBtn" onclick="forgot()" style="width:100%;margin-top:6px;font-size:14px"></button>
     <div id="lMsg" class="sub" style="color:var(--bad);margin-top:10px;min-height:16px"></div>
   </div>
 </div>
@@ -776,6 +777,20 @@ async function signup() {
     await sendReq();
   } catch (err) {
     $('lMsg').innerText = lang === 'bn' ? 'অ্যাকাউন্ট খোলা গেলো না (ইমেইল আগে থেকেই থাকতে পারে)' : 'Could not create the account (the email may already exist)';
+  }
+}
+/* sends a password reset email to the typed address */
+async function forgot() {
+  const e = $('lEmail').value.trim().toLowerCase();
+  $('lMsg').innerText = '';
+  if (!e) { $('lMsg').innerText = lang === 'bn' ? 'আগে ইমেইল লেখো' : 'Enter your email first'; return; }
+  try {
+    await auth.sendPasswordResetEmail(e);
+    $('lMsg').style.color = 'var(--ok)';
+    $('lMsg').innerText = lang === 'bn' ? 'পাসওয়ার্ড রিসেটের লিংক ইমেইলে পাঠানো হয়েছে' : 'Password reset link sent to your email';
+  } catch (err) {
+    $('lMsg').style.color = 'var(--bad)';
+    $('lMsg').innerText = lang === 'bn' ? 'লিংক পাঠানো গেলো না, ইমেইল ঠিক আছে কিনা দেখো' : 'Could not send the link, check the email';
   }
 }
 function sendReq() {
@@ -2031,6 +2046,7 @@ function applyLang() {
   $('fTitle').innerText = editId ? t('editEntry') : t('addEntry');
   $('listTitle').innerText = t('listTitle');
   const sb = $('signupBtn'); if (sb) sb.innerText = lang === 'bn' ? 'অ্যাকাউন্ট খুলুন' : 'Create account';
+  const fb = $('forgotBtn'); if (fb) fb.innerText = lang === 'bn' ? 'পাসওয়ার্ড ভুলে গেছো?' : 'Forgot password?';
   document.querySelectorAll('#loginLang button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
   render();
 }
