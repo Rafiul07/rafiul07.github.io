@@ -380,6 +380,17 @@ body.th-ocean::before,body.th-forest::before,body.th-sunset::before,body.th-rose
 .byline{font-size:13px;font-style:italic;color:var(--sub);margin-top:10px;opacity:.85}
 .login input{font-size:16px}
 @media (max-height:620px){.loginHero{margin-bottom:12px}.avRing{width:72px;height:72px;margin-bottom:8px}}
+
+/* ---- settings: account card ---- */
+.meCard{background:linear-gradient(135deg,color-mix(in srgb,var(--p) 22%,var(--card)),color-mix(in srgb,var(--s,var(--p)) 12%,var(--card)));border:1px solid color-mix(in srgb,var(--p) 45%,var(--bd));padding:clamp(16px,4vw,20px)}
+.meTop{display:flex;align-items:center;gap:clamp(10px,3vw,16px);flex-wrap:wrap}
+.meAv{width:clamp(56px,15vw,64px);height:clamp(56px,15vw,64px);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:clamp(22px,6vw,26px);color:#0a0a12;background:linear-gradient(135deg,var(--p),var(--s,var(--p)));box-shadow:0 0 0 3px color-mix(in srgb,var(--p) 35%,transparent),0 10px 24px -8px var(--p)}
+.meInfo{flex:1 1 180px;min-width:0}
+.meName{font-size:clamp(17px,4.6vw,20px);font-weight:800;letter-spacing:.2px;overflow-wrap:anywhere}
+.meMail{font-size:clamp(13px,3.6vw,14px);color:var(--sub);margin-top:3px;overflow-wrap:anywhere}
+.meRole{font-size:13px;font-weight:800;padding:6px 14px;border-radius:999px;white-space:nowrap}
+.meOut{width:100%;margin-top:14px;padding:12px;border-radius:14px;font-size:clamp(15px,4vw,16px);font-weight:800;color:var(--bad,#ff6b6b);background:color-mix(in srgb,var(--bad,#ff6b6b) 12%,transparent);border:1px solid color-mix(in srgb,var(--bad,#ff6b6b) 40%,transparent);cursor:pointer}
+.meOut:active{transform:scale(.98)}
 </style>
 </head>
 <body>
@@ -1527,11 +1538,16 @@ function settingsHtml() {
   const nperm = 'Notification' in window ? Notification.permission : 'unsupported';
   const gh = label => `<div class="gh">${label}</div>`;
 
-  let h = `<div class="card row" style="flex-wrap:nowrap">
-      <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--p),var(--s));color:#0a0a12;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;flex-shrink:0">${esc(nm.charAt(0))}</div>
-      <div class="grow"><b>${esc(nm)}</b><div class="sub" style="word-break:break-all">${esc(me)}</div></div>
-      <span class="badge ${isMgr ? 'b-s' : 'b-p'}">${isMgr ? t('admin') : t('member')}</span>
-      <button class="ghost" onclick="logout()">${t('logout')}</button>
+  let h = `<div class="card meCard">
+      <div class="meTop">
+        <div class="meAv">${esc(nm.charAt(0).toUpperCase())}</div>
+        <div class="meInfo">
+          <div class="meName">${esc(nm)}</div>
+          <div class="meMail">${esc(me)}</div>
+        </div>
+        <span class="meRole ${isMgr ? 'b-s' : 'b-p'}">${isMgr ? t('admin') : t('member')}</span>
+      </div>
+      <button class="meOut" onclick="logout()">⎋ ${t('logout')}</button>
     </div>`;
 
   h += gh(isBn ? 'অ্যাপ' : 'App');
