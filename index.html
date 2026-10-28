@@ -1298,7 +1298,7 @@ function entryRow(x) {
   } else if (isMgr) {
     acts = approveBtn + (locked ? lockTxt : '') + mgrEdit;   // admin: approve any entry (own or member's), edit/delete always
   } else if (own) {
-    acts = locked ? lockTxt + (isMgr ? mgrEdit : '') : ownEdit;   // admin can still edit/delete approved entries
+    acts = locked ? lockTxt + (isMgr ? mgrEdit : '') : ownEdit;   // member: edit/delete until approved
   } else if (!isMgr) {
     acts = '';
   } else if (locked) {
