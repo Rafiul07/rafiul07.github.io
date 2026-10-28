@@ -345,6 +345,20 @@ button{min-height:46px}
 #app > .top .brand, .brand{font-size:clamp(18px,5.4vw,24px)}
 .sheet{border:1.5px solid color-mix(in srgb,var(--p) 40%,var(--bd));border-radius:clamp(18px,5vw,24px)}
 @media (min-width:900px){ .wrap{padding-left:clamp(24px,3vw,48px);padding-right:clamp(24px,3vw,48px)} }
+
+/* ===== control panel + settings: coloured boxes ===== */
+details.sec{background:linear-gradient(160deg,rgba(168,85,247,.10),rgba(34,211,238,.06)),var(--card);border:1.5px solid color-mix(in srgb,var(--p) 40%,var(--bd));border-radius:clamp(16px,4.5vw,22px);position:relative;overflow:hidden}
+details.sec::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--p),var(--s))}
+details.sec>summary{font-size:clamp(16px,4.6vw,18px);font-weight:800;padding:2px 0 2px 6px}
+details.sec[open]{background:linear-gradient(160deg,rgba(168,85,247,.16),rgba(34,211,238,.10)),var(--card)}
+details.sec.danger{background:linear-gradient(160deg,rgba(248,113,113,.14),rgba(251,191,36,.06)),var(--card)}
+details.sec.danger::before{background:linear-gradient(180deg,var(--bad),var(--warn))}
+details.sec .secBody{padding-left:6px}
+details.sec .secBody .item{border-top:0;margin:8px 0;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(168,85,247,.14),rgba(34,211,238,.08));border:1px solid color-mix(in srgb,var(--p) 30%,var(--bd));font-size:clamp(15px,4.2vw,16.5px)}
+details.sec .secBody .item:active{transform:scale(.99)}
+details.sec .secBody .item .sub{color:var(--s)}
+details.sec .secBody .lbl{color:var(--p);font-size:clamp(13.5px,3.8vw,15px);font-weight:800;margin-top:14px}
+details.sec .secBody .seg button{min-height:42px}
 </style>
 </head>
 <body>
