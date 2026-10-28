@@ -1278,7 +1278,11 @@ function memberSummary(email) {
   const bn = lang === 'bn';
   const list = scoped().filter(x => x.memberEmail === email && x.status === 'approved').sort(byNewest);
   const row = (l, v) => `<div class="row between" style="padding:6px 0"><span class="sub">${l}</span><b class="num">${v}</b></div>`;
+  const cc = calc();
+  const perHead = cc.em.length ? cc.tB / cc.em.length : 0;
   const head = row(bn ? 'মোট বাজার' : 'Total bazar', f2(bazarOf(email)))
+    + row(bn ? 'প্রতিজনের ভাগ' : 'Per person share', f2(perHead))
+    + row(bn ? 'তোমার বাজার' : 'Your bazar', f2(bazarOf(me)))
     + row(t('days'), daysOf(email))
     + row(t('deposit'), f2(depOf(email)));
   const items = list.length
