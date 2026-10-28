@@ -438,9 +438,13 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
     <div class="lbl" data-i18n="password"></div>
     <input id="lPass" type="password" autocomplete="current-password" style="font-size:16px">
     <button class="pri" data-i18n="login" onclick="login()" style="width:100%;margin-top:18px"></button>
+    <button class="ghost" id="signupBtn" onclick="signup()" style="width:100%;margin-top:10px"></button>
     <div id="lMsg" class="sub" style="color:var(--bad);margin-top:10px;min-height:16px"></div>
   </div>
 </div>
+
+<!-- WAITING FOR APPROVAL (signed in, not a member yet) -->
+<div id="pendingBox" class="login hidden"><div class="card" id="pendingBody"></div></div>
 
 <!-- APP -->
 <div id="app" class="hidden">
@@ -655,6 +659,8 @@ function toggleAllView() {
 let lastSum = '';
 let lastStatus = {}, deferredPrompt = null;
 let notes = [];
+let myReq = undefined;   // my join request: undefined = not loaded, null = none, object = pending
+let reqs = [];          // admin: pending join requests
 let openAdminNext = false;
 /* Admin mode: the person keeps their own identity (me). Admin-only writes go through a second
    Firebase session that is signed in as admin only while the admin panel is unlocked. */
@@ -760,6 +766,37 @@ const kpi = (l, v) => `<div class="kpi"><small>${l}</small><b>${v}</b></div>`;
 const STATUS_CLS = { submitted: 'b-sub', needs_fix: 'b-warn', approved: 'b-ok' };
 
 /* ================= AUTH ================= */
+/* new person: creates the account, then asks the owner to approve (requests/{email}) */
+async function signup() {
+  const e = $('lEmail').value.trim().toLowerCase(), p = $('lPass').value;
+  $('lMsg').innerText = '';
+  if (!e || p.length < 6) { $('lMsg').innerText = lang === 'bn' ? 'ইমেইল দাও, পাসওয়ার্ড কমপক্ষে ৬ অক্ষর' : 'Enter an email and a password of at least 6 characters'; return; }
+  try {
+    await auth.createUserWithEmailAndPassword(e, p);
+    await sendReq();
+  } catch (err) {
+    $('lMsg').innerText = lang === 'bn' ? 'অ্যাকাউন্ট খোলা গেলো না (ইমেইল আগে থেকেই থাকতে পারে)' : 'Could not create the account (the email may already exist)';
+  }
+}
+function sendReq() {
+  return db.collection('requests').doc(me).set({ email: me, name: me.split('@')[0], status: 'pending', createdAt: Date.now() })
+    .then(() => toast(lang === 'bn' ? 'অনুরোধ পাঠানো হয়েছে' : 'Request sent'))
+    .catch(showErr);
+}
+function renderPending() {
+  const bn = lang === 'bn', has = myReq !== undefined && myReq !== null;
+  $('app').classList.add('hidden');
+  $('pendingBox').classList.remove('hidden');
+  $('pendingBody').innerHTML = `
+    <div style="font-size:48px;text-align:center;margin-bottom:8px">⏳</div>
+    <h3 style="text-align:center;margin:0 0 8px">${bn ? 'অপেক্ষমাণ' : 'Waiting'}</h3>
+    <div class="sub" style="text-align:center">${has
+      ? (bn ? 'তোমার অনুরোধ মালিকের কাছে আছে। অনুমোদন হলে হিসাব দেখতে পাবে।' : 'Your request is with the owner. You will see the accounts once approved.')
+      : (bn ? 'এখনো অনুরোধ পাঠানো হয়নি।' : 'No request sent yet.')}</div>
+    <div style="text-align:center;margin-top:12px;font-weight:700">Waiting for owner action</div>
+    ${has ? '' : `<button class="pri" style="width:100%;margin-top:16px" onclick="sendReq()">${bn ? 'অনুরোধ পাঠাও' : 'Send request'}</button>`}
+    <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button>`;
+}
 function login() {
   const e = $('lEmail').value.trim(), p = $('lPass').value;
   $('lMsg').innerText = '';
@@ -807,7 +844,9 @@ auth.onAuthStateChanged(async user => {
     if (isMgr && !adminLogsOn) { adminLogsOn = true; startAdminListeners(); }
     if (!isMgr && adminLogsOn) { adminUnsubs.forEach(u => u()); adminUnsubs = []; adminLogsOn = false; }
     render();
-  }, () => {}));
+  }, () => { loaded.members = true; render(); }));   // not allowed to read members = not a member yet
+  myReq = undefined;
+  unsubs.push(db.collection('requests').doc(me).onSnapshot(d => { myReq = d.exists ? d.data() : null; render(); }, () => {}));
   unsubs.push(db.collection('entries').onSnapshot(s => {
     const prev = lastStatus;
     entries = s.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -818,7 +857,7 @@ auth.onAuthStateChanged(async user => {
       }
     });
     loaded.entries = true; render();
-  }, showErr));
+  }, e => { if (isMgr || members.some(m => m.email === me)) showErr(e); }));
   if (isMgr) {
     unsubs.push(db.collection('logs').orderBy('at', 'desc').limit(30).onSnapshot(s => {
       logs = s.docs.map(d => d.data()); if (page === 'settings') render();
@@ -973,6 +1012,9 @@ function go(p, fromHistory = false) {
 
 function render() {
   if (!me) return;
+  // signed in but not a member yet: show only the waiting screen
+  if (!isMgr && loaded.members && !members.some(m => m.email === me)) { renderPending(); return; }
+  $('pendingBox').classList.add('hidden');
   $('roleTag').innerText = isMgr ? t('admin') : t('member');
   if (isMgr && loaded.members && loaded.entries) pushSummary(calc());
   if (isMgr && loaded.entries && entries.some(x => x.photo)) autoMigrate();
@@ -1037,6 +1079,24 @@ function startAdminListeners() {
   adminUnsubs.push(ADB().collection('logs').orderBy('at', 'desc').limit(30).onSnapshot(s => {
     logs = s.docs.map(d => d.data()); if (page === 'settings' || page === 'admin') render();
   }, () => {}));
+  adminUnsubs.push(ADB().collection('requests').onSnapshot(s => {
+    reqs = s.docs.map(d => ({ email: d.id, ...d.data() })); render();
+  }, () => {}));
+}
+function approveReq(email) {
+  const r = reqs.find(x => x.email === email) || {};
+  ADB().collection('members').doc(email).set({ email, name: r.name || email.split('@')[0], days: 30, deposit: 0 }, { merge: true })
+    .then(() => ADB().collection('requests').doc(email).delete())
+    .then(() => { toast(t('saved')); logAct('Approved join · ' + email); }).catch(showErr);
+}
+function rejectReq(email) {
+  ADB().collection('requests').doc(email).delete()
+    .then(() => { toast(t('deleted')); logAct('Rejected join · ' + email); }).catch(showErr);
+}
+function reqCardHtml() {
+  if (!reqs.length) return '';
+  const bn = lang === 'bn';
+  return `<div class="card" style="border-color:var(--warn);margin-bottom:12px"><h3>${bn ? 'অপেক্ষমাণ অনুরোধ' : 'Pending requests'} (${reqs.length})</h3>` + reqs.map(r => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--bd);flex-wrap:wrap;gap:8px"><div style="min-width:0"><b>${esc(r.name || r.email)}</b><div class="sub" style="word-break:break-all">${esc(r.email)}</div></div><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="pri" onclick="approveReq('${esc(r.email)}')">${bn ? 'অনুমোদন' : 'Approve'}</button><button class="bad" onclick="rejectReq('${esc(r.email)}')">${bn ? 'প্রত্যাখ্যান' : 'Reject'}</button></div></div>`).join('') + `</div>`;
 }
 async function postNote() {
   const el = $('noteTxt'); const text = el.value.trim();
@@ -1717,6 +1777,7 @@ function renderAdmin() {
 
   }
   if (admTab === 'members') {
+  h += reqCardHtml();
   h += `<details class="sec" id="memSec" ${memListOpen ? 'open' : ''} ontoggle="memListOpen=this.open" style="margin:0 0 12px"><summary>${isBn ? 'সব সদস্য' : 'All members'} <span class="sub" id="memCount"></span></summary><div class="secBody"><input id="mSearch" placeholder="${t('search')}" oninput="memSearch()" style="margin-bottom:10px"><div id="memberList"></div></div></details>`;
   h += sec(isBn ? 'নতুন সদস্য যোগ' : 'Add member', `
       <input id="nEmail" type="email" placeholder="${isBn ? 'ইমেইল' : 'Email'}">
@@ -1916,6 +1977,7 @@ function applyLang() {
   document.querySelectorAll('[data-ph]').forEach(el => el.placeholder = t(el.dataset.ph));
   $('fTitle').innerText = editId ? t('editEntry') : t('addEntry');
   $('listTitle').innerText = t('listTitle');
+  const sb = $('signupBtn'); if (sb) sb.innerText = lang === 'bn' ? 'অ্যাকাউন্ট খুলুন' : 'Create account';
   document.querySelectorAll('#loginLang button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
   render();
 }
