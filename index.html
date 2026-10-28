@@ -1284,7 +1284,14 @@ function memberSummary(email) {
     + row(bn ? 'প্রতিজনের ভাগ' : 'Per person share', f2(perHead))
     + row(bn ? 'তোমার বাজার' : 'Your bazar', f2(bazarOf(me)))
     + row(t('days'), daysOf(email))
-    + row(t('deposit'), f2(depOf(email)));
+    + row(t('deposit'), f2(depOf(email)))
+    + (() => {
+        const rate = currentRate();
+        if (rate == null) return '';
+        const b = balOf(email, rate), pos = b >= 0;
+        const lbl = pos ? (bn ? 'পাবে' : 'Gets back') : (bn ? 'দেবে' : 'Owes');
+        return `<div class="row between" style="padding:8px 0;font-size:17px"><b>${lbl}</b><b class="num" style="color:${pos ? '#22c55e' : 'var(--bad)'}">${pos ? '+' : '−'} ${f2(Math.abs(b))}</b></div>`;
+      })();
   const items = list.length
     ? list.map(x => `<div style="padding:10px 0;border-top:1px solid var(--bd)"><b class="num" style="font-size:17px">${f2(x.amount)}</b></div>`).join('')
     : `<div class="empty">${bn ? 'কোনো অনুমোদিত বাজার নেই' : 'No approved bazar'}</div>`;
