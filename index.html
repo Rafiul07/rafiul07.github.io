@@ -359,6 +359,15 @@ details.sec .secBody .item:active{transform:scale(.99)}
 details.sec .secBody .item .sub{color:var(--s)}
 details.sec .secBody .lbl{color:var(--p);font-size:clamp(13.5px,3.8vw,15px);font-weight:800;margin-top:14px}
 details.sec .secBody .seg button{min-height:42px}
+
+/* ===== extra colour themes (ocean, forest, sunset, rose, mint) ===== */
+body.th-ocean{--bg:#071827;--card:#0d2538;--card2:#123049;--tx:#eaf6ff;--sub:#8fb3c9;--bd:#1d4262;--inp:#0a1f30;--p:#38bdf8;--s:#2dd4bf}
+body.th-forest{--bg:#07140e;--card:#0f2318;--card2:#163424;--tx:#ecfdf3;--sub:#97bfa8;--bd:#22503a;--inp:#0a1c12;--p:#34d399;--s:#a3e635}
+body.th-sunset{--bg:#1a0b10;--card:#261218;--card2:#33181f;--tx:#fff1ec;--sub:#d6a59a;--bd:#55262f;--inp:#1f0d13;--p:#fb923c;--s:#f43f5e}
+body.th-rose{--bg:#140816;--card:#201025;--card2:#2b1634;--tx:#fdf2fb;--sub:#c9a3c4;--bd:#4a2350;--inp:#1a0c1f;--p:#e879f9;--s:#fb7185}
+body.th-mint{--bg:#eefaf5;--card:#ffffff;--card2:#f3fbf7;--tx:#0f2a20;--sub:#4d6f62;--bd:#cfe9de;--inp:#f4fbf8;--p:#10b981;--s:#06b6d4}
+body.th-mint .nav,body.th-mint .top{background:#ffffff}
+body.th-ocean::before,body.th-forest::before,body.th-sunset::before,body.th-rose::before{background:radial-gradient(60% 100% at 50% 0%,color-mix(in srgb,var(--p) 14%,transparent),transparent 70%)}
 </style>
 </head>
 <body>
@@ -772,7 +781,8 @@ auth.onAuthStateChanged(async user => {
     notice = (d.exists && d.data().notice) || '';
     closedMonths = (d.exists && d.data().closedMonths) || [];
     const th = d.exists ? d.data().theme : null;
-    if (th && th !== theme) { theme = th; localStorage.setItem('mh_theme', th); applyTheme(); }
+    if (d.exists && Array.isArray(d.data().themes)) themesList = d.data().themes.filter(k => ALL_THEMES.includes(k));
+    if (th && th !== theme && ALL_THEMES.includes(th)) { theme = th; localStorage.setItem('mh_theme', th); applyTheme(); }
     render();
   }, () => {}));
   resetForm();
@@ -1514,7 +1524,8 @@ function settingsHtml() {
   h += gh(isBn ? 'অ্যাপ' : 'App');
   h += sec(t('preferences'), `
       <div class="lbl">${t('language')}</div>${seg('setLang', [['en', 'English'], ['bn', 'বাংলা']], lang)}
-      <div class="lbl">${t('theme')}</div>${seg('setThemeMode', [['dark', t('dark')], ['light', t('light')], ['auto', t('auto')]], theme)}
+      <div class="lbl">${t('theme')}</div>${seg('setThemeMode', themeList().map(k => [k, themeLabel(k)]), theme)}
+      ${isMgr ? themeAdminHtml() : ''}
       ${isMgr ? '' : `<div class="sub" style="margin-top:6px">${t('themeByAdmin')}</div>`}
       <div class="lbl">${t('fontSize')}</div>${seg('setFs', [['small', t('small')], ['medium', t('medium')], ['large', t('large')]], fs)}
       <div class="sample">${isBn ? 'এই লেখাটা এখন এই সাইজে দেখাবে।' : 'This is how text will look at this size.'}</div>`, false);
@@ -1813,9 +1824,47 @@ async function newMonthReset() {
   b.commit().then(() => { toast(t('saved')); logAct('New month: all days set to 30'); }).catch(showErr);
 }
 
+/* ---- themes: 3 built-in + 5 presets. Dark is the default and can never be removed. Admin can remove/restore the others. ---- */
+const PRESET_THEMES = {
+  ocean:  { bn: 'সমুদ্র',     en: 'Ocean',   light: false },
+  forest: { bn: 'বন',         en: 'Forest',  light: false },
+  sunset: { bn: 'সূর্যাস্ত',  en: 'Sunset',  light: false },
+  rose:   { bn: 'গোলাপ',      en: 'Rose',    light: false },
+  mint:   { bn: 'মিন্ট',      en: 'Mint',    light: true  }
+};
+const ALL_THEMES = ['dark', 'light', 'auto', ...Object.keys(PRESET_THEMES)];
+let themesList = [...ALL_THEMES];          // shared list (settings doc), 'dark' always kept
+function themeList() { return themesList.includes('dark') ? themesList : ['dark', ...themesList]; }
+function themeLabel(k) {
+  if (PRESET_THEMES[k]) return lang === 'bn' ? PRESET_THEMES[k].bn : PRESET_THEMES[k].en;
+  return t(k);
+}
+function themeAdminHtml() {
+  const bn = lang === 'bn';
+  const on = themeList().filter(k => k !== 'dark');
+  const off = Object.keys(PRESET_THEMES).filter(k => !themesList.includes(k));
+  return `<div class="sub" style="margin:10px 0 6px">${bn ? 'ডার্ক ডিফল্ট থিম, এটা মোছা যাবে না। অন্য থিম মুছলে সেটা আর কেউ বেছে নিতে পারবে না।' : 'Dark is the default theme and cannot be removed. Removed themes cannot be picked.'}</div>
+    <div class="row" style="gap:8px">${on.map(k => `<span class="chip" style="gap:6px">${esc(themeLabel(k))} <button onclick="removeTheme('${k}')" aria-label="remove" style="min-height:24px;width:24px;padding:0;border-radius:50%;border:0;background:rgba(248,113,113,.25);color:var(--bad);font-weight:900">✕</button></span>`).join('')}</div>
+    ${off.length ? `<div class="sub" style="margin:10px 0 6px">${bn ? 'আবার যোগ করো' : 'Add back'}</div><div class="row" style="gap:8px">${off.map(k => `<button class="chip" onclick="addTheme('${k}')">+ ${esc(themeLabel(k))}</button>`).join('')}</div>` : ''}`;
+}
+function saveThemes() {
+  ADB().collection('settings').doc('app').set({ themes: themesList }, { merge: true }).catch(showErr);
+}
+function removeTheme(k) {
+  if (!isMgr || k === 'dark') return;
+  themesList = themesList.filter(x => x !== k);
+  if (theme === k) { theme = 'dark'; localStorage.setItem('mh_theme', 'dark'); applyTheme(); ADB().collection('settings').doc('app').set({ theme: 'dark' }, { merge: true }).catch(showErr); }
+  saveThemes(); render();
+}
+function addTheme(k) {
+  if (!isMgr || themesList.includes(k)) return;
+  themesList = [...themesList, k]; saveThemes(); render();
+}
 function applyTheme() {
   const eff = theme === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : theme;
-  document.body.classList.toggle('light', eff === 'light');
+  const preset = PRESET_THEMES[theme] ? theme : null;
+  document.body.classList.toggle('light', eff === 'light' || !!(preset && PRESET_THEMES[preset].light));
+  Object.keys(PRESET_THEMES).forEach(p => document.body.classList.toggle('th-' + p, p === preset));
 }
 
 function openImg(src) {
