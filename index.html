@@ -1169,7 +1169,10 @@ function renderHome() {
     if (mk.length) h += `<div class="card"><h3>${isBn ? 'আমার মাসভিত্তিক বাজার' : 'My bazar by month'}</h3>` + mk.map(mm =>
       `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${monthLabel(mm)} <span class="sub">(${byM[mm].n})</span></span><b class="num">${f2(byM[mm].sum)}</b></div>`).join('') + `</div>`;
     // bazar / days / deposit already sit in the hero card above, so no separate tiles
-    if (!isMgr) h += `<div class="card"><h3>${t('recent')}</h3>` + recentList(entries.filter(x => x.memberEmail === me), 5, true) + `</div>`;
+    if (!isMgr) {
+      const mine = entries.filter(x => x.memberEmail === me).sort(byNewest).slice(0, 5);
+      h += `<details class="sec" style="margin:0 0 14px"><summary>${t('recent')} <span class="sub">(${mine.length})</span></summary><div class="secBody">` + (mine.length ? mine.map(x => miniRow(x, true)).join('') : `<div class="empty">${t('noEntries')}</div>`) + `</div></details>`;
+    }
     h += `<div class="card"><h3>${t('statusCount')}</h3>` + ['submitted', 'approved'].map(s =>
       `<div class="row between" style="padding:6px 0"><span class="badge ${STATUS_CLS[s]}">${t(s)}</span><b class="num">${entries.filter(x => x.memberEmail === me && x.status === s).length}</b></div>`
     ).join('') + `</div>`;
@@ -1983,10 +1986,10 @@ function applyImg() { $('imgBig').style.transform = `rotate(${imgRot}deg) scale(
 function openSlipOf(id) {
   getSlip(id).then(src => { if (src) openImg(src); else if (src === null) toast(t('needSlip'), true); });
 }
-function miniRow(x) {
+function miniRow(x, withName = false) {
   return `<div class="miniRow"><button class="miniThumb slipIcon" title="${t('viewSlip')}" onclick="openSlipOf('${x.id}')">🧾</button><div class="miniInfo">
     <div class="row between" style="flex-wrap:nowrap;align-items:center"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
-    <div class="sub">${CAL}${fmtDate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</div>
+    <div class="sub">${CAL}${withName ? esc(nameOf(x.memberEmail)) + ' · ' : ''}${fmtDate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</div>
     <div class="acts">${actsOf(x)}</div>
   </div></div>`;
 }
