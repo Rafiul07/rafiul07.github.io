@@ -629,7 +629,8 @@ let filt = { m: 'all', s: 'all' };
 let month = 'all', memOpen = null, imgRot = 0, imgZ = 1;
 let allView = false;
 let memLimit = 5;   // admin member popup: entries shown so far (5 at a time)
-let memMonth = '';  // admin member popup: month shown in the list (empty = this month)   // member home: show only me, or everyone (toggle at the bottom of the "আমার হিসাব" card)
+let memMonth = '';
+let homeLimit = 5;  // member home: recent entries shown (5 at a time)  // admin member popup: month shown in the list (empty = this month)   // member home: show only me, or everyone (toggle at the bottom of the "আমার হিসাব" card)
 /* toggle, then keep the account card on screen so the user stays in the members area */
 function toggleAllView() {
   allView = !allView; render();
@@ -1170,8 +1171,10 @@ function renderHome() {
       `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${monthLabel(mm)} <span class="sub">(${byM[mm].n})</span></span><b class="num">${f2(byM[mm].sum)}</b></div>`).join('') + `</div>`;
     // bazar / days / deposit already sit in the hero card above, so no separate tiles
     if (!isMgr) {
-      const mine = entries.filter(x => x.memberEmail === me).sort(byNewest).slice(0, 5);
-      h += `<details class="sec" style="margin:0 0 14px"><summary>${t('recent')} <span class="sub">(${mine.length})</span></summary><div class="secBody">` + (mine.length ? mine.map(x => miniRow(x, true)).join('') : `<div class="empty">${t('noEntries')}</div>`) + `</div></details>`;
+      const all = entries.filter(x => x.memberEmail === me).sort(byNewest);
+      const shown = all.slice(0, homeLimit);
+      const more = all.length > homeLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="homeMore()">${lang === 'bn' ? 'আরও দেখাও' : 'Show more'} (${all.length - homeLimit})</button>` : '';
+      h += `<details class="sec" style="margin:0 0 14px"><summary>${t('recent')} <span class="sub">(${all.length})</span></summary><div class="secBody">` + (all.length ? shown.map(x => miniRow(x, true)).join('') + more : `<div class="empty">${t('noEntries')}</div>`) + `</div></details>`;
     }
     h += `<div class="card"><h3>${t('statusCount')}</h3>` + ['submitted', 'approved'].map(s =>
       `<div class="row between" style="padding:6px 0"><span class="badge ${STATUS_CLS[s]}">${t(s)}</span><b class="num">${entries.filter(x => x.memberEmail === me && x.status === s).length}</b></div>`
@@ -1993,6 +1996,7 @@ function miniRow(x, withName = false) {
     <div class="acts">${actsOf(x)}</div>
   </div></div>`;
 }
+function homeMore() { homeLimit += 5; render(); }
 function memMore() { memLimit += 5; openMember(memOpen); }
 function memMonthSet(m) { memMonth = m; memLimit = 5; openMember(memOpen); }
 function openMember(email) {
