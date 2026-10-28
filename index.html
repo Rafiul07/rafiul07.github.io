@@ -827,19 +827,21 @@ function sendReq(info) {
     .then(() => toast(lang === 'bn' ? 'অনুরোধ পাঠানো হয়েছে' : 'Request sent'))
     .catch(showErr);
 }
+/* signed in but not approved yet: the app opens, only a short note shows, no data and no tabs */
 function renderPending() {
   const bn = lang === 'bn', has = myReq !== undefined && myReq !== null;
-  $('app').classList.add('hidden');
-  $('pendingBox').classList.remove('hidden');
-  $('pendingBody').innerHTML = `
-    <div style="font-size:48px;text-align:center;margin-bottom:8px">⏳</div>
-    <h3 style="text-align:center;margin:0 0 8px">${bn ? 'অপেক্ষমাণ' : 'Waiting'}</h3>
-    <div class="sub" style="text-align:center">${has
-      ? (bn ? 'তোমার অনুরোধ মালিকের কাছে আছে। অনুমোদন হলে হিসাব দেখতে পাবে।' : 'Your request is with the owner. You will see the accounts once approved.')
+  $('app').classList.remove('hidden');
+  Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== 'home'));
+  page = 'home';
+  $('nav').innerHTML = '';
+  $('roleTag').innerText = bn ? 'নতুন' : 'New';
+  $('hContent').innerHTML = `<div class="card" style="text-align:center;padding:24px">
+    <div class="sub">${has
+      ? (bn ? 'তোমার অনুরোধ পাঠানো হয়েছে। অনুমোদনের পর হিসাব দেখতে পারবে।' : 'Your request is sent. You can see the accounts after approval.')
       : (bn ? 'এখনো অনুরোধ পাঠানো হয়নি।' : 'No request sent yet.')}</div>
-    <div style="text-align:center;margin-top:12px;font-weight:700">Waiting for owner action</div>
     ${has ? '' : `<button class="pri" style="width:100%;margin-top:16px" onclick="sendReq()">${bn ? 'অনুরোধ পাঠাও' : 'Send request'}</button>`}
-    <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button>`;
+    <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button>
+  </div>`;
 }
 function login() {
   const e = $('lEmail').value.trim(), p = $('lPass').value;
@@ -1056,9 +1058,10 @@ function go(p, fromHistory = false) {
 
 function render() {
   if (!me) return;
-  // signed in but not a member yet: show only the waiting screen
+  // signed in but not a member yet: app shell with only a short note
   if (!isMgr && loaded.members && !members.some(m => m.email === me)) { renderPending(); return; }
   $('pendingBox').classList.add('hidden');
+  $('app').classList.remove('hidden');
   $('roleTag').innerText = isMgr ? t('admin') : t('member');
   if (isMgr && loaded.members && loaded.entries) pushSummary(calc());
   if (isMgr && loaded.entries && entries.some(x => x.photo)) autoMigrate();
