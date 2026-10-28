@@ -325,6 +325,26 @@ details.sec .secBody{margin-top:12px}
   #hContent .totalTile{padding:14px}
 }
 @media (prefers-reduced-motion:reduce){ #hContent > .card{transition:none} #hContent > .card:hover{transform:none} }
+
+/* ===== whole app: fill the screen width, one accent colour, text scales with the screen ===== */
+.wrap{max-width:none;width:100%;padding:clamp(10px,3vw,20px) clamp(12px,4vw,24px) 0}
+body{font-size:clamp(15px,4vw,17px);line-height:1.5}
+.card{border:1.5px solid color-mix(in srgb,var(--p) 35%,var(--bd));border-radius:clamp(16px,4.5vw,22px);padding:clamp(14px,4vw,22px);margin-bottom:clamp(12px,3.5vw,16px)}
+.card h3{font-size:clamp(16px,4.6vw,19px)}
+.sub{font-size:clamp(13.5px,3.8vw,15.5px)}
+.card b,.card .num{font-size:inherit}
+input,textarea,select{font-size:clamp(16px,4.2vw,17px)}
+button{min-height:46px}
+.chip{min-height:38px}
+.nav{background:linear-gradient(180deg,var(--card),var(--card2));border-top:1.5px solid color-mix(in srgb,var(--p) 35%,var(--bd))}
+.nav button{font-size:clamp(12.5px,3.6vw,15px);font-weight:700;min-height:58px}
+.nav button.on{color:var(--p)}
+.nav button.on svg{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--s) 60%,transparent))}
+.nav svg{width:clamp(22px,6vw,28px);height:clamp(22px,6vw,28px)}
+.top{padding-top:calc(12px + env(safe-area-inset-top,0px))}
+#app > .top .brand, .brand{font-size:clamp(18px,5.4vw,24px)}
+.sheet{border:1.5px solid color-mix(in srgb,var(--p) 40%,var(--bd));border-radius:clamp(18px,5vw,24px)}
+@media (min-width:900px){ .wrap{padding-left:clamp(24px,3vw,48px);padding-right:clamp(24px,3vw,48px)} }
 </style>
 </head>
 <body>
