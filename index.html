@@ -2016,6 +2016,8 @@ function openMember(email) {
   const oldDet = $('memBody').querySelector('details.mgrDet');
   const oldBaz = $('memBody').querySelector('details.bazDet');
   const keepBaz = sameM && oldBaz ? oldBaz.open : false;
+  const oldHis = $('memBody').querySelector('details.hisDet');
+  const keepHis = sameM && oldHis ? oldHis.open : false;
   const keepOpen = sameM && oldDet ? oldDet.open : false;
   memOpen = email;
   if (!sameM) { memMonth = ''; memPickId = ''; }
@@ -2023,7 +2025,7 @@ function openMember(email) {
   const pickM = memMonth || thisMonth;
   const allM = [...new Set([thisMonth, ...entries.filter(x => x.memberEmail === email).map(x => String(x.date).slice(0, 7))])].sort().reverse();
   const all = entries.filter(x => x.memberEmail === email && String(x.date).slice(0, 7) === pickM).sort(byNewest);
-  const boxes = all.slice(0, memLimit).map(x => `<button onclick="memPick('${x.id}')" class="num" style="min-height:0;padding:10px 2px;min-width:0;border-radius:12px;font-weight:800;font-size:clamp(11px,3.2vw,14px);color:var(--tx);cursor:pointer;background:${memPickId === x.id ? 'color-mix(in srgb,var(--p) 32%,var(--card2))' : 'color-mix(in srgb,var(--p) 14%,var(--card2))'};border:1px solid color-mix(in srgb,var(--p) 40%,var(--bd))">${f2(x.amount)}</button>`).join('');
+  const boxes = all.map(x => `<button onclick="memPick('${x.id}')" class="num" style="min-height:0;padding:10px 2px;min-width:0;border-radius:12px;font-weight:800;font-size:clamp(11px,3.2vw,14px);color:var(--tx);cursor:pointer;background:${memPickId === x.id ? 'color-mix(in srgb,var(--p) 32%,var(--card2))' : 'color-mix(in srgb,var(--p) 14%,var(--card2))'};border:1px solid color-mix(in srgb,var(--p) 40%,var(--bd))">${f2(x.amount)}</button>`).join('');
   const pk = all.find(x => x.id === memPickId);
   const pickedHtml = pk ? miniRow(pk) : '';
   const monthPick = `<select style="margin:0 0 10px" onchange="memMonthSet(this.value)">${allM.map(m => `<option value="${m}" ${m === pickM ? 'selected' : ''}>${monthLabel(m)}</option>`).join('')}</select>`;
@@ -2044,8 +2046,7 @@ function openMember(email) {
       <div class="mav" style="background:linear-gradient(135deg,var(--p),var(--s))">${esc(nameOf(email).charAt(0))}</div>
       <div class="grow" style="min-width:0"><div class="mname">${esc(nameOf(email))}</div><div class="sub" style="word-break:break-all">${esc(email)} · ${all.length} ${bn ? 'টি এন্ট্রি' : 'entries'}</div></div>
     </div>
-    ${rate != null ? `<div class="card" style="margin:0 0 14px">
-      <h3>${bn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
+    ${rate != null ? `<details class="sec hisDet" style="margin:0 0 14px"><summary>${bn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</summary><div class="secBody">
       ${row(bn ? 'মেসের মোট বাজার' : 'Total mess bazar', f2(cc.tB))}
       ${row(bn ? 'জনপ্রতি ভাগ' : 'Per person share', f2(perHead))}
       ${row(bn ? 'এঁর বাজার' : 'Bazar paid', f2(bazar), 'border-top:1px solid var(--bd)')}
@@ -2055,7 +2056,7 @@ function openMember(email) {
       <div class="sub" style="margin:12px 0 6px">${bn ? 'বাজার এন্ট্রি' : 'Bazar entries'} (${all.length})</div>
       <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">${boxes}</div>
       ${pickedHtml}
-    </div>` : ''}
+    </div></details>` : ''}
     <details class="sec" style="margin:0 0 14px"><summary>ⓘ ${bn ? 'কেন এমন হলো' : 'Why this amount'}</summary><div class="secBody">
       ${explainItems(email, rate).map(x => `<div style="padding:7px 0;border-top:1px solid var(--bd);font-size:14px;${x.red ? 'color:var(--bad);font-weight:700' : ''}">${esc(x.t)}</div>`).join('')}
     </div></details>
@@ -2084,6 +2085,8 @@ function openMember(email) {
   if (newDet && keepOpen) newDet.open = true;
   const newBaz = $('memBody').querySelector('details.bazDet');
   if (newBaz && keepBaz) newBaz.open = true;
+  const newHis = $('memBody').querySelector('details.hisDet');
+  if (newHis && keepHis) newHis.open = true;
   $('memBox').classList.remove('hidden');
   openLayer('memBox');
   hydrateSlips();
