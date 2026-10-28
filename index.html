@@ -1533,17 +1533,9 @@ async function shareSummary() {
 }
 
 function renderSettings() { $('pgSettings').innerHTML = settingsHtml(); }
-function settingsHtml() {
+function meCardHtml() {
   const nm = nameOf(me);
-  const isBn = lang === 'bn';
-  const seg = (fn, opts, cur) => `<div class="seg">${opts.map(([v, l]) =>
-    `<button class="${cur === v ? 'on' : ''}" onclick="${fn}('${v}')">${l}</button>`).join('')}</div>`;
-  const sec = (title, body, open = false, cls = '') =>
-    `<details class="sec ${cls}" ${open ? 'open' : ''}><summary>${title}</summary><div class="secBody">${body}</div></details>`;
-  const nperm = 'Notification' in window ? Notification.permission : 'unsupported';
-  const gh = label => `<div class="gh">${label}</div>`;
-
-  let h = `<div class="card meCard">
+  return `<div class="card meCard">
       <div class="meTop">
         <div class="meAv">${esc(nm.charAt(0).toUpperCase())}</div>
         <div class="meInfo">
@@ -1554,6 +1546,18 @@ function settingsHtml() {
       </div>
       <button class="meOut" onclick="logout()">⎋ ${t('logout')}</button>
     </div>`;
+}
+function settingsHtml(skipMe = false) {
+  const nm = nameOf(me);
+  const isBn = lang === 'bn';
+  const seg = (fn, opts, cur) => `<div class="seg">${opts.map(([v, l]) =>
+    `<button class="${cur === v ? 'on' : ''}" onclick="${fn}('${v}')">${l}</button>`).join('')}</div>`;
+  const sec = (title, body, open = false, cls = '') =>
+    `<details class="sec ${cls}" ${open ? 'open' : ''}><summary>${title}</summary><div class="secBody">${body}</div></details>`;
+  const nperm = 'Notification' in window ? Notification.permission : 'unsupported';
+  const gh = label => `<div class="gh">${label}</div>`;
+
+  let h = skipMe ? '' : meCardHtml();
 
   h += gh(isBn ? 'অ্যাপ' : 'App');
   h += sec(t('preferences'), `
@@ -1605,6 +1609,7 @@ function renderAdmin() {
       </div></div>`).join('') : `<div class="empty">${isBn ? 'কোনো অপেক্ষমাণ এন্ট্রি নেই' : 'Nothing waiting for approval'}</div>`)
     + `</div>`;
   if (admTab === 'settings') {
+  h += meCardHtml();
   h += gh(isBn ? 'মেস' : 'Mess');
   h += sec(t('management'), `
       <div class="lbl" style="margin-top:14px">${isBn ? 'ঘোষণা' : 'Notice'}</div>
@@ -1641,7 +1646,7 @@ function renderAdmin() {
   h += sec(isBn ? 'কার্যক্রম (সর্বশেষ ৩০)' : 'Activity (last 30)',
     logs.length ? logs.map(l => `<div class="sub" style="padding:4px 0">${new Date(l.at).toLocaleString()} · ${esc(l.text)}</div>`).join('') : `<div class="empty">${t('noEntries')}</div>`);
 
-  h += settingsHtml();   // personal settings: preferences, notifications, account, logout
+  h += settingsHtml(true);   // personal settings: preferences, notifications, account, logout
   h += sec(t('dangerZone'),`<button class="bad" style="width:100%" onclick="resetAll()">${t('resetData')}</button>`, false, 'danger');
 
   }
