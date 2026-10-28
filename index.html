@@ -1049,7 +1049,13 @@ function hydrateSlips() {
   document.querySelectorAll('.slipBox[data-slip]').forEach(el => {
     const id = el.dataset.slip;
     getSlip(id).then(src => {
-      if (!el.isConnected || src === undefined) return;
+      if (!el.isConnected) return;
+      if (src === undefined) { // load failed: show a tappable retry instead of a blank box
+        el.innerText = '⟳';
+        el.title = lang === 'bn' ? 'ছবি লোড হয়নি — ট্যাপ করে আবার চেষ্টা করো' : 'Could not load slip — tap to retry';
+        el.onclick = () => { el.innerText = '…'; getSlip(id).then(hydrateSlips); };
+        return;
+      }
       if (!src) { el.className = 'thumb noslip'; el.title = t('needSlip'); el.innerText = '!'; return; }
       const img = document.createElement('img');
       img.className = 'thumb'; img.alt = ''; img.src = src; img.title = t('viewSlip');
@@ -1280,8 +1286,11 @@ function entryRow(x) {
   const mine = isMgr || own;
   const locked = x.status === 'approved';
   const lockTxt = `<span class="sub">🔒 ${t('locked')}</span>`;
-  const mgrEdit = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
-  const ownEdit = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button><button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
+  const noDel = x.addedByAdmin === true;   // entries the admin added cannot be deleted
+  const delBtn = noDel ? '' : `<button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
+  const mgrEdit = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button>${delBtn}`;
+  const ownEdit = mgrEdit;
+  const adminTag = noDel ? `<span class="sub">🔒 ${lang === 'bn' ? 'অ্যাডমিন যোগ করেছে' : 'Added by admin'}</span>` : '';
   const approveBtn = isMgr && !locked ? `<button class="pri" onclick="approve('${x.id}')">✓ ${t('approve')}</button>` : '';
   let acts = '';
   if (isClosed(x)) {
@@ -1302,7 +1311,7 @@ function entryRow(x) {
   return `<div class="entry">${shown}<div class="grow">
     <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
     <div class="sub">${CAL}${fmtDate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</div>${who}
-    <div class="acts">${acts}</div></div></div>`;
+    <div class="acts">${adminTag}${acts}</div></div></div>`;
 }
 
 /* Entry form (shared by members and manager) */
@@ -1369,7 +1378,7 @@ async function saveEntry() {
     } else {
       // entry first (the slip rule checks that the entry exists), then the photo
       const who = isMgr && $('fMember') ? $('fMember').value : me;
-      const ref = await W.collection('entries').add({ memberEmail: who, date, amount: amt, note, status: 'submitted', reason: '', createdAt: Date.now() });
+      const ref = await W.collection('entries').add({ memberEmail: who, date, amount: amt, note, status: 'submitted', reason: '', createdAt: Date.now(), addedByAdmin: isMgr });
       try {
         await W.collection('slips').doc(ref.id).set({ data: photo });
         slipCache[ref.id] = photo;
@@ -1407,6 +1416,8 @@ async function approve(id) {
     .then(() => logAct('Approved · ' + nameOf(x.memberEmail) + ' · ' + f2(x.amount))).catch(showErr);
 }
 async function delEntry(id) {
+  const target = entries.find(e => e.id === id);
+  if (target && target.addedByAdmin === true) { toast(lang === 'bn' ? 'অ্যাডমি যোগ করা এন্ট্রি মুছা যাবে না' : 'Admin-added entries cannot be deleted', true); return; }
   const ok = await sheet({ title: t('confirmDel'), input: false, okText: t('del') });
   if (!ok) return;
   const x = entries.find(e => e.id === id) || {};
