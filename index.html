@@ -381,6 +381,9 @@ body.th-ocean::before,body.th-forest::before,body.th-sunset::before,body.th-rose
 .login input{font-size:16px}
 @media (max-height:620px){.loginHero{margin-bottom:12px}.avRing{width:72px;height:72px;margin-bottom:8px}}
 
+/* ---- placeholder: faded, clearly a hint not a value ---- */
+input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
+
 /* ---- admin tab bar: 3 equal columns, same height, no broken wrapping ---- */
 .admTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
 .admTab{min-height:56px;padding:8px 6px;font-size:clamp(13px,3.7vw,15px);font-weight:800;line-height:1.25;white-space:normal;text-align:center;display:flex;align-items:center;justify-content:center;border-radius:16px;word-break:keep-all;overflow-wrap:anywhere}
@@ -449,7 +452,7 @@ body.th-ocean::before,body.th-forest::before,body.th-sunset::before,body.th-rose
         <h3 id="fTitle"></h3>
         <div class="row">
           <div class="grow"><div class="lbl" data-i18n="date"></div><input id="fDate" type="date"></div>
-          <div class="grow"><div class="lbl" data-i18n="amount"></div><input id="fAmt" type="text" inputmode="decimal" placeholder="1,500"></div>
+          <div class="grow"><div class="lbl" data-i18n="amount"></div><input id="fAmt" type="text" inputmode="decimal" placeholder="0.00"></div>
         </div>
         <div id="fMemberBox" class="hidden"><div class="lbl" id="fMemberLbl"></div><select id="fMember"></select></div>
         <div class="lbl" data-i18n="note"></div>
