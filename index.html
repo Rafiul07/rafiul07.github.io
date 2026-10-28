@@ -1148,6 +1148,22 @@ function renderHome() {
             <div class="totalAmt num">৳ ${f2(bazarOf(me))}</div>
           </div>
         </div>
+        <details class="sec" style="margin-top:10px"><summary>${isBn ? 'বিস্তারিত হিসাব' : 'Details'}</summary><div class="secBody">
+          <div class="totalGrid">
+            <div class="totalTile">
+              <div class="sub">${isBn ? 'তোমার জমা' : 'Your deposit'}</div>
+              <div class="totalAmt num">+ ${f2(depOf(me))}</div>
+            </div>
+            <div class="totalTile">
+              <div class="sub">${isBn ? `তোমার খাওয়ার খরচ (${dy} দিন × ${f2(r)})` : `Your meal cost (${dy} days × ${f2(r)})`}</div>
+              <div class="totalAmt num">− ${f2(share)}</div>
+            </div>
+            <div class="totalTile" style="grid-column:1 / -1">
+              <div class="sub">${isBn ? 'শেষ হিসাব' : 'Final'}</div>
+              <div class="totalAmt num" style="color:${tone}">${bal >= 0 ? '+' : '−'} ৳ ${f2(Math.abs(bal))}</div>
+            </div>
+          </div>
+        </div></details>
       </div>`;
     }
     const mineAll = entries.filter(x => x.memberEmail === me);
