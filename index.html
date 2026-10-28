@@ -1200,10 +1200,10 @@ function renderHome() {
       // a member: own card always; "সব সদস্য" opens a separate card below with the others
       const bnL = lang === 'bn';
       const rowHtml = e => `<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="memberSummary('${esc(e)}')"><div class="row" style="gap:8px;flex-wrap:nowrap;min-width:0"><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nameOf(e))}</b>${e === me ? ' ★' : ''}</div><div class="row" style="gap:8px;flex-wrap:nowrap"><span class="num" style="font-weight:700">${f2(bazarOf(e))}</span>${balTag(balOf(e, r2))}<button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(e)}')">ⓘ</button></div></div>`;
-      const topBtn = `<button class="ghost" style="min-height:32px;padding:4px 12px;font-size:13px;white-space:nowrap" onclick="toggleAllView()">${allView ? '▴ ' + (bnL ? 'শুধু আমি' : 'Only me') : '▾ ' + (bnL ? 'সব সদস্য' : 'All members')}</button>`;
+      const topBtn = `<button class="ghost" style="min-height:32px;padding:4px 12px;font-size:13px;white-space:nowrap" onclick="toggleAllView()">${allView ? '▴ ' + (bnL ? 'সব সদস্য' : 'All members') : '▾ ' + (bnL ? 'সব সদস্য' : 'All members')}</button>`;
       h += `<div class="card" id="balCard" style="border:2px solid var(--p);box-shadow:0 0 0 3px rgba(168,85,247,.12)"><div class="row between" style="margin-bottom:6px;flex-wrap:nowrap"><h3 style="margin:0">${bnL ? 'আমার হিসাব' : 'My account'}</h3>${topBtn}</div>${rowHtml(me)}</div>`;
       if (allView) {
-        const others = allEmails().filter(e => e !== me).sort((a, b) => bazarOf(b) - bazarOf(a));
+        const others = allEmails().slice().sort((a, b) => bazarOf(b) - bazarOf(a));   // everyone, me included (★)
         const shown = others.slice(0, balLimit);
         const more = others.length > balLimit ? `<button class="ghost" style="width:100%;margin-top:10px;min-height:40px" onclick="balMore()">${bnL ? 'আরও দেখাও' : 'Show more'} (${others.length - balLimit})</button>` : '';
         h += `<div class="card" id="allCard" style="border:2px solid var(--s);box-shadow:0 0 0 3px rgba(34,211,238,.12);margin-top:14px"><h3 style="margin:0 0 6px">${bnL ? 'সব সদস্য' : 'All members'} <span class="sub">(${others.length})</span></h3>${shown.map(rowHtml).join('')}${more}</div>`;
