@@ -2052,13 +2052,16 @@ function openMember(email) {
       ${row(bn ? 'জমা' : 'Deposit', '+ ' + f2(depOf(email)))}
       ${row(bn ? `খাওয়া (${daysOf(email)} দিন × ${f2(rate)})` : `Meals (${daysOf(email)} days × ${f2(rate)})`, '− ' + f2(daysOf(email) * rate))}
       <div class="row between" style="padding:10px 0 2px;border-top:1px solid var(--bd)"><b>${pos ? (bn ? 'ফেরত পাবে' : 'Gets back') : (bn ? 'বাকি (দিতে হবে)' : 'Due')}</b><b class="num" style="color:${tone};font-size:18px">${f2(Math.abs(bal))}</b></div>
+      <div class="sub" style="margin:12px 0 6px">${bn ? 'বাজার এন্ট্রি' : 'Bazar entries'} (${all.length})</div>
+      <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">${boxes}</div>
+      ${pickedHtml}
     </div>` : ''}
     <details class="sec" style="margin:0 0 14px"><summary>ⓘ ${bn ? 'কেন এমন হলো' : 'Why this amount'}</summary><div class="secBody">
       ${explainItems(email, rate).map(x => `<div style="padding:7px 0;border-top:1px solid var(--bd);font-size:14px;${x.red ? 'color:var(--bad);font-weight:700' : ''}">${esc(x.t)}</div>`).join('')}
     </div></details>
     <details class="sec bazDet" style="margin:0 0 14px"><summary>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></summary><div class="secBody">
       ${monthPick}
-      ${all.length ? `<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">${boxes}</div>${pickedHtml}` + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
+      ${all.length ? all.slice(0, memLimit).map(miniRow).join('') + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
     </div></details>
     ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
       <div class="mgrid">
