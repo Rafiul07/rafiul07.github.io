@@ -633,6 +633,7 @@ let month = 'all', memOpen = null, imgRot = 0, imgZ = 1;
 let allView = false;
 let memLimit = 5;   // admin member popup: entries shown so far (5 at a time)
 let memMonth = '';
+let memListOpen = false;   // control panel: All members section open or closed (kept across redraws)
 let homeLimit = 5;  // member home: recent entries shown (5 at a time)  // admin member popup: month shown in the list (empty = this month)   // member home: show only me, or everyone (toggle at the bottom of the "আমার হিসাব" card)
 /* toggle, then keep the account card on screen so the user stays in the members area */
 function toggleAllView() {
@@ -1501,6 +1502,7 @@ function renderMembers() {
     : mSort === 'due' ? x.bal - y.bal
     : nameOf(x.m.email).localeCompare(nameOf(y.m.email)));
   const tot = rows.reduce((a, r) => a + r.b, 0) || 1;
+  if ($('memCount')) $('memCount').innerText = '(' + rows.length + ')';
   $('memberList').innerHTML = rows.map(({ m, b, bal }) => {
     const nm = nameOf(m.email);
     const ch = (nm[0] || '?').toUpperCase();
@@ -1696,7 +1698,7 @@ function renderAdmin() {
 
   }
   if (admTab === 'members') {
-  h += `<input id="mSearch" placeholder="${t('search')}" oninput="memSearch()" style="margin-bottom:10px"><div id="memberList"></div>`;
+  h += `<details class="sec" id="memSec" ${memListOpen ? 'open' : ''} ontoggle="memListOpen=this.open" style="margin:0 0 12px"><summary>${isBn ? 'সব সদস্য' : 'All members'} <span class="sub" id="memCount"></span></summary><div class="secBody"><input id="mSearch" placeholder="${t('search')}" oninput="memSearch()" style="margin-bottom:10px"><div id="memberList"></div></div></details>`;
   h += sec(isBn ? 'নতুন সদস্য যোগ' : 'Add member', `
       <input id="nEmail" type="email" placeholder="${isBn ? 'ইমেইল' : 'Email'}">
       <input id="nName" placeholder="${isBn ? 'নাম' : 'Name'}" style="margin-top:8px">
