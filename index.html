@@ -1540,7 +1540,7 @@ function renderAdmin() {
       <button class="item" onclick="toggleClose()"><span>${isBn ? 'মাস বন্ধ / খোলা' : 'Close / reopen month'}</span><span class="sub">›</span></button>
       <div class="lbl" style="margin-top:14px">${isBn ? 'রিপোর্ট' : 'Report'}</div>
       <button class="item" onclick="exportCSV()"><span>⬇️ ${t('exportCsv')}</span><span class="sub">›</span></button>
-      <button class="item" onclick="shareSummary()"><span>📤 ${isBn ? 'সারাংশ শেয়ার করো' : 'Share summary'}</span><span class="sub">›</span></button>`, true);
+      <button class="item" onclick="shareSummary()"><span>📤 ${isBn ? 'সারাংশ শেয়ার করো' : 'Share summary'}</span><span class="sub">›</span></button>`, false);
 
   }
   if (admTab === 'members') {
