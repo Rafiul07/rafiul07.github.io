@@ -413,6 +413,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
       <div class="sub" data-i18n="loginSub"></div>
       <div class="byline">created by rafi</div>
     </div>
+    <div id="loginLang" class="seg" style="margin-bottom:14px"><button data-l="en" class="" onclick="setLang('en')">English</button><button data-l="bn" class="" onclick="setLang('bn')">বাংলা</button></div>
     <div class="lbl" data-i18n="email"></div>
     <input id="lEmail" type="email" autocomplete="username" style="font-size:16px">
     <div class="lbl" data-i18n="password"></div>
@@ -611,7 +612,7 @@ bn: {
 }};
 
 /* ================= STATE ================= */
-let lang = localStorage.getItem('mh_lang_bn') || 'bn';
+let lang = localStorage.getItem('mh_lang_bn') || 'en';
 let theme = localStorage.getItem('mh_theme') || 'dark';
 let fs = localStorage.getItem('mh_fs') || 'medium';
 let me = '', isMgr = false, page = 'home', editId = '';
@@ -1851,6 +1852,7 @@ function applyLang() {
   document.querySelectorAll('[data-ph]').forEach(el => el.placeholder = t(el.dataset.ph));
   $('fTitle').innerText = editId ? t('editEntry') : t('addEntry');
   $('listTitle').innerText = t('listTitle');
+  document.querySelectorAll('#loginLang button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
   render();
 }
 function setNet() {
