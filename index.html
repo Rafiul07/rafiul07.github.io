@@ -1293,7 +1293,7 @@ function memberSummary(email) {
         return `<div class="row between" style="padding:8px 0;font-size:17px"><b>${lbl}</b><b class="num" style="color:${pos ? '#22c55e' : 'var(--bad)'}">${pos ? '+' : '−'} ${f2(Math.abs(b))}</b></div>`;
       })();
   const items = list.length
-    ? `<div style="display:flex;flex-wrap:wrap;gap:8px">` + list.map(x => `<div class="num" style="flex:1 1 calc(50% - 8px);min-width:110px;text-align:center;padding:12px 8px;border-radius:14px;font-weight:800;font-size:17px;background:color-mix(in srgb,var(--p) 14%,var(--card2));border:1px solid color-mix(in srgb,var(--p) 40%,var(--bd))">${f2(x.amount)}</div>`).join('') + `</div>`
+    ? `<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">` + list.map(x => `<div class="num" style="min-width:0;text-align:center;padding:10px 2px;border-radius:12px;font-weight:800;font-size:clamp(11px,3.2vw,14px);overflow-wrap:anywhere;background:color-mix(in srgb,var(--p) 14%,var(--card2));border:1px solid color-mix(in srgb,var(--p) 40%,var(--bd))">${f2(x.amount)}</div>`).join('') + `</div>`
     : `<div class="empty">${bn ? 'কোনো অনুমোদিত বাজার নেই' : 'No approved bazar'}</div>`;
   $('infoTitle').innerText = nameOf(email);
   $('infoBody').innerHTML = head + `<div class="sub" style="margin:14px 0 2px">${bn ? 'বাজার এন্ট্রি' : 'Bazar entries'}</div>` + items;
