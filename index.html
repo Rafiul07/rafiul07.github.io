@@ -633,7 +633,8 @@ let month = 'all', memOpen = null, imgRot = 0, imgZ = 1;
 let allView = false;
 let memLimit = 5;   // admin member popup: entries shown so far (5 at a time)
 let memMonth = '';
-let memListOpen = false;   // control panel: All members section open or closed (kept across redraws)
+let memListOpen = false;
+let memPickId = '';   // admin member popup: entry picked from the amount boxes   // control panel: All members section open or closed (kept across redraws)
 let homeLimit = 5;  // member home: recent entries shown (5 at a time)  // admin member popup: month shown in the list (empty = this month)   // member home: show only me, or everyone (toggle at the bottom of the "আমার হিসাব" card)
 /* toggle, then keep the account card on screen so the user stays in the members area */
 function toggleAllView() {
@@ -2001,6 +2002,7 @@ function miniRow(x, withName = false) {
 }
 function homeMore() { homeLimit += 5; render(); }
 function memMore() { memLimit += 5; openMember(memOpen); }
+function memPick(id) { memPickId = memPickId === id ? '' : id; openMember(memOpen); }
 function memMonthSet(m) { memMonth = m; memLimit = 5; openMember(memOpen); }
 function openMember(email) {
   // keep days/deposit the admin is typing when this modal is redrawn by a live update
@@ -2012,13 +2014,18 @@ function openMember(email) {
   const oldN = $('mdName');
   const keepN = sameM && oldN && oldN.value !== oldN.dataset.orig ? oldN.value : null;
   const oldDet = $('memBody').querySelector('details.mgrDet');
+  const oldBaz = $('memBody').querySelector('details.bazDet');
+  const keepBaz = sameM && oldBaz ? oldBaz.open : false;
   const keepOpen = sameM && oldDet ? oldDet.open : false;
   memOpen = email;
-  if (!sameM) memMonth = '';
+  if (!sameM) { memMonth = ''; memPickId = ''; }
   const thisMonth = today().slice(0, 7);
   const pickM = memMonth || thisMonth;
   const allM = [...new Set([thisMonth, ...entries.filter(x => x.memberEmail === email).map(x => String(x.date).slice(0, 7))])].sort().reverse();
   const all = entries.filter(x => x.memberEmail === email && String(x.date).slice(0, 7) === pickM).sort(byNewest);
+  const boxes = all.slice(0, memLimit).map(x => `<button onclick="memPick('${x.id}')" class="num" style="min-height:0;padding:10px 2px;min-width:0;border-radius:12px;font-weight:800;font-size:clamp(11px,3.2vw,14px);color:var(--tx);cursor:pointer;background:${memPickId === x.id ? 'color-mix(in srgb,var(--p) 32%,var(--card2))' : 'color-mix(in srgb,var(--p) 14%,var(--card2))'};border:1px solid color-mix(in srgb,var(--p) 40%,var(--bd))">${f2(x.amount)}</button>`).join('');
+  const pk = all.find(x => x.id === memPickId);
+  const pickedHtml = pk ? miniRow(pk) : '';
   const monthPick = `<select style="margin:0 0 10px" onchange="memMonthSet(this.value)">${allM.map(m => `<option value="${m}" ${m === pickM ? 'selected' : ''}>${monthLabel(m)}</option>`).join('')}</select>`;
   const bazar = bazarOf(email);
   const rate = currentRate();
@@ -2049,9 +2056,9 @@ function openMember(email) {
     <details class="sec" style="margin:0 0 14px"><summary>ⓘ ${bn ? 'কেন এমন হলো' : 'Why this amount'}</summary><div class="secBody">
       ${explainItems(email, rate).map(x => `<div style="padding:7px 0;border-top:1px solid var(--bd);font-size:14px;${x.red ? 'color:var(--bad);font-weight:700' : ''}">${esc(x.t)}</div>`).join('')}
     </div></details>
-    <details class="sec" style="margin:0 0 14px"><summary>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></summary><div class="secBody">
+    <details class="sec bazDet" style="margin:0 0 14px"><summary>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></summary><div class="secBody">
       ${monthPick}
-      ${all.length ? all.slice(0, memLimit).map(miniRow).join('') + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
+      ${all.length ? `<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">${boxes}</div>${pickedHtml}` + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
     </div></details>
     ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
       <div class="mgrid">
@@ -2072,6 +2079,8 @@ function openMember(email) {
   if (keepN !== null && $('mdName')) $('mdName').value = keepN;
   const newDet = $('memBody').querySelector('details.mgrDet');
   if (newDet && keepOpen) newDet.open = true;
+  const newBaz = $('memBody').querySelector('details.bazDet');
+  if (newBaz && keepBaz) newBaz.open = true;
   $('memBox').classList.remove('hidden');
   openLayer('memBox');
   hydrateSlips();
