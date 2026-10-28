@@ -1552,7 +1552,7 @@ function renderAdmin() {
   if (!isMgr) return;
   const isBn = lang === 'bn';
   const sec = (title, body, open = false, cls = '') =>
-    `<details class="sec ${cls}" ${open ? 'open' : ''} ontoggle="if(this.open)this.scrollIntoView({behavior:'smooth',block:'nearest'})"><summary>${title}</summary><div class="secBody">${body}</div></details>`;
+    `<details class="sec ${cls}" ${open ? 'open' : ''} ontoggle="if(this.open){const d=this;setTimeout(()=>d.scrollIntoView({behavior:'smooth',block:'start'}),60)}"><summary>${title}</summary><div class="secBody">${body}</div></details>`;
   const gh = label => `<div class="gh">${label}</div>`;
   const active = document.activeElement;
   const keep = active && active.closest && active.closest('#pgAdmin') ? { id: active.id, v: active.value, pos: active.selectionStart } : null;
