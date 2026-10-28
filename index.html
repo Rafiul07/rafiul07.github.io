@@ -1093,10 +1093,34 @@ function rejectReq(email) {
   ADB().collection('requests').doc(email).delete()
     .then(() => { toast(t('deleted')); logAct('Rejected join · ' + email); }).catch(showErr);
 }
+let selReq = new Set();   // admin: selected join requests (emails)
+function toggleReq(email, on) { on ? selReq.add(email) : selReq.delete(email); render(); }
+function toggleAllReq(on) { selReq = on ? new Set(reqs.map(r => r.email)) : new Set(); render(); }
+function approveSel() {
+  const list = reqs.filter(r => selReq.has(r.email)); if (!list.length) return;
+  const b = ADB().batch();
+  list.forEach(r => {
+    b.set(ADB().collection('members').doc(r.email), { email: r.email, name: r.name || r.email.split('@')[0], days: 30, deposit: 0 }, { merge: true });
+    b.delete(ADB().collection('requests').doc(r.email));
+  });
+  b.commit().then(() => { selReq = new Set(); toast(t('saved')); logAct('Approved join · ' + list.length + ' people'); }).catch(showErr);
+}
+function rejectSel() {
+  const list = reqs.filter(r => selReq.has(r.email)); if (!list.length) return;
+  const b = ADB().batch();
+  list.forEach(r => b.delete(ADB().collection('requests').doc(r.email)));
+  b.commit().then(() => { selReq = new Set(); toast(t('deleted')); logAct('Rejected join · ' + list.length + ' people'); }).catch(showErr);
+}
 function reqCardHtml() {
   if (!reqs.length) return '';
   const bn = lang === 'bn';
-  return `<div class="card" style="border-color:var(--warn);margin-bottom:12px"><h3>${bn ? 'অপেক্ষমাণ অনুরোধ' : 'Pending requests'} (${reqs.length})</h3>` + reqs.map(r => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--bd);flex-wrap:wrap;gap:8px"><div style="min-width:0"><b>${esc(r.name || r.email)}</b><div class="sub" style="word-break:break-all">${esc(r.email)}</div></div><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="pri" onclick="approveReq('${esc(r.email)}')">${bn ? 'অনুমোদন' : 'Approve'}</button><button class="bad" onclick="rejectReq('${esc(r.email)}')">${bn ? 'প্রত্যাখ্যান' : 'Reject'}</button></div></div>`).join('') + `</div>`;
+  selReq = new Set([...selReq].filter(e => reqs.some(r => r.email === e)));
+  const n = selReq.size, all = n === reqs.length;
+  return `<div class="card" style="border-color:var(--warn);margin-bottom:12px"><h3>${bn ? 'অপেক্ষমাণ অনুরোধ' : 'Pending requests'} (${reqs.length})</h3>`
+    + `<div class="row between" style="padding:6px 0;flex-wrap:wrap;gap:8px"><label class="row" style="gap:8px;cursor:pointer"><input type="checkbox" ${all ? 'checked' : ''} onchange="toggleAllReq(this.checked)"> ${bn ? 'সব নির্বাচন' : 'Select all'}</label>`
+    + `<div class="row" style="gap:6px;flex-wrap:wrap"><button class="pri" ${n ? '' : 'disabled'} onclick="approveSel()">${bn ? 'নির্বাচিতদের অনুমোদন' : 'Approve selected'} (${n})</button><button class="bad" ${n ? '' : 'disabled'} onclick="rejectSel()">${bn ? 'নির্বাচিতদের প্রত্যাখ্যান' : 'Reject selected'}</button></div></div>`
+    + reqs.map(r => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--bd);flex-wrap:wrap;gap:8px"><label class="row" style="gap:8px;min-width:0;flex:1;cursor:pointer"><input type="checkbox" ${selReq.has(r.email) ? 'checked' : ''} onchange="toggleReq('${esc(r.email)}', this.checked)"><div style="min-width:0"><b>${esc(r.name || r.email)}</b><div class="sub" style="word-break:break-all">${esc(r.email)}</div></div></label><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="pri" onclick="approveReq('${esc(r.email)}')">${bn ? 'অনুমোদন' : 'Approve'}</button><button class="bad" onclick="rejectReq('${esc(r.email)}')">${bn ? 'প্রত্যাখ্যান' : 'Reject'}</button></div></div>`).join('')
+    + `</div>`;
 }
 async function postNote() {
   const el = $('noteTxt'); const text = el.value.trim();
