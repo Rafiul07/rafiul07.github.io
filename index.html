@@ -1189,7 +1189,8 @@ function renderHome() {
     const r2 = currentRate();
     if (r2 != null && !isMgr) {   // admin already sees everyone in the members card above
       // a member sees only their own row here; other members' balances stay hidden
-      const ovAll = (allView ? allEmails() : allEmails().filter(e => e === me)).sort((a, b) => bazarOf(b) - bazarOf(a));
+      // own row always first; when "সব সদস্য" is open, the others follow by bazar (highest first)
+      const ovAll = allView ? [me, ...allEmails().filter(e => e !== me).sort((a, b) => bazarOf(b) - bazarOf(a))] : [me];
       const ov = ovAll.slice(0, balLimit);
       const ovMore = allView && ovAll.length > balLimit ? `<button class="ghost" style="width:100%;margin-top:10px;min-height:40px" onclick="balMore()">${lang === 'bn' ? 'আরও দেখাও' : 'Show more'} (${ovAll.length - balLimit})</button>` : '';
       const tgl = lang === 'bn' ? (allView ? 'শুধু আমি' : 'সব সদস্য') : (allView ? 'Only me' : 'All members');
