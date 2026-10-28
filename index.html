@@ -437,8 +437,13 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
     <input id="lEmail" type="email" autocomplete="username" style="font-size:16px">
     <div class="lbl" data-i18n="password"></div>
     <input id="lPass" type="password" autocomplete="current-password" style="font-size:16px">
+    <div id="signupFields" class="hidden">
+      <div class="lbl" id="lblPass2"></div><input id="sPass2" type="password" autocomplete="new-password" style="font-size:16px">
+      <div class="lbl" id="lblName"></div><input id="sName" type="text" autocomplete="name" style="font-size:16px">
+      <div class="lbl" id="lblPhone"></div><input id="sPhone" type="tel" autocomplete="tel" style="font-size:16px">
+    </div>
     <button class="pri" data-i18n="login" onclick="login()" style="width:100%;margin-top:18px"></button>
-    <button class="ghost" id="signupBtn" onclick="signup()" style="width:100%;margin-top:10px"></button>
+    <button class="ghost" id="signupBtn" onclick="signupStart()" style="width:100%;margin-top:10px"></button>
     <button class="ghost" id="forgotBtn" onclick="forgot()" style="width:100%;margin-top:6px;font-size:14px"></button>
     <div id="lMsg" class="sub" style="color:var(--bad);margin-top:10px;min-height:16px"></div>
   </div>
@@ -768,15 +773,26 @@ const STATUS_CLS = { submitted: 'b-sub', needs_fix: 'b-warn', approved: 'b-ok' }
 
 /* ================= AUTH ================= */
 /* new person: creates the account, then asks the owner to approve (requests/{email}) */
+/* first tap shows the sign-up fields; the next tap submits */
+function signupStart() {
+  const f = $('signupFields');
+  if (f.classList.contains('hidden')) { f.classList.remove('hidden'); $('lMsg').innerText = ''; return; }
+  signup();
+}
 async function signup() {
-  const e = $('lEmail').value.trim().toLowerCase(), p = $('lPass').value;
-  $('lMsg').innerText = '';
-  if (!e || p.length < 6) { $('lMsg').innerText = lang === 'bn' ? 'ইমেইল দাও, পাসওয়ার্ড কমপক্ষে ৬ অক্ষর' : 'Enter an email and a password of at least 6 characters'; return; }
+  const e = $('lEmail').value.trim().toLowerCase(), p = $('lPass').value, p2 = $('sPass2').value;
+  const nm = $('sName').value.trim(), ph = $('sPhone').value.trim();
+  const bn = lang === 'bn', msg = m => { $('lMsg').style.color = 'var(--bad)'; $('lMsg').innerText = m; };
+  if (!e) return msg(bn ? 'ইমেইল দাও' : 'Enter your email');
+  if (p.length < 6) return msg(bn ? 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষর' : 'Password must be at least 6 characters');
+  if (p !== p2) return msg(bn ? 'দুটো পাসওয়ার্ড মিলছে না' : 'Passwords do not match');
+  if (!nm) return msg(bn ? 'পুরো নাম লেখো' : 'Enter your full name');
+  if (ph.replace(/\D/g, '').length < 8) return msg(bn ? 'সঠিক মোবাইল নম্বর দাও' : 'Enter a valid mobile number');
   try {
     await auth.createUserWithEmailAndPassword(e, p);
-    await sendReq();
+    await sendReq({ name: nm, phone: ph });
   } catch (err) {
-    $('lMsg').innerText = lang === 'bn' ? 'অ্যাকাউন্ট খোলা গেলো না (ইমেইল আগে থেকেই থাকতে পারে)' : 'Could not create the account (the email may already exist)';
+    msg(bn ? 'অ্যাকাউন্ট খোলা গেলো না (ইমেইল আগে থেকেই থাকতে পারে)' : 'Could not create the account (the email may already exist)');
   }
 }
 /* sends a password reset email to the typed address */
@@ -793,8 +809,9 @@ async function forgot() {
     $('lMsg').innerText = lang === 'bn' ? 'লিংক পাঠানো গেলো না, ইমেইল ঠিক আছে কিনা দেখো' : 'Could not send the link, check the email';
   }
 }
-function sendReq() {
-  return db.collection('requests').doc(me).set({ email: me, name: me.split('@')[0], status: 'pending', createdAt: Date.now() })
+function sendReq(info) {
+  const d = info || {};
+  return db.collection('requests').doc(me).set({ email: me, name: d.name || me.split('@')[0], ...(d.phone ? { phone: d.phone } : {}), status: 'pending', createdAt: Date.now() })
     .then(() => toast(lang === 'bn' ? 'অনুরোধ পাঠানো হয়েছে' : 'Request sent'))
     .catch(showErr);
 }
@@ -1134,7 +1151,7 @@ function reqCardHtml() {
   return `<div class="card" style="border-color:var(--warn);margin-bottom:12px"><h3>${bn ? 'অপেক্ষমাণ অনুরোধ' : 'Pending requests'} (${reqs.length})</h3>`
     + `<div class="row between" style="padding:6px 0;flex-wrap:wrap;gap:8px"><label class="row" style="gap:8px;cursor:pointer"><input type="checkbox" ${all ? 'checked' : ''} onchange="toggleAllReq(this.checked)"> ${bn ? 'সব নির্বাচন' : 'Select all'}</label>`
     + `<div class="row" style="gap:6px;flex-wrap:wrap"><button class="pri" ${n ? '' : 'disabled'} onclick="approveSel()">${bn ? 'নির্বাচিতদের অনুমোদন' : 'Approve selected'} (${n})</button><button class="bad" ${n ? '' : 'disabled'} onclick="rejectSel()">${bn ? 'নির্বাচিতদের প্রত্যাখ্যান' : 'Reject selected'}</button></div></div>`
-    + reqs.map(r => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--bd);flex-wrap:wrap;gap:8px"><label class="row" style="gap:8px;min-width:0;flex:1;cursor:pointer"><input type="checkbox" ${selReq.has(r.email) ? 'checked' : ''} onchange="toggleReq('${esc(r.email)}', this.checked)"><div style="min-width:0"><b>${esc(r.name || r.email)}</b><div class="sub" style="word-break:break-all">${esc(r.email)}</div></div></label><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="pri" onclick="approveReq('${esc(r.email)}')">${bn ? 'অনুমোদন' : 'Approve'}</button><button class="bad" onclick="rejectReq('${esc(r.email)}')">${bn ? 'প্রত্যাখ্যান' : 'Reject'}</button></div></div>`).join('')
+    + reqs.map(r => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--bd);flex-wrap:wrap;gap:8px"><label class="row" style="gap:8px;min-width:0;flex:1;cursor:pointer"><input type="checkbox" ${selReq.has(r.email) ? 'checked' : ''} onchange="toggleReq('${esc(r.email)}', this.checked)"><div style="min-width:0"><b>${esc(r.name || r.email)}</b><div class="sub" style="word-break:break-all">${esc(r.email)}${r.phone ? ' · ' + esc(r.phone) : ''}</div></div></label><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="pri" onclick="approveReq('${esc(r.email)}')">${bn ? 'অনুমোদন' : 'Approve'}</button><button class="bad" onclick="rejectReq('${esc(r.email)}')">${bn ? 'প্রত্যাখ্যান' : 'Reject'}</button></div></div>`).join('')
     + `</div>`;
 }
 async function postNote() {
@@ -2047,6 +2064,10 @@ function applyLang() {
   $('listTitle').innerText = t('listTitle');
   const sb = $('signupBtn'); if (sb) sb.innerText = lang === 'bn' ? 'অ্যাকাউন্ট খুলুন' : 'Create account';
   const fb = $('forgotBtn'); if (fb) fb.innerText = lang === 'bn' ? 'পাসওয়ার্ড ভুলে গেছো?' : 'Forgot password?';
+  const setT = (id, v) => { const el = $(id); if (el) el.innerText = v; };
+  setT('lblPass2', lang === 'bn' ? 'পাসওয়ার্ড আবার লেখো' : 'Confirm password');
+  setT('lblName', lang === 'bn' ? 'পুরো নাম' : 'Full name');
+  setT('lblPhone', lang === 'bn' ? 'মোবাইল নম্বর' : 'Mobile number');
   document.querySelectorAll('#loginLang button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
   render();
 }
