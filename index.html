@@ -382,6 +382,9 @@ body.th-ocean::before,body.th-forest::before,body.th-sunset::before,body.th-rose
 .login input{font-size:16px}
 @media (max-height:620px){.loginHero{margin-bottom:12px}.avRing{width:72px;height:72px;margin-bottom:8px}}
 
+/* ---- control panel: compact member cards ---- */
+.mcompact{padding:12px 14px}
+.mcompact .mchip{font-size:11px;white-space:nowrap;padding:3px 8px}
 /* ---- admin member popup: compact entry rows ---- */
 .miniRow{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--bd);align-items:flex-start}
 .miniThumb{width:44px;height:44px;flex-shrink:0;border-radius:10px;object-fit:cover}
@@ -1504,15 +1507,13 @@ function renderMembers() {
     const hue = [...m.email].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
     const pct = Math.round(b / tot * 100);
     const chip = rate == null ? '' : `<span class="mchip ${bal >= 0 ? 'g' : 'r'}">${bal >= 0 ? '↑ ' + t('refund') : '↓ ' + t('due')}: ${f2(Math.abs(bal))}</span>`;
-    return `<div class="card mcard" data-email="${esc(m.email)}" style="cursor:pointer" onclick="openMember('${esc(m.email)}')">
-      <div class="mhead">
-        <div class="mav" style="background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>
-        <div class="grow" style="min-width:0"><div class="mname">${esc(nm)} <span class="sub">›</span>${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub" style="word-break:break-all">${esc(m.email)} · ${cntOf(m.email)} ${bn() ? 'টি এন্ট্রি' : 'entries'}</div></div>
-        <button class="ghost" aria-label="info" title="info" style="min-height:32px;width:32px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(m.email)}')">ⓘ</button>
+    return `<div class="card mcard mcompact" data-email="${esc(m.email)}" style="cursor:pointer" onclick="openMember('${esc(m.email)}')">
+      <div class="mhead" style="gap:10px;align-items:center;flex-wrap:nowrap">
+        <div class="mav" style="width:36px;height:36px;font-size:15px;flex-shrink:0;background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>
+        <div class="grow" style="min-width:0"><div class="mname" style="font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nm)}${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub num" style="font-size:12px">${f2(b)} · ${pct}% · ${t('days')} ${m.days ?? 30}</div></div>
         ${chip}
+        <button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(m.email)}')">ⓘ</button>
       </div>
-      <div class="mbar"><i style="width:${pct}%"></i></div>
-      <div class="sub num" style="display:flex;justify-content:space-between;margin-bottom:8px"><span>${f2(b)} · ${pct}%</span><span>${t('days')} ${m.days ?? 30} · ${t('deposit')} ${f2(m.deposit ?? 0)}</span></div>
     </div>`;
   }).join('') || `<div class="card empty">${t('noEntries')}</div>`;
 }
