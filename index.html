@@ -2043,11 +2043,10 @@ function openMember(email) {
     <details class="sec" style="margin:0 0 14px"><summary>ⓘ ${bn ? 'কেন এমন হলো' : 'Why this amount'}</summary><div class="secBody">
       ${explainItems(email, rate).map(x => `<div style="padding:7px 0;border-top:1px solid var(--bd);font-size:14px;${x.red ? 'color:var(--bad);font-weight:700' : ''}">${esc(x.t)}</div>`).join('')}
     </div></details>
-    <div class="card" style="margin:0 0 14px">
-      <h3>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></h3>
+    <details class="sec" style="margin:0 0 14px"><summary>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></summary><div class="secBody">
       ${monthPick}
       ${all.length ? all.slice(0, memLimit).map(miniRow).join('') + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
-    </div>
+    </div></details>
     ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
       <div class="mgrid">
         <label class="mf"><span>${t('nameLbl')}</span><input id="mdName" type="text" data-orig="${esc(nameOf(email))}" value="${esc(nameOf(email))}"></label>
