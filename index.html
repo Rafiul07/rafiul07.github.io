@@ -468,7 +468,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
   <main class="wrap">
     <section id="pgHome">
       <div class="card" id="qBar" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button class="pri" style="width:100%" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
+        <button class="pri addEntryBtn" style="width:100%" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
         <button id="notesOpenBtn" onclick="openNotesPop()" style="width:100%;min-height:52px;border:0;border-radius:14px;color:#fff;font-weight:800;background:linear-gradient(135deg,#f97316,#ec4899);box-shadow:0 8px 20px rgba(236,72,153,.28)"></button>
       </div>
       <div class="card hidden" id="notesCard">
@@ -499,7 +499,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
         </div>
         <div id="fMsg" class="sub" style="margin-top:8px;min-height:16px"></div>
       </div>
-      <button class="pri" style="width:100%;margin-bottom:14px" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
+      <button class="pri addEntryBtn" style="width:100%;margin-bottom:14px" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
       <div class="card" id="filterBox">
         <input id="qSearch" data-ph="search" oninput="render()" style="margin-top:0">
         <div class="row" id="filterSel" style="margin-top:8px"></div>
@@ -864,6 +864,7 @@ async function logout() {
 
 let logs = [];
 let notice = '';
+let bazarMode = 'slip';   // 'slip' = members add entries with a pay slip; 'admin' = only the admin adds entries
 let closedMonths = [];
 auth.onAuthStateChanged(async user => {
   adminUnlocked = false; adminDb = null; adminUnsubs.forEach(u => u()); adminUnsubs = []; adminLogsOn = false;
@@ -924,6 +925,8 @@ auth.onAuthStateChanged(async user => {
   unsubs.push(db.collection('settings').doc('app').onSnapshot(d => {
     notice = (d.exists && d.data().notice) || '';
     closedMonths = (d.exists && d.data().closedMonths) || [];
+    bazarMode = (d.exists && d.data().bazarMode) || 'slip';
+    applyBazarLock();
     const th = d.exists ? d.data().theme : null;
     if (d.exists && Array.isArray(d.data().themes)) themesList = d.data().themes.filter(k => ALL_THEMES.includes(k));
     if (th && th !== theme && ALL_THEMES.includes(th)) { theme = th; localStorage.setItem('mh_theme', th); applyTheme(); }
@@ -1062,6 +1065,7 @@ function render() {
   if (!isMgr && loaded.members && !members.some(m => m.email === me)) { renderPending(); return; }
   $('pendingBox').classList.add('hidden');
   $('app').classList.remove('hidden');
+  applyBazarLock();
   $('roleTag').innerText = isMgr ? t('admin') : t('member');
   if (isMgr && loaded.members && loaded.entries) pushSummary(calc());
   if (isMgr && loaded.entries && entries.some(x => x.photo)) autoMigrate();
@@ -1481,6 +1485,7 @@ function explainOld(email) {
 const cntOf = e => scoped().filter(x => x.memberEmail === e).length;   // entries in the month being viewed
 const bn = () => lang === 'bn';
 function actsOf(x) {
+  if (!isMgr && bazarMode === 'admin') return '';
   const own = x.memberEmail === me;
   const locked = x.status === 'approved';
   const lockTxt = `<span class="sub">🔒 ${t('locked')}</span>`;
@@ -1569,7 +1574,7 @@ async function saveEntry() {
   if (closedMonths.includes(String(date).slice(0, 7)) || (oldE && isClosed(oldE))) {
     formErr(lang === 'bn' ? 'এই মাস বন্ধ আছে' : 'This month is closed'); return;
   }
-  if (!f && !editId) { formErr(t('needSlip')); return; }
+  if (!f && !editId && bazarMode === 'slip') { formErr(t('needSlip')); return; }
   $('fMsg').innerText = '…'; $('fMsg').classList.remove('err');
   try {
     const photo = f ? await compress(f) : null;
@@ -1587,8 +1592,7 @@ async function saveEntry() {
       const who = isMgr && $('fMember') ? $('fMember').value : me;
       const ref = await W.collection('entries').add({ memberEmail: who, date, amount: amt, note, status: 'submitted', reason: '', createdAt: Date.now(), addedByAdmin: isMgr });
       try {
-        await W.collection('slips').doc(ref.id).set({ data: photo });
-        slipCache[ref.id] = photo;
+        if (photo) { await W.collection('slips').doc(ref.id).set({ data: photo }); slipCache[ref.id] = photo; }
       } catch (e) {
         await ref.delete().catch(() => {}); // no entry without its pay slip
         throw e;
@@ -1832,6 +1836,26 @@ function settingsHtml(skipMe = false) {
   return h;
 }
 
+/* ===== Bazar entry mode (admin setting) ===== */
+function bazarModeHtml() {
+  const bn = lang === 'bn';
+  const opts = [['slip', bn ? '১: সদস্য pay slip সহ এন্ট্রি দেবে' : '1: Members add entries with pay slip'],
+                ['admin', bn ? '২: শুধু admin এন্ট্রি দেবে' : '2: Only admin adds entries']];
+  return `<div class="lbl" style="margin-top:14px">${bn ? 'বাজার এন্ট্রির নিয়ম' : 'Bazar entry mode'}</div>
+    <div class="seg" style="flex-direction:column">${opts.map(([v, l]) => `<button class="${bazarMode === v ? 'on' : ''}" onclick="setBazarMode('${v}')">${l}</button>`).join('')}</div>`;
+}
+function setBazarMode(v) {
+  bazarMode = v; applyBazarLock(); renderAdmin();
+  ADB().collection('settings').doc('app').set({ bazarMode: v }, { merge: true })
+    .then(() => { toast(t('saved')); logAct('Bazar mode · ' + v); }).catch(showErr);
+}
+/* members cannot add entries in mode 2 */
+function applyBazarLock() {
+  const lock = !isMgr && bazarMode === 'admin';
+  document.querySelectorAll('.addEntryBtn').forEach(b => b.classList.toggle('hidden', lock));
+  if (lock && $('formCard')) $('formCard').classList.add('hidden');
+}
+
 /* ===== Admin panel: all admin-only tools live here ===== */
 let admTab = 'wait';   // control panel tab: wait | members | settings
 function admTabSet(v) { admTab = v; renderAdmin(); }
@@ -1861,6 +1885,7 @@ function renderAdmin() {
   h += meCardHtml();
   h += gh(isBn ? 'মেস' : 'Mess');
   h += sec(t('management'), `
+      ${bazarModeHtml()}
       <div class="lbl" style="margin-top:14px">${isBn ? 'ঘোষণা' : 'Notice'}</div>
       <textarea id="noticeTxt" rows="2" style="width:100%">${esc(notice)}</textarea>
       <button class="pri" style="width:100%;margin-top:8px" onclick="saveNotice()">${t('save')}</button>
