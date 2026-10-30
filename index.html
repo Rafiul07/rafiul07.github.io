@@ -802,8 +802,9 @@ async function signup() {
   if (p !== p2) return msg(bn ? 'দুটো পাসওয়ার্ড মিলছে না' : 'Passwords do not match');
   if (!nm) return msg(bn ? 'পুরো নাম লেখো' : 'Enter your full name');
   try {
-    await auth.createUserWithEmailAndPassword(e, p);
-    await sendReq({ name: nm });
+    const cred = await auth.createUserWithEmailAndPassword(e, p);
+    try { localStorage.setItem('mh_signup_name', nm); } catch (x) {}   // used when the request is sent after verification
+    await cred.user.sendEmailVerification();
   } catch (err) {
     msg(bn ? 'অ্যাকাউন্ট খোলা গেলো না (ইমেইল আগে থেকেই থাকতে পারে)' : 'Could not create the account (the email may already exist)');
   }
@@ -826,6 +827,42 @@ function sendReq(info) {
   const d = info || {};
   return db.collection('requests').doc(me).set({ email: me, name: d.name || me.split('@')[0], ...(d.phone ? { phone: d.phone } : {}), status: 'pending', createdAt: Date.now() })
     .then(() => toast(lang === 'bn' ? 'অনুরোধ পাঠানো হয়েছে' : 'Request sent'))
+    .catch(showErr);
+}
+/* email not verified yet (new sign-up): only the verify screen shows. Admin and members are never blocked here */
+function renderVerify() {
+  const bn = lang === 'bn';
+  $('app').classList.remove('hidden');
+  Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== 'home'));
+  page = 'home';
+  $('nav').innerHTML = '';
+  $('roleTag').innerText = bn ? 'যাচাই' : 'Verify';
+  $('hContent').innerHTML = `<div class="card" style="text-align:center;padding:24px">
+    <div class="sub">${bn
+      ? 'তোমার ইমেইলে একটা যাচাই লিংক পাঠানো হয়েছে। লিংকে ক্লিক করে এখানে ফিরে "যাচাই করেছি" চাপো।'
+      : 'A verification link was sent to your email. Click it, then come back and press "I verified".'}</div>
+    <button class="pri" style="width:100%;margin-top:16px" onclick="checkVerified()">${bn ? 'যাচাই করেছি' : 'I verified'}</button>
+    <button class="ghost" style="width:100%;margin-top:10px" onclick="resendVerify()">${bn ? 'আবার লিংক পাঠাও' : 'Resend link'}</button>
+    <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button>
+  </div>`;
+}
+function checkVerified() {
+  const u = auth.currentUser;
+  if (!u) return;
+  u.reload().then(() => {
+    if (u.emailVerified && !myReq) {
+      let nm = '';
+      try { nm = localStorage.getItem('mh_signup_name') || ''; localStorage.removeItem('mh_signup_name'); } catch (x) {}
+      if (nm) sendReq({ name: nm });   // the join request goes out only after the email is verified
+    }
+    render();
+  }).catch(showErr);
+}
+function resendVerify() {
+  const u = auth.currentUser;
+  if (!u) return;
+  u.sendEmailVerification()
+    .then(() => toast(lang === 'bn' ? 'লিংক আবার পাঠানো হয়েছে' : 'Link sent again'))
     .catch(showErr);
 }
 /* signed in but not approved yet: the app opens, only a short note shows, no data and no tabs */
@@ -1067,6 +1104,8 @@ function go(p, fromHistory = false) {
 
 function render() {
   if (!me) return;
+  // new sign-up whose email is not verified yet: verify screen only (members and admin pass)
+  if (!isMgr && loaded.members && !members.some(m => m.email === me) && auth.currentUser && !auth.currentUser.emailVerified) { renderVerify(); return; }
   // signed in but not a member yet: app shell with only a short note
   if (!isMgr && loaded.members && !members.some(m => m.email === me)) { renderPending(); return; }
   $('pendingBox').classList.add('hidden');
