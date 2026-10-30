@@ -1912,6 +1912,39 @@ async function addMember() {
 }
 
 /* ================= SETTINGS ================= */
+/* month-end report: one table for the chosen month (approved entries only) */
+async function monthReport() {
+  const bn = lang === 'bn';
+  const v = await sheet({ title: bn ? 'মাস লেখো (যেমন 2026-10)' : 'Month (e.g. 2026-10)', value: today().slice(0, 7), ph: '2026-10' });
+  if (!v) return;
+  const m = String(v).trim();
+  if (!/^\d{4}-\d{2}$/.test(m)) { toast(t('needDateAmt'), true); return; }
+  const list = entries.filter(x => String(x.date).slice(0, 7) === m && x.status === 'approved' && x.memberEmail !== MANAGER);
+  const c = calc(list);
+  const rate = c.rate;
+  const rows = c.em.map(e => {
+    const b = list.filter(x => x.memberEmail === e).reduce((a, x) => a + num(x.amount), 0);
+    const d = daysOf(e), share = d * rate, dep = depOf(e);
+    return { n: nameOf(e), b, d, share, dep, bal: b + dep - share };
+  }).sort((a, b) => a.n.localeCompare(b.n));
+  const closed = closedMonths.includes(m);
+  const body = rows.length ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+      <tr style="text-align:right;color:var(--mut,#888)"><th style="text-align:left;padding:6px 4px">${bn ? 'নাম' : 'Name'}</th><th>${bn ? 'বাজার' : 'Bazar'}</th><th>${bn ? 'দিন' : 'Days'}</th><th>${bn ? 'খাওয়া' : 'Meals'}</th><th>${bn ? 'জমা' : 'Deposit'}</th><th>${bn ? 'হিসাব' : 'Balance'}</th></tr>
+      ${rows.map(r => `<tr style="text-align:right;border-top:1px solid var(--bd,#ddd)"><td style="text-align:left;padding:6px 4px"><b>${esc(r.n)}</b></td><td>${f2(r.b)}</td><td>${r.d}</td><td>${f2(r.share)}</td><td>${f2(r.dep)}</td><td style="font-weight:800;color:${r.bal >= 0 ? '#15803d' : '#b91c1c'}">${r.bal >= 0 ? '+' : '−'} ${f2(Math.abs(r.bal))}</td></tr>`).join('')}
+      <tr style="text-align:right;border-top:2px solid var(--bd,#ddd);font-weight:800"><td style="text-align:left;padding:6px 4px">${bn ? 'মোট' : 'Total'}</td><td>${f2(c.tB)}</td><td>${c.tD}</td><td colspan="3">${bn ? 'দৈনিক খরচ' : 'Day rate'}: ${f2(rate)}</td></tr>
+    </table></div>` : `<div class="sub">${bn ? 'এই মাসে অনুমোদিত কোনো এন্ট্রি নেই।' : 'No approved entries this month.'}</div>`;
+  const old = document.getElementById('monthRep'); if (old) old.remove();
+  const box = document.createElement('div');
+  box.id = 'monthRep';
+  box.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px';
+  box.innerHTML = `<div class="card" style="width:100%;max-width:560px;max-height:90vh;overflow:auto">
+    <div class="row between" style="margin-bottom:8px"><h3 style="margin:0">${bn ? 'মাসের সারাংশ' : 'Month report'} · ${esc(monthLabel(m))}</h3><span class="badge ${closed ? 'b-bad' : 'b-ok'}">${closed ? (bn ? 'বন্ধ' : 'Closed') : (bn ? 'খোলা' : 'Open')}</span></div>
+    ${body}
+    <div class="sub" style="margin-top:8px">${bn ? 'দিন হলো বর্তমান সদস্য-দিন। অতীতের দিন বদলালে এই হিসাবও বদলাবে।' : 'Days are the current member days. If days change later, this report changes too.'}</div>
+    <button class="ghost" style="width:100%;margin-top:12px" onclick="document.getElementById('monthRep').remove()">${bn ? 'বন্ধ করো' : 'Close'}</button>
+  </div>`;
+  document.body.appendChild(box);
+}
 async function shareSummary() {
   const isBn = lang === 'bn';
   const rate = currentRate();
@@ -2025,6 +2058,7 @@ function renderAdmin() {
       <button class="item" onclick="toggleClose()"><span>${isBn ? 'মাস বন্ধ / খোলা' : 'Close / reopen month'}</span><span class="sub">›</span></button>
       <div class="lbl" style="margin-top:14px">${isBn ? 'রিপোর্ট' : 'Report'}</div>
       <button class="item" onclick="exportCSV()"><span>⬇️ ${t('exportCsv')}</span><span class="sub">›</span></button>
+      <button class="item" onclick="monthReport()"><span>📊 ${isBn ? 'মাসের সারাংশ (টেবিল)' : 'Month report (table)'}</span><span class="sub">›</span></button>
       <button class="item" onclick="shareSummary()"><span>📤 ${isBn ? 'সারাংশ শেয়ার করো' : 'Share summary'}</span><span class="sub">›</span></button>`, false);
 
   }
