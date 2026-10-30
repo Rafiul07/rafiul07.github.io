@@ -845,6 +845,7 @@ function renderPending() {
 }
 function login() {
   const e = $('lEmail').value.trim(), p = $('lPass').value;
+  $('lMsg').style.color = 'var(--bad)';
   $('lMsg').innerText = '';
   if (!e || !p) { $('lMsg').innerText = t('loginFail'); return; }
   auth.signInWithEmailAndPassword(e, p).catch(() => { $('lMsg').innerText = t('loginFail'); });
@@ -1205,7 +1206,7 @@ function clearSlipCache() { Object.keys(slipCache).forEach(k => delete slipCache
 /* Placeholder for a slip; hydrateSlips() swaps it for the image once loaded */
 function thumbFor(x) {
   if (x.photo) return `<img class="thumb" src="${esc(x.photo)}" alt="" onclick="openImg(this.src)">`; // legacy field, before migration
-  return `<div class="thumb slipBox" data-slip="${esc(x.id)}" title="${t('viewSlip')}"></div>`;
+  return `<div class="thumb slipBox" data-slip="${esc(x.id)}" data-admin-entry="${x.addedByAdmin === true ? 1 : 0}" title="${t('viewSlip')}"></div>`;
 }
 function hydrateSlips() {
   document.querySelectorAll('.slipBox[data-slip]').forEach(el => {
@@ -1218,6 +1219,7 @@ function hydrateSlips() {
         el.onclick = () => { el.innerText = '…'; getSlip(id).then(hydrateSlips); };
         return;
       }
+      if (!src && el.dataset.adminEntry === '1') { el.className = 'thumb noslip'; el.title = lang === 'bn' ? 'স্লিপ ছাড়া admin এন্ট্রি' : 'Admin entry, no slip'; el.innerText = '—'; return; }
       if (!src) { el.className = 'thumb noslip'; el.title = t('needSlip'); el.innerText = '!'; return; }
       const img = document.createElement('img');
       img.className = 'thumb'; img.alt = ''; img.src = src; img.title = t('viewSlip');
@@ -1853,6 +1855,7 @@ function setBazarMode(v) {
 function applyBazarLock() {
   const lock = !isMgr && bazarMode === 'admin';
   document.querySelectorAll('.addEntryBtn').forEach(b => b.classList.toggle('hidden', lock));
+  if ($('qBar')) $('qBar').style.gridTemplateColumns = lock ? '1fr' : '1fr 1fr';
   if (lock && $('formCard')) $('formCard').classList.add('hidden');
 }
 
