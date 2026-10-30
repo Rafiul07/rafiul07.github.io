@@ -809,7 +809,7 @@ async function signup() {
 }
 /* sends a password reset email to the typed address */
 async function forgot() {
-  const e = $('lEmail').value.trim().toLowerCase();
+  const e = loginEmail($('lEmail').value);
   $('lMsg').innerText = '';
   if (!e) { $('lMsg').innerText = lang === 'bn' ? 'আগে ইমেইল লেখো' : 'Enter your email first'; return; }
   try {
@@ -843,8 +843,13 @@ function renderPending() {
     <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button>
   </div>`;
 }
+/* members can type just the name (rafiul): the mess domain is added. Anything with @ is used as typed */
+function loginEmail(raw) {
+  const v = String(raw || '').trim().toLowerCase();
+  return v && !v.includes('@') ? v + '@bd.com' : v;
+}
 function login() {
-  const e = $('lEmail').value.trim(), p = $('lPass').value;
+  const e = loginEmail($('lEmail').value), p = $('lPass').value;
   $('lMsg').style.color = 'var(--bad)';
   $('lMsg').innerText = '';
   if (!e || !p) { $('lMsg').innerText = t('loginFail'); return; }
@@ -1641,6 +1646,32 @@ async function delEntry(id) {
 }
 
 /* ================= MEMBERS (manager) ================= */
+/* ---- quick entry: admin types one amount per member for one date, all saved at once (counted as approved) ---- */
+function quickEntryHtml() {
+  const bn = lang === 'bn';
+  const list = allEmails().map(e => ({ e, n: nameOf(e) })).sort((a, b) => a.n.localeCompare(b.n));
+  const today = new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD in local time
+  const rowsHtml = list.map(({ e, n }) => `<div class="row between" style="gap:8px;margin-bottom:6px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n)}</span><input type="number" inputmode="decimal" step="0.01" min="0" class="qAmt" data-email="${esc(e)}" placeholder="0" style="width:120px"></div>`).join('');
+  return sec(bn ? 'দ্রুত বাজার এন্ট্রি' : 'Quick bazar entry', `
+      <input type="date" id="qDate" value="${today}" style="margin-bottom:10px">
+      ${rowsHtml || `<div class="empty">${t('noEntries')}</div>`}
+      <button class="pri" onclick="saveQuick()" style="width:100%;margin-top:12px">${bn ? 'সব সেভ করো' : 'Save all'}</button>`, false);
+}
+async function saveQuick() {
+  const bn = lang === 'bn';
+  const date = $('qDate').value;
+  if (!date) { toast(bn ? 'তারিখ দাও' : 'Pick a date', true); return; }
+  if (closedMonths.includes(date.slice(0, 7))) { toast(bn ? 'এই মাস বন্ধ আছে' : 'This month is closed', true); return; }
+  const rows = [...document.querySelectorAll('.qAmt')].map(i => ({ email: i.dataset.email, amt: num(i.value) })).filter(r => r.amt > 0);
+  if (!rows.length) { toast(bn ? 'অন্তত একজনের অংক দাও' : 'Enter at least one amount', true); return; }
+  const b = ADB().batch(), now = Date.now();
+  rows.forEach(r => b.set(ADB().collection('entries').doc(), { memberEmail: r.email, date, amount: r.amt, note: '', status: 'approved', reason: '', createdAt: now, addedByAdmin: true }));
+  b.commit().then(() => {
+    document.querySelectorAll('.qAmt').forEach(i => { i.value = ''; });
+    toast(t('saved'));
+    logAct('Quick entry · ' + date + ' · ' + rows.length + ' members');
+  }).catch(showErr);
+}
 let mSort = 'name';
 function renderMembers() {
   const q = ($('mSearch') ? $('mSearch').value : '').trim().toLowerCase();
@@ -1885,6 +1916,7 @@ function renderAdmin() {
       <input id="nName" placeholder="${isBn ? 'নাম' : 'Name'}" style="margin-top:8px">
       <input id="nPw" type="password" placeholder="${isBn ? 'পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)' : 'Password (at least 6 characters)'}" style="margin-top:8px">
       <button class="pri" onclick="addMember()" style="width:100%;margin-top:12px">${isBn ? 'যোগ করো' : 'Add'}</button>`);
+  h += quickEntryHtml();
 
   }
   if (admTab === 'settings') {
