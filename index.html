@@ -1699,7 +1699,7 @@ function selBar() {
   const bn = lang === 'bn', n = selMem.size;
   const names = [...selMem].map(e => nameOf(e));
   const shown = names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3}` : '');
-  return `<div class="card" style="border-color:var(--p);margin-bottom:10px;padding:10px"><div style="font-size:13px;margin-bottom:8px"><b>${bn ? 'নির্বাচিত' : 'Selected'}: ${n}</b> — ${esc(shown)}</div><div class="row between" style="flex-wrap:wrap;gap:8px"><div class="row" style="gap:6px;flex-wrap:wrap"><button class="ghost" onclick="selMem=new Set();renderMembers()">${bn ? 'বাতিল' : 'Clear'}</button><button class="pri" onclick="daysSel()">${bn ? 'দিন ঠিক করো' : 'Set days'}</button><button class="bad" onclick="removeSel()">${bn ? 'মুছো' : 'Remove'}</button></div></div></div>`;
+  return `<div class="card" style="border-color:var(--p);margin-bottom:10px;padding:10px"><div style="font-size:13px;margin-bottom:8px"><b>${bn ? 'নির্বাচিত' : 'Selected'}: ${n}</b> — ${esc(shown)}</div></div></div>`;
 }
 function daysSel() {
   const bn = lang === 'bn';
