@@ -467,8 +467,9 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 
   <main class="wrap">
     <section id="pgHome">
+      <div id="bazarStatus" class="hidden" style="margin-bottom:10px;padding:8px 12px;border-radius:12px;font-weight:700;font-size:14px"></div>
       <div class="card" id="qBar" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button class="pri" style="width:100%" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
+        <button id="addBtn1" class="pri" style="width:100%" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
         <button id="notesOpenBtn" onclick="openNotesPop()" style="width:100%;min-height:52px;border:0;border-radius:14px;color:#fff;font-weight:800;background:linear-gradient(135deg,#f97316,#ec4899);box-shadow:0 8px 20px rgba(236,72,153,.28)"></button>
       </div>
       <div class="card hidden" id="notesCard">
@@ -499,7 +500,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
         </div>
         <div id="fMsg" class="sub" style="margin-top:8px;min-height:16px"></div>
       </div>
-      <button class="pri" style="width:100%;margin-bottom:14px" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
+      <button id="addBtn2" class="pri" style="width:100%;margin-bottom:14px" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
       <div class="card" id="filterBox">
         <input id="qSearch" data-ph="search" oninput="render()" style="margin-top:0">
         <div class="row" id="filterSel" style="margin-top:8px"></div>
@@ -930,6 +931,8 @@ auth.onAuthStateChanged(async user => {
   unsubs.push(db.collection('settings').doc('app').onSnapshot(d => {
     notice = (d.exists && d.data().notice) || '';
     closedMonths = (d.exists && d.data().closedMonths) || [];
+    bazarMode = (d.exists && d.data().bazarMode) || 'slip';
+    updateBazarStatus();
     const th = d.exists ? d.data().theme : null;
     if (d.exists && Array.isArray(d.data().themes)) themesList = d.data().themes.filter(k => ALL_THEMES.includes(k));
     if (th && th !== theme && ALL_THEMES.includes(th)) { theme = th; localStorage.setItem('mh_theme', th); applyTheme(); }
@@ -1952,6 +1955,9 @@ function renderAdmin() {
 
   }
   if (admTab === 'settings') {
+  h += sec(isBn ? 'সদস্যদের বাজার যোগ' : 'Member bazar entry', `
+      <div class="sub" style="margin-bottom:8px">${bazarOn() ? (isBn ? 'এখন চালু: সদস্যরা বাজার যোগ করতে পারবে।' : 'On: members can add bazar.') : (isBn ? 'এখন বন্ধ: সদস্যরা বাজার যোগ করতে পারবে না।' : 'Off: members cannot add bazar.')}</div>
+      <button class="${bazarOn() ? 'bad' : 'pri'}" style="width:100%" onclick="toggleBazarMode()">${bazarOn() ? (isBn ? 'বন্ধ করো' : 'Turn off') : (isBn ? 'চালু করো' : 'Turn on')}</button>`, false);
   h += sec(isBn ? 'ডেটা ও ব্যাকআপ' : 'Data & backup', `
       <button class="item" onclick="backupJSON()"><span>${isBn ? 'ব্যাকআপ ডাউনলোড (JSON)' : 'Download backup (JSON)'}</span><span class="sub">›</span></button>
       <button class="item" onclick="$('restoreFile').click()"><span>${isBn ? 'ব্যাকআপ থেকে ফিরিয়ে আনো' : 'Restore from backup'}</span><span class="sub">›</span></button>
@@ -2031,6 +2037,28 @@ async function resetAll() {
     await ADB().collection('summary').doc('main').set({ tB: 0, tD: 0, rate: 0, updated: Date.now() });
     toast(t('resetDone'));
   } catch (e) { showErr(e); }
+}
+/* admin switch: 'slip' = members can add bazar, 'admin' = only admin adds (members see inactive) */
+let bazarMode = 'slip';
+function bazarOn() { return bazarMode !== 'admin'; }
+function updateBazarStatus() {
+  const el = $('bazarStatus');
+  const show = isMgr || bazarOn();
+  ['addBtn1', 'addBtn2'].forEach(id => { const b = $(id); if (b) b.style.display = show ? '' : 'none'; });
+  if (!el) return;
+  if (!me || isMgr) { el.classList.add('hidden'); return; }
+  const bn = lang === 'bn', on = bazarOn();
+  el.classList.remove('hidden');
+  el.style.background = on ? 'rgba(34,197,94,.14)' : 'rgba(239,68,68,.12)';
+  el.style.color = on ? '#15803d' : '#b91c1c';
+  el.innerText = on
+    ? (bn ? '● বাজার যোগ: চালু (active)' : '● Bazar entry: active')
+    : (bn ? '● বাজার যোগ: বন্ধ (inactive)' : '● Bazar entry: inactive');
+}
+function toggleBazarMode() {
+  const next = bazarOn() ? 'admin' : 'slip';
+  ADB().collection('settings').doc('app').set({ bazarMode: next }, { merge: true })
+    .then(() => { toast(t('saved')); logAct('Member bazar entry ' + (next === 'slip' ? 'ON' : 'OFF')); }).catch(showErr);
 }
 async function saveNotice() {
   ADB().collection('settings').doc('app').set({ notice: $('noticeTxt').value.trim() }, { merge: true })
