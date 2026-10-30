@@ -1664,7 +1664,6 @@ function renderMembers() {
     const picked = selMem.has(m.email);
     return `<div class="card mcard mcompact" data-email="${esc(m.email)}" style="cursor:pointer;${picked ? 'border:2px solid var(--p);background:rgba(124,92,255,.08)' : ''}" onclick="openMember('${esc(m.email)}')">
       <div class="mhead" style="gap:10px;align-items:center;flex-wrap:nowrap">
-        <input type="checkbox" ${selMem.has(m.email) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleMem('${esc(m.email)}', this.checked)" style="flex:none;width:18px;height:18px;cursor:pointer">
         <div class="mav" style="width:36px;height:36px;font-size:15px;flex-shrink:0;background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>
         <div class="grow" style="min-width:0"><div class="mname" style="font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nm)}${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub num" style="font-size:12px">${f2(b)} · ${pct}% · ${t('days')} ${m.days ?? 30}</div></div>
         ${chip}
@@ -1695,6 +1694,7 @@ function memSearch() { const k = collectMemKeep(); renderMembers(); applyMemKeep
 let selMem = new Set();
 function toggleMem(email, on) { on ? selMem.add(email) : selMem.delete(email); renderMembers(); }
 function selBar() {
+  return '';   // selection box removed
   if (!selMem.size) return '';
   const bn = lang === 'bn', n = selMem.size;
   const names = [...selMem].map(e => nameOf(e));
