@@ -1652,10 +1652,11 @@ function quickEntryHtml() {
   const list = allEmails().map(e => ({ e, n: nameOf(e) })).sort((a, b) => a.n.localeCompare(b.n));
   const today = new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD in local time
   const rowsHtml = list.map(({ e, n }) => `<div class="row between" style="gap:8px;margin-bottom:6px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n)}</span><input type="number" inputmode="decimal" step="0.01" min="0" class="qAmt" data-email="${esc(e)}" placeholder="0" style="width:120px"></div>`).join('');
-  return sec(bn ? 'দ্রুত বাজার এন্ট্রি' : 'Quick bazar entry', `
+  return `<details class="sec" style="margin:0 0 12px"><summary>${bn ? 'দ্রুত বাজার এন্ট্রি' : 'Quick bazar entry'}</summary><div class="secBody">
       <input type="date" id="qDate" value="${today}" style="margin-bottom:10px">
       ${rowsHtml || `<div class="empty">${t('noEntries')}</div>`}
-      <button class="pri" onclick="saveQuick()" style="width:100%;margin-top:12px">${bn ? 'সব সেভ করো' : 'Save all'}</button>`, false);
+      <button class="pri" onclick="saveQuick()" style="width:100%;margin-top:12px">${bn ? 'সব সেভ করো' : 'Save all'}</button>
+  </div></details>`;
 }
 async function saveQuick() {
   const bn = lang === 'bn';
