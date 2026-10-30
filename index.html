@@ -839,8 +839,12 @@ function renderVerify() {
   $('roleTag').innerText = bn ? 'যাচাই' : 'Verify';
   $('hContent').innerHTML = `<div class="card" style="text-align:center;padding:24px">
     <div class="sub">${bn
-      ? 'তোমার ইমেইলে একটা যাচাই লিংক পাঠানো হয়েছে। লিংকে ক্লিক করে এখানে ফিরে "যাচাই করেছি" চাপো।'
-      : 'A verification link was sent to your email. Click it, then come back and press "I verified".'}</div>
+      ? 'এই ইমেইলে যাচাই লিংক পাঠানো হয়েছে:'
+      : 'A verification link was sent to:'}</div>
+    <div style="font-weight:800;font-size:17px;margin:8px 0;word-break:break-all">${esc(me)}</div>
+    <div class="sub">${bn
+      ? 'ইমেইলটা ঠিক না হলে নিচের বাটনে চাপো। ঠিক হলে লিংকে ক্লিক করে "যাচাই করেছি" চাপো।'
+      : 'If this email is wrong, use the button below. If it is right, click the link, then press "I verified".'}</div>
     <button class="pri" style="width:100%;margin-top:16px" onclick="checkVerified()">${bn ? 'যাচাই করেছি' : 'I verified'}</button>
     <button class="ghost" style="width:100%;margin-top:10px" onclick="resendVerify()">${bn ? 'আবার লিংক পাঠাও' : 'Resend link'}</button>
     <button class="ghost" style="width:100%;margin-top:10px" onclick="restartSignup()">${bn ? 'ভুল ইমেইল? নতুন ইমেইলে শুরু করো' : 'Wrong email? Start over'}</button>
