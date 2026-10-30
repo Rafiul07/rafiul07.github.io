@@ -1649,10 +1649,21 @@ async function delEntry(id) {
 /* ---- quick entry: admin types one amount per member for one date, all saved at once (counted as approved) ---- */
 /* one member block: name on top, amount boxes side by side (text box so "20,49" can be typed) */
 function qBoxHtml(email) {
-  return `<input type="text" inputmode="decimal" class="qAmt" data-email="${esc(email)}" placeholder="0" style="width:88px">`;
+  return `<input type="text" inputmode="decimal" class="qAmt" data-email="${esc(email)}" placeholder="0" style="width:88px;flex:none">`;
 }
-function qMemHtml(email, label) {
-  return `<div class="qMem" data-email="${esc(email)}" style="margin-bottom:10px"><div class="sub" style="margin-bottom:4px">${esc(label)}</div><div class="qBoxes" style="display:flex;flex-wrap:wrap;gap:6px">${qBoxHtml(email)}</div></div>`;
+/* one strip per member: 5 boxes visible, the strip scrolls sideways as boxes are added */
+function qMemHtml(email, label, show) {
+  return `<div class="qMem${show ? '' : ' hidden'}" data-email="${esc(email)}" style="margin-bottom:10px"><div class="sub" style="margin-bottom:4px">${esc(label)}</div><div class="qBoxes" style="display:flex;gap:6px;overflow-x:auto;max-width:100%;padding-bottom:4px">${qBoxHtml(email)}</div></div>`;
+}
+let qSel = null;   // the member whose boxes are shown
+function qPick(email) {
+  qSel = email;
+  document.querySelectorAll('.qMem').forEach(m => m.classList.toggle('hidden', m.dataset.email !== email));
+  document.querySelectorAll('.qPick').forEach(b => {
+    const on = b.dataset.email === email;
+    b.style.background = on ? 'var(--p)' : '';
+    b.style.color = on ? '#fff' : '';
+  });
 }
 /* "+" adds: "20+49" → 69. "," is a decimal point: "30,50" → 30.5 */
 function qSum(v) {
@@ -1661,9 +1672,12 @@ function qSum(v) {
 function quickEntryHtml() {
   const bn = lang === 'bn';
   const list = allEmails().map(e => ({ e, n: nameOf(e) })).sort((a, b) => a.n.localeCompare(b.n));
-  const rowsHtml = list.map(({ e, n }) => qMemHtml(e, n)).join('');
+  if (!list.some(x => x.e === qSel)) qSel = list[0] ? list[0].e : null;
+  const picks = list.map(({ e, n }) => `<button class="ghost qPick" data-email="${esc(e)}" onclick="qPick(this.dataset.email)" style="${e === qSel ? 'background:var(--p);color:#fff' : ''}">${esc(n)}</button>`).join('');
+  const rowsHtml = list.map(({ e, n }) => qMemHtml(e, n, e === qSel)).join('');
   return `<details class="sec" style="margin:0 0 12px"><summary>${bn ? 'দ্রুত বাজার এন্ট্রি' : 'Quick bazar entry'}</summary><div class="secBody">
-      <div class="sub" style="margin-bottom:8px">${bn ? 'অংক লিখলে পাশে আরেকটা ঘর খুলবে। একসাথে কয়েকটা লিখতে চাইলে কমা দাও, যেমন 20,49 = 69। তারিখ: আজকের।' : 'Type an amount and a new box opens beside it. For several, use commas: 20,49 = 69. Date: today.'}</div>
+      <div class="sub" style="margin-bottom:8px">${bn ? 'সদস্য বেছে অংক লেখো। অংক লিখলে পাশে নতুন ঘর খুলবে। একসাথে কয়েকটা: 20+49 = 69। দশমিক: 30,50 = 30.5। তারিখ: আজকের।' : 'Pick a member, then type amounts. A new box opens beside each one. Several at once: 20+49 = 69. Decimal: 30,50 = 30.5. Date: today.'}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${picks}</div>
       <div id="qList">${rowsHtml || `<div class="empty">${t('noEntries')}</div>`}</div>
       <button class="pri" onclick="saveQuick()" style="width:100%;margin-top:12px">${bn ? 'সব সেভ করো' : 'Save all'}</button>
   </div></details>`;
@@ -1675,6 +1689,7 @@ document.addEventListener('input', ev => {
   const box = i.closest('.qBoxes');
   if (!box || box.lastElementChild !== i) return;
   box.insertAdjacentHTML('beforeend', qBoxHtml(i.dataset.email));
+  box.scrollLeft = box.scrollWidth;
 });
 async function saveQuick() {
   const bn = lang === 'bn';
