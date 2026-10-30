@@ -1647,16 +1647,23 @@ async function delEntry(id) {
 
 /* ================= MEMBERS (manager) ================= */
 /* ---- quick entry: admin types one amount per member for one date, all saved at once (counted as approved) ---- */
-/* one input row; the first row of a member shows the name, the rows after it are blank */
-function qRowHtml(email, label) {
-  return `<div class="row between qRow" data-email="${esc(email)}" style="gap:8px;margin-bottom:6px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(label)}</span><input type="number" inputmode="decimal" step="0.01" min="0" class="qAmt" data-email="${esc(email)}" placeholder="0" style="width:120px"></div>`;
+/* one member block: name on top, amount boxes side by side (text box so "20,49" can be typed) */
+function qBoxHtml(email) {
+  return `<input type="text" inputmode="decimal" class="qAmt" data-email="${esc(email)}" placeholder="0" style="width:88px">`;
+}
+function qMemHtml(email, label) {
+  return `<div class="qMem" data-email="${esc(email)}" style="margin-bottom:10px"><div class="sub" style="margin-bottom:4px">${esc(label)}</div><div class="qBoxes" style="display:flex;flex-wrap:wrap;gap:6px">${qBoxHtml(email)}</div></div>`;
+}
+/* "20,49" or "20+49" or "20 49" → 69 */
+function qSum(v) {
+  return String(v || '').split(/[,+\s]+/).filter(Boolean).reduce((a, s) => a + num(s), 0);
 }
 function quickEntryHtml() {
   const bn = lang === 'bn';
   const list = allEmails().map(e => ({ e, n: nameOf(e) })).sort((a, b) => a.n.localeCompare(b.n));
-  const rowsHtml = list.map(({ e, n }) => qRowHtml(e, n)).join('');
+  const rowsHtml = list.map(({ e, n }) => qMemHtml(e, n)).join('');
   return `<details class="sec" style="margin:0 0 12px"><summary>${bn ? 'দ্রুত বাজার এন্ট্রি' : 'Quick bazar entry'}</summary><div class="secBody">
-      <div class="sub" style="margin-bottom:8px">${bn ? 'অংক লিখলে সেই সদস্যের নিচে আরেকটা ঘর খুলবে। তারিখ: আজকের।' : "Type an amount and a new box opens below for the same member. Date: today."}</div>
+      <div class="sub" style="margin-bottom:8px">${bn ? 'অংক লিখলে পাশে আরেকটা ঘর খুলবে। একসাথে কয়েকটা লিখতে চাইলে কমা দাও, যেমন 20,49 = 69। তারিখ: আজকের।' : 'Type an amount and a new box opens beside it. For several, use commas: 20,49 = 69. Date: today.'}</div>
       <div id="qList">${rowsHtml || `<div class="empty">${t('noEntries')}</div>`}</div>
       <button class="pri" onclick="saveQuick()" style="width:100%;margin-top:12px">${bn ? 'সব সেভ করো' : 'Save all'}</button>
   </div></details>`;
@@ -1664,19 +1671,16 @@ function quickEntryHtml() {
 /* when a member's last box gets a number, open a new empty box under it */
 document.addEventListener('input', ev => {
   const i = ev.target;
-  if (!i || !i.classList || !i.classList.contains('qAmt') || i.value === '') return;
-  const row = i.closest('.qRow');
-  if (!row) return;
-  const email = i.dataset.email;
-  const rows = [...document.querySelectorAll('.qRow')].filter(r => r.dataset.email === email);
-  if (rows[rows.length - 1] !== row) return;
-  row.insertAdjacentHTML('afterend', qRowHtml(email, ''));
+  if (!i || !i.classList || !i.classList.contains('qAmt') || i.value.trim() === '') return;
+  const box = i.closest('.qBoxes');
+  if (!box || box.lastElementChild !== i) return;
+  box.insertAdjacentHTML('beforeend', qBoxHtml(i.dataset.email));
 });
 async function saveQuick() {
   const bn = lang === 'bn';
   const date = new Date().toLocaleDateString('en-CA');   // today, YYYY-MM-DD in local time
   if (closedMonths.includes(date.slice(0, 7))) { toast(bn ? 'এই মাস বন্ধ আছে' : 'This month is closed', true); return; }
-  const rows = [...document.querySelectorAll('.qAmt')].map(i => ({ email: i.dataset.email, amt: num(i.value) })).filter(r => r.amt > 0);
+  const rows = [...document.querySelectorAll('.qAmt')].map(i => ({ email: i.dataset.email, amt: qSum(i.value) })).filter(r => r.amt > 0);
   if (!rows.length) { toast(bn ? 'অন্তত একটা অংক দাও' : 'Enter at least one amount', true); return; }
   const b = ADB().batch(), now = Date.now();
   rows.forEach(r => b.set(ADB().collection('entries').doc(), { memberEmail: r.email, date, amount: r.amt, note: '', status: 'approved', reason: '', createdAt: now, addedByAdmin: true }));
