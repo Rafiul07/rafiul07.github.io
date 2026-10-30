@@ -1491,7 +1491,7 @@ function actsOf(x) {
   const own = x.memberEmail === me;
   const locked = x.status === 'approved';
   const lockTxt = `<span class="sub">🔒 ${t('locked')}</span>`;
-  const noDel = x.addedByAdmin === true;   // entries the admin added cannot be deleted
+  const noDel = !isMgr && x.addedByAdmin === true;   // members cannot delete admin-added entries; admin can
   const delBtn = noDel ? '' : `<button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
   const mgrEdit = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button>${delBtn}`;
   const ownEdit = mgrEdit;
@@ -1517,7 +1517,7 @@ function entryRow(x) {
   const mine = isMgr || own;
   const locked = x.status === 'approved';
   const lockTxt = `<span class="sub">🔒 ${t('locked')}</span>`;
-  const noDel = x.addedByAdmin === true;   // entries the admin added cannot be deleted
+  const noDel = !isMgr && x.addedByAdmin === true;   // members cannot delete admin-added entries; admin can
   const adminTag = noDel ? `<span class="sub">🔒 ${lang === 'bn' ? 'অ্যাডমিন যোগ করেছে' : 'Added by admin'}</span>` : '';
   const acts = actsOf(x);
   const who = (isMgr || !mine) ? `<div class="sub">${esc(nameOf(x.memberEmail))}</div>` : '';
@@ -1630,7 +1630,7 @@ async function approve(id) {
 }
 async function delEntry(id) {
   const target = entries.find(e => e.id === id);
-  if (target && target.addedByAdmin === true) { toast(lang === 'bn' ? 'অ্যাডমি যোগ করা এন্ট্রি মুছা যাবে না' : 'Admin-added entries cannot be deleted', true); return; }
+  if (!isMgr && target && target.addedByAdmin === true) { toast(lang === 'bn' ? 'অ্যাডমি যোগ করা এন্ট্রি মুছা যাবে না' : 'Admin-added entries cannot be deleted', true); return; }
   const ok = await sheet({ title: t('confirmDel'), input: false, okText: t('del') });
   if (!ok) return;
   const x = entries.find(e => e.id === id) || {};
@@ -1656,7 +1656,7 @@ function qMemHtml(email, label) {
 }
 /* "+" adds: "20+49" → 69. "," is a decimal point: "30,50" → 30.5 */
 function qSum(v) {
-  return String(v || '').split('+').map(s => s.trim()).filter(Boolean).reduce((a, s) => a + num(s.replace(',', '.')), 0);
+  return String(v || '').split('+').map(s => s.trim()).filter(Boolean).reduce((a, s) => a + num(s), 0);
 }
 function quickEntryHtml() {
   const bn = lang === 'bn';
