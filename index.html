@@ -2314,26 +2314,5 @@ applyTheme();
 applyFs();
 applyLang();
 </script>
-<script>
-/* DEBUG: error screen */
-(function(){
-  function show(msg){
-    try{
-      var b = document.getElementById('dbgBox');
-      if(!b){
-        b = document.createElement('div');
-        b.id = 'dbgBox';
-        b.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#fff;color:#b00;border:2px solid #b00;border-radius:10px;padding:10px;font:12px monospace;white-space:pre-wrap;max-height:45vh;overflow:auto';
-        document.body.appendChild(b);
-      }
-      b.textContent += String(msg) + '\n\n';
-    }catch(e){}
-  }
-  window.addEventListener('error', function(e){ show('JS ERROR: ' + (e.message||'') + ' @' + (e.lineno||'') + ':' + (e.colno||'')); });
-  window.addEventListener('unhandledrejection', function(e){ var r = e.reason; show('PROMISE ERROR: ' + (r && (r.code || r.message) || r)); });
-  var oldShow = window.showErr;
-  setTimeout(function(){ show('DEBUG loaded. Login: ' + (window.firebase && firebase.auth && firebase.auth().currentUser ? firebase.auth().currentUser.email : 'no user')); }, 3000);
-})();
-</script>
 </body>
 </html>
