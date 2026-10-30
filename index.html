@@ -751,12 +751,12 @@ function scoped() { return month === 'all' ? entries : entries.filter(x => Strin
 /* the main admin only controls the app: its entries (if any) are not part of the mess money */
 function approvedScoped() { return scoped().filter(x => x.status === 'approved' && x.memberEmail !== MANAGER); }
 const bazarOf = e => approvedScoped().filter(x => x.memberEmail === e).reduce((a, x) => a + num(x.amount), 0);
-/* people who share the cost = everyone with a member doc (admin included). A removed member's entries stay in the totals. */
+/* people who share the cost = current members (member doc exists). A removed member's bazar is not in the totals, so the balances always add up to zero. */
 /* the main admin account is not a mess member: it does not share the cost (no days, no balance) */
 function allEmails() { return members.filter(m => m.email !== MANAGER).map(m => m.email); }
 function calc(list = approvedScoped()) {
   const em = allEmails();
-  const tB = list.reduce((a, x) => a + num(x.amount), 0);
+  const tB = list.filter(x => em.includes(x.memberEmail)).reduce((a, x) => a + num(x.amount), 0);
   const tD = em.reduce((a, e) => a + daysOf(e), 0);
   return { em, tB, tD, rate: tD > 0 ? tB / tD : 0 };
 }
