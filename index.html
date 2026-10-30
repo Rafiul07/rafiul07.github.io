@@ -419,6 +419,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 .meRole{font-size:13px;font-weight:800;padding:6px 14px;border-radius:999px;white-space:nowrap}
 .meOut{width:100%;margin-top:14px;padding:12px;border-radius:14px;font-size:clamp(15px,4vw,16px);font-weight:800;color:var(--bad,#ff6b6b);background:color-mix(in srgb,var(--bad,#ff6b6b) 12%,transparent);border:1px solid color-mix(in srgb,var(--bad,#ff6b6b) 40%,transparent);cursor:pointer}
 .meOut:active{transform:scale(.98)}
+.pwWrap{position:relative}.pwWrap input{width:100%;padding-right:46px}.eyeBtn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;font-size:18px;cursor:pointer;padding:4px;min-height:0}
 </style>
 </head>
 <body>
@@ -436,11 +437,22 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
     <div class="lbl" data-i18n="email"></div>
     <input id="lEmail" type="email" autocomplete="username" style="font-size:16px">
     <div class="lbl" data-i18n="password"></div>
-    <input id="lPass" type="password" autocomplete="current-password" style="font-size:16px">
-    <button class="pri" data-i18n="login" onclick="login()" style="width:100%;margin-top:18px"></button>
+    <div class="pwWrap"><input id="lPass" type="password" autocomplete="current-password" style="font-size:16px"><button type="button" class="eyeBtn" onclick="togglePw(this)" aria-label="show password">👁</button></div>
+    <div id="signupFields" class="hidden">
+      <div class="lbl" id="lblPass2"></div><div class="pwWrap"><input id="sPass2" type="password" autocomplete="new-password" style="font-size:16px"><button type="button" class="eyeBtn" onclick="togglePw(this)" aria-label="show password">👁</button></div>
+      <div class="lbl" id="lblName"></div><input id="sName" type="text" autocomplete="name" style="font-size:16px">
+      <button class="pri" id="signupSubmit" onclick="signup()" style="width:100%;margin-top:16px"></button>
+      <button class="ghost" id="signupBack" onclick="signupCancel()" style="width:100%;margin-top:8px"></button>
+    </div>
+    <button class="pri" id="loginBtn" data-i18n="login" onclick="login()" style="width:100%;margin-top:18px"></button>
+    <button class="ghost" id="signupBtn" onclick="signupStart()" style="width:100%;margin-top:10px"></button>
+    <button class="ghost" id="forgotBtn" onclick="forgot()" style="width:100%;margin-top:6px;font-size:14px"></button>
     <div id="lMsg" class="sub" style="color:var(--bad);margin-top:10px;min-height:16px"></div>
   </div>
 </div>
+
+<!-- WAITING FOR APPROVAL (signed in, not a member yet) -->
+<div id="pendingBox" class="login hidden"><div class="card" id="pendingBody"></div></div>
 
 <!-- APP -->
 <div id="app" class="hidden">
@@ -655,6 +667,8 @@ function toggleAllView() {
 let lastSum = '';
 let lastStatus = {}, deferredPrompt = null;
 let notes = [];
+let myReq = undefined;   // my join request: undefined = not loaded, null = none, object = pending
+let reqs = [];          // admin: pending join requests
 let openAdminNext = false;
 /* Admin mode: the person keeps their own identity (me). Admin-only writes go through a second
    Firebase session that is signed in as admin only while the admin panel is unlocked. */
@@ -760,8 +774,78 @@ const kpi = (l, v) => `<div class="kpi"><small>${l}</small><b>${v}</b></div>`;
 const STATUS_CLS = { submitted: 'b-sub', needs_fix: 'b-warn', approved: 'b-ok' };
 
 /* ================= AUTH ================= */
+/* new person: creates the account, then asks the owner to approve (requests/{email}) */
+/* first tap on "Create account" opens the sign-up view; the submit button is at the bottom */
+function signupStart() {
+  $('signupFields').classList.remove('hidden');
+  ['loginBtn', 'signupBtn', 'forgotBtn'].forEach(id => { $(id).style.display = 'none'; });
+  $('lMsg').innerText = '';
+}
+function signupCancel() {
+  $('signupFields').classList.add('hidden');
+  ['loginBtn', 'signupBtn', 'forgotBtn'].forEach(id => { $(id).style.display = ''; });
+  $('lMsg').innerText = '';
+}
+/* show / hide a password field */
+function togglePw(btn) {
+  const i = btn.parentElement.querySelector('input');
+  i.type = i.type === 'password' ? 'text' : 'password';
+  btn.textContent = i.type === 'password' ? '👁' : '🙈';
+}
+async function signup() {
+  const e = $('lEmail').value.trim().toLowerCase(), p = $('lPass').value, p2 = $('sPass2').value;
+  const nm = $('sName').value.trim();
+  const bn = lang === 'bn', msg = m => { $('lMsg').style.color = 'var(--bad)'; $('lMsg').innerText = m; };
+  if (!e) return msg(bn ? 'ইমেইল দাও' : 'Enter your email');
+  if (p.length < 6) return msg(bn ? 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষর' : 'Password must be at least 6 characters');
+  if (p !== p2) return msg(bn ? 'দুটো পাসওয়ার্ড মিলছে না' : 'Passwords do not match');
+  if (!nm) return msg(bn ? 'পুরো নাম লেখো' : 'Enter your full name');
+  try {
+    await auth.createUserWithEmailAndPassword(e, p);
+    await sendReq({ name: nm });
+  } catch (err) {
+    msg(bn ? 'অ্যাকাউন্ট খোলা গেলো না (ইমেইল আগে থেকেই থাকতে পারে)' : 'Could not create the account (the email may already exist)');
+  }
+}
+/* sends a password reset email to the typed address */
+async function forgot() {
+  const e = $('lEmail').value.trim().toLowerCase();
+  $('lMsg').innerText = '';
+  if (!e) { $('lMsg').innerText = lang === 'bn' ? 'আগে ইমেইল লেখো' : 'Enter your email first'; return; }
+  try {
+    await auth.sendPasswordResetEmail(e);
+    $('lMsg').style.color = 'var(--ok)';
+    $('lMsg').innerText = lang === 'bn' ? 'পাসওয়ার্ড রিসেটের লিংক ইমেইলে পাঠানো হয়েছে' : 'Password reset link sent to your email';
+  } catch (err) {
+    $('lMsg').style.color = 'var(--bad)';
+    $('lMsg').innerText = lang === 'bn' ? 'লিংক পাঠানো গেলো না, ইমেইল ঠিক আছে কিনা দেখো' : 'Could not send the link, check the email';
+  }
+}
+function sendReq(info) {
+  const d = info || {};
+  return db.collection('requests').doc(me).set({ email: me, name: d.name || me.split('@')[0], ...(d.phone ? { phone: d.phone } : {}), status: 'pending', createdAt: Date.now() })
+    .then(() => toast(lang === 'bn' ? 'অনুরোধ পাঠানো হয়েছে' : 'Request sent'))
+    .catch(showErr);
+}
+/* signed in but not approved yet: the app opens, only a short note shows, no data and no tabs */
+function renderPending() {
+  const bn = lang === 'bn', has = myReq !== undefined && myReq !== null;
+  $('app').classList.remove('hidden');
+  Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== 'home'));
+  page = 'home';
+  $('nav').innerHTML = '';
+  $('roleTag').innerText = bn ? 'নতুন' : 'New';
+  $('hContent').innerHTML = `<div class="card" style="text-align:center;padding:24px">
+    <div class="sub">${has
+      ? (bn ? 'তোমার অনুরোধ পাঠানো হয়েছে। অনুমোদনের পর হিসাব দেখতে পারবে।' : 'Your request is sent. You can see the accounts after approval.')
+      : (bn ? 'এখনো অনুরোধ পাঠানো হয়নি।' : 'No request sent yet.')}</div>
+    ${has ? '' : `<button class="pri" style="width:100%;margin-top:16px" onclick="sendReq()">${bn ? 'অনুরোধ পাঠাও' : 'Send request'}</button>`}
+    <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button>
+  </div>`;
+}
 function login() {
   const e = $('lEmail').value.trim(), p = $('lPass').value;
+  $('lMsg').style.color = 'var(--bad)';
   $('lMsg').innerText = '';
   if (!e || !p) { $('lMsg').innerText = t('loginFail'); return; }
   auth.signInWithEmailAndPassword(e, p).catch(() => { $('lMsg').innerText = t('loginFail'); });
@@ -807,7 +891,9 @@ auth.onAuthStateChanged(async user => {
     if (isMgr && !adminLogsOn) { adminLogsOn = true; startAdminListeners(); }
     if (!isMgr && adminLogsOn) { adminUnsubs.forEach(u => u()); adminUnsubs = []; adminLogsOn = false; }
     render();
-  }, () => {}));
+  }, () => { loaded.members = true; render(); }));   // not allowed to read members = not a member yet
+  myReq = undefined;
+  unsubs.push(db.collection('requests').doc(me).onSnapshot(d => { myReq = d.exists ? d.data() : null; render(); }, () => {}));
   unsubs.push(db.collection('entries').onSnapshot(s => {
     const prev = lastStatus;
     entries = s.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -818,7 +904,7 @@ auth.onAuthStateChanged(async user => {
       }
     });
     loaded.entries = true; render();
-  }, showErr));
+  }, e => { if (isMgr || members.some(m => m.email === me)) showErr(e); }));
   if (isMgr) {
     unsubs.push(db.collection('logs').orderBy('at', 'desc').limit(30).onSnapshot(s => {
       logs = s.docs.map(d => d.data()); if (page === 'settings') render();
@@ -973,6 +1059,10 @@ function go(p, fromHistory = false) {
 
 function render() {
   if (!me) return;
+  // signed in but not a member yet: app shell with only a short note
+  if (!isMgr && loaded.members && !members.some(m => m.email === me)) { renderPending(); return; }
+  $('pendingBox').classList.add('hidden');
+  $('app').classList.remove('hidden');
   $('roleTag').innerText = isMgr ? t('admin') : t('member');
   if (isMgr && loaded.members && loaded.entries) pushSummary(calc());
   if (isMgr && loaded.entries && entries.some(x => x.photo)) autoMigrate();
@@ -1037,6 +1127,48 @@ function startAdminListeners() {
   adminUnsubs.push(ADB().collection('logs').orderBy('at', 'desc').limit(30).onSnapshot(s => {
     logs = s.docs.map(d => d.data()); if (page === 'settings' || page === 'admin') render();
   }, () => {}));
+  adminUnsubs.push(ADB().collection('requests').onSnapshot(s => {
+    reqs = s.docs.map(d => ({ email: d.id, ...d.data() })); render();
+  }, () => {}));
+}
+function approveReq(email) {
+  const r = reqs.find(x => x.email === email) || {};
+  ADB().collection('members').doc(email).set({ email, name: r.name || email.split('@')[0], days: 30, deposit: 0 }, { merge: true })
+    .then(() => ADB().collection('requests').doc(email).delete())
+    .then(() => { toast(t('saved')); logAct('Approved join · ' + email); }).catch(showErr);
+}
+function rejectReq(email) {
+  ADB().collection('requests').doc(email).delete()
+    .then(() => { toast(t('deleted')); logAct('Rejected join · ' + email); }).catch(showErr);
+}
+let selReq = new Set();   // admin: selected join requests (emails)
+function toggleReq(email, on) { on ? selReq.add(email) : selReq.delete(email); render(); }
+function toggleAllReq(on) { selReq = on ? new Set(reqs.map(r => r.email)) : new Set(); render(); }
+function approveSel() {
+  const list = reqs.filter(r => selReq.has(r.email)); if (!list.length) return;
+  const b = ADB().batch();
+  list.forEach(r => {
+    b.set(ADB().collection('members').doc(r.email), { email: r.email, name: r.name || r.email.split('@')[0], days: 30, deposit: 0 }, { merge: true });
+    b.delete(ADB().collection('requests').doc(r.email));
+  });
+  b.commit().then(() => { selReq = new Set(); toast(t('saved')); logAct('Approved join · ' + list.length + ' people'); }).catch(showErr);
+}
+function rejectSel() {
+  const list = reqs.filter(r => selReq.has(r.email)); if (!list.length) return;
+  const b = ADB().batch();
+  list.forEach(r => b.delete(ADB().collection('requests').doc(r.email)));
+  b.commit().then(() => { selReq = new Set(); toast(t('deleted')); logAct('Rejected join · ' + list.length + ' people'); }).catch(showErr);
+}
+function reqCardHtml() {
+  if (!reqs.length) return '';
+  const bn = lang === 'bn';
+  selReq = new Set([...selReq].filter(e => reqs.some(r => r.email === e)));
+  const n = selReq.size, all = n === reqs.length;
+  return `<div class="card" style="border-color:var(--warn);margin-bottom:12px"><h3>${bn ? 'অপেক্ষমাণ অনুরোধ' : 'Pending requests'} (${reqs.length})</h3>`
+    + `<div class="row between" style="padding:6px 0;flex-wrap:wrap;gap:8px"><label class="row" style="gap:8px;cursor:pointer"><input type="checkbox" ${all ? 'checked' : ''} onchange="toggleAllReq(this.checked)"> ${bn ? 'সব নির্বাচন' : 'Select all'}</label>`
+    + `<div class="row" style="gap:6px;flex-wrap:wrap"><button class="pri" ${n ? '' : 'disabled'} onclick="approveSel()">${bn ? 'নির্বাচিতদের অনুমোদন' : 'Approve selected'} (${n})</button><button class="bad" ${n ? '' : 'disabled'} onclick="rejectSel()">${bn ? 'নির্বাচিতদের প্রত্যাখ্যান' : 'Reject selected'}</button></div></div>`
+    + reqs.map(r => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--bd);flex-wrap:wrap;gap:8px"><label class="row" style="gap:8px;min-width:0;flex:1;cursor:pointer"><input type="checkbox" ${selReq.has(r.email) ? 'checked' : ''} onchange="toggleReq('${esc(r.email)}', this.checked)"><div style="min-width:0"><b>${esc(r.name || r.email)}</b><div class="sub" style="word-break:break-all">${esc(r.email)}${r.phone ? ' · ' + esc(r.phone) : ''}</div></div></label><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="pri" onclick="approveReq('${esc(r.email)}')">${bn ? 'অনুমোদন' : 'Approve'}</button><button class="bad" onclick="rejectReq('${esc(r.email)}')">${bn ? 'প্রত্যাখ্যান' : 'Reject'}</button></div></div>`).join('')
+    + `</div>`;
 }
 async function postNote() {
   const el = $('noteTxt'); const text = el.value.trim();
@@ -1070,7 +1202,7 @@ function clearSlipCache() { Object.keys(slipCache).forEach(k => delete slipCache
 /* Placeholder for a slip; hydrateSlips() swaps it for the image once loaded */
 function thumbFor(x) {
   if (x.photo) return `<img class="thumb" src="${esc(x.photo)}" alt="" onclick="openImg(this.src)">`; // legacy field, before migration
-  return `<div class="thumb slipBox" data-slip="${esc(x.id)}" title="${t('viewSlip')}"></div>`;
+  return `<div class="thumb slipBox" data-slip="${esc(x.id)}" data-admin-entry="${x.addedByAdmin === true ? 1 : 0}" title="${t('viewSlip')}"></div>`;
 }
 function hydrateSlips() {
   document.querySelectorAll('.slipBox[data-slip]').forEach(el => {
@@ -1083,6 +1215,7 @@ function hydrateSlips() {
         el.onclick = () => { el.innerText = '…'; getSlip(id).then(hydrateSlips); };
         return;
       }
+      if (!src && el.dataset.adminEntry === '1') { el.className = 'thumb noslip'; el.title = lang === 'bn' ? 'স্লিপ ছাড়া admin এন্ট্রি' : 'Admin entry, no slip'; el.innerText = '—'; return; }
       if (!src) { el.className = 'thumb noslip'; el.title = t('needSlip'); el.innerText = '!'; return; }
       const img = document.createElement('img');
       img.className = 'thumb'; img.alt = ''; img.src = src; img.title = t('viewSlip');
@@ -1456,8 +1589,7 @@ async function saveEntry() {
       const who = isMgr && $('fMember') ? $('fMember').value : me;
       const ref = await W.collection('entries').add({ memberEmail: who, date, amount: amt, note, status: 'submitted', reason: '', createdAt: Date.now(), addedByAdmin: isMgr });
       try {
-        await W.collection('slips').doc(ref.id).set({ data: photo });
-        slipCache[ref.id] = photo;
+        if (photo) { await W.collection('slips').doc(ref.id).set({ data: photo }); slipCache[ref.id] = photo; }
       } catch (e) {
         await ref.delete().catch(() => {}); // no entry without its pay slip
         throw e;
@@ -1522,14 +1654,17 @@ function renderMembers() {
     : nameOf(x.m.email).localeCompare(nameOf(y.m.email)));
   const tot = rows.reduce((a, r) => a + r.b, 0) || 1;
   if ($('memCount')) $('memCount').innerText = '(' + rows.length + ')';
-  $('memberList').innerHTML = rows.map(({ m, b, bal }) => {
+  selMem = new Set([...selMem].filter(e => members.some(m => m.email === e)));
+  $('memberList').innerHTML = selBar() + rows.map(({ m, b, bal }) => {
     const nm = nameOf(m.email);
     const ch = (nm[0] || '?').toUpperCase();
     const hue = [...m.email].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
     const pct = Math.round(b / tot * 100);
     const chip = rate == null ? '' : `<span class="mchip ${bal >= 0 ? 'g' : 'r'}">${bal >= 0 ? '↑ ' + t('refund') : '↓ ' + t('due')}: ${f2(Math.abs(bal))}</span>`;
-    return `<div class="card mcard mcompact" data-email="${esc(m.email)}" style="cursor:pointer" onclick="openMember('${esc(m.email)}')">
+    const picked = selMem.has(m.email);
+    return `<div class="card mcard mcompact" data-email="${esc(m.email)}" style="cursor:pointer;${picked ? 'border:2px solid var(--p);background:rgba(124,92,255,.08)' : ''}" onclick="openMember('${esc(m.email)}')">
       <div class="mhead" style="gap:10px;align-items:center;flex-wrap:nowrap">
+        <input type="checkbox" ${selMem.has(m.email) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleMem('${esc(m.email)}', this.checked)" style="flex:none;width:18px;height:18px;cursor:pointer">
         <div class="mav" style="width:36px;height:36px;font-size:15px;flex-shrink:0;background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>
         <div class="grow" style="min-width:0"><div class="mname" style="font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nm)}${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub num" style="font-size:12px">${f2(b)} · ${pct}% · ${t('days')} ${m.days ?? 30}</div></div>
         ${chip}
@@ -1556,6 +1691,32 @@ function applyMemKeep(keep) {
   });
 }
 function memSearch() { const k = collectMemKeep(); renderMembers(); applyMemKeep(k); }
+/* admin: select several members at once for bulk actions */
+let selMem = new Set();
+function toggleMem(email, on) { on ? selMem.add(email) : selMem.delete(email); renderMembers(); }
+function selBar() {
+  if (!selMem.size) return '';
+  const bn = lang === 'bn', n = selMem.size;
+  const names = [...selMem].map(e => nameOf(e));
+  const shown = names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3}` : '');
+  return `<div class="card" style="border-color:var(--p);margin-bottom:10px;padding:10px"><div style="font-size:13px;margin-bottom:8px"><b>${bn ? 'নির্বাচিত' : 'Selected'}: ${n}</b> — ${esc(shown)}</div><div class="row between" style="flex-wrap:wrap;gap:8px"><div class="row" style="gap:6px;flex-wrap:wrap"><button class="ghost" onclick="selMem=new Set();renderMembers()">${bn ? 'বাতিল' : 'Clear'}</button><button class="pri" onclick="daysSel()">${bn ? 'দিন ঠিক করো' : 'Set days'}</button><button class="bad" onclick="removeSel()">${bn ? 'মুছো' : 'Remove'}</button></div></div></div>`;
+}
+function daysSel() {
+  const bn = lang === 'bn';
+  const v = parseInt(prompt(bn ? 'কত দিন? (যেমন 30)' : 'How many days? (e.g. 30)', '30'), 10);
+  if (!(v > 0)) return;
+  const list = [...selMem]; const b = ADB().batch();
+  list.forEach(e => b.set(ADB().collection('members').doc(e), { days: v }, { merge: true }));
+  b.commit().then(() => { selMem = new Set(); toast(t('saved')); logAct('Days set to ' + v + ' · ' + list.length + ' members'); }).catch(showErr);
+}
+async function removeSel() {
+  const list = [...selMem]; if (!list.length) return;
+  const ok = await sheet({ title: t('memberRemoveWarn'), input: false, okText: t('memberRemove') });
+  if (!ok) return;
+  const b = ADB().batch();
+  list.forEach(e => b.delete(ADB().collection('members').doc(e)));
+  b.commit().then(() => { selMem = new Set(); toast(t('deleted')); logAct('Removed members · ' + list.length); }).catch(showErr);
+}
 async function removeMember(email) {
   const ok = await sheet({ title: t('memberRemoveWarn'), input: false, okText: t('memberRemove') });
   if (!ok) return;
@@ -1717,6 +1878,7 @@ function renderAdmin() {
 
   }
   if (admTab === 'members') {
+  h += reqCardHtml();
   h += `<details class="sec" id="memSec" ${memListOpen ? 'open' : ''} ontoggle="memListOpen=this.open" style="margin:0 0 12px"><summary>${isBn ? 'সব সদস্য' : 'All members'} <span class="sub" id="memCount"></span></summary><div class="secBody"><input id="mSearch" placeholder="${t('search')}" oninput="memSearch()" style="margin-bottom:10px"><div id="memberList"></div></div></details>`;
   h += sec(isBn ? 'নতুন সদস্য যোগ' : 'Add member', `
       <input id="nEmail" type="email" placeholder="${isBn ? 'ইমেইল' : 'Email'}">
@@ -1916,6 +2078,13 @@ function applyLang() {
   document.querySelectorAll('[data-ph]').forEach(el => el.placeholder = t(el.dataset.ph));
   $('fTitle').innerText = editId ? t('editEntry') : t('addEntry');
   $('listTitle').innerText = t('listTitle');
+  const sb = $('signupBtn'); if (sb) sb.innerText = lang === 'bn' ? 'অ্যাকাউন্ট খুলুন' : 'Create account';
+  const fb = $('forgotBtn'); if (fb) fb.innerText = lang === 'bn' ? 'পাসওয়ার্ড ভুলে গেছো?' : 'Forgot password?';
+  const setT = (id, v) => { const el = $(id); if (el) el.innerText = v; };
+  setT('lblPass2', lang === 'bn' ? 'পাসওয়ার্ড আবার লেখো' : 'Confirm password');
+  setT('lblName', lang === 'bn' ? 'পুরো নাম' : 'Full name');
+  setT('signupSubmit', lang === 'bn' ? 'অ্যাকাউন্ট খুলুন' : 'Create account');
+  setT('signupBack', lang === 'bn' ? 'লগইনে ফিরে যাও' : 'Back to login');
   document.querySelectorAll('#loginLang button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
   render();
 }
@@ -2144,6 +2313,27 @@ if (window.matchMedia) matchMedia('(prefers-color-scheme: light)').addEventListe
 applyTheme();
 applyFs();
 applyLang();
+</script>
+<script>
+/* DEBUG: error screen */
+(function(){
+  function show(msg){
+    try{
+      var b = document.getElementById('dbgBox');
+      if(!b){
+        b = document.createElement('div');
+        b.id = 'dbgBox';
+        b.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#fff;color:#b00;border:2px solid #b00;border-radius:10px;padding:10px;font:12px monospace;white-space:pre-wrap;max-height:45vh;overflow:auto';
+        document.body.appendChild(b);
+      }
+      b.textContent += String(msg) + '\n\n';
+    }catch(e){}
+  }
+  window.addEventListener('error', function(e){ show('JS ERROR: ' + (e.message||'') + ' @' + (e.lineno||'') + ':' + (e.colno||'')); });
+  window.addEventListener('unhandledrejection', function(e){ var r = e.reason; show('PROMISE ERROR: ' + (r && (r.code || r.message) || r)); });
+  var oldShow = window.showErr;
+  setTimeout(function(){ show('DEBUG loaded. Login: ' + (window.firebase && firebase.auth && firebase.auth().currentUser ? firebase.auth().currentUser.email : 'no user')); }, 3000);
+})();
 </script>
 </body>
 </html>
