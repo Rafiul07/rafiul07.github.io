@@ -843,6 +843,7 @@ function renderVerify() {
       : 'A verification link was sent to your email. Click it, then come back and press "I verified".'}</div>
     <button class="pri" style="width:100%;margin-top:16px" onclick="checkVerified()">${bn ? 'যাচাই করেছি' : 'I verified'}</button>
     <button class="ghost" style="width:100%;margin-top:10px" onclick="resendVerify()">${bn ? 'আবার লিংক পাঠাও' : 'Resend link'}</button>
+    <button class="ghost" style="width:100%;margin-top:10px" onclick="restartSignup()">${bn ? 'ভুল ইমেইল? নতুন ইমেইলে শুরু করো' : 'Wrong email? Start over'}</button>
     <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button>
   </div>`;
 }
@@ -857,6 +858,19 @@ function checkVerified() {
     }
     render();
   }).catch(showErr);
+}
+/* wrong email at sign-up: delete this unverified account, then the user can sign up again with the right email */
+function restartSignup() {
+  const u = auth.currentUser;
+  if (!u) return;
+  const bn = lang === 'bn';
+  u.delete().then(() => {
+    try { localStorage.removeItem('mh_signup_name'); } catch (x) {}
+    toast(bn ? 'ঠিক ইমেইল দিয়ে আবার অ্যাকাউন্ট খোলো' : 'Create the account again with the right email');
+  }).catch(() => {
+    // old session: sign out instead, the unverified account stays and admin can remove it
+    logout();
+  });
 }
 function resendVerify() {
   const u = auth.currentUser;
