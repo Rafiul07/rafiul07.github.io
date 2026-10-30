@@ -1759,10 +1759,12 @@ function quickEntryHtml() {
   const bn = lang === 'bn';
   const list = allEmails().map(e => ({ e, n: nameOf(e) })).sort((a, b) => a.n.localeCompare(b.n));
   if (!list.some(x => x.e === qSel)) qSel = list[0] ? list[0].e : null;
+  const today = new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD, local time
   const picks = list.map(({ e, n }) => `<button class="ghost qPick" data-email="${esc(e)}" onclick="qPick(this.dataset.email)" style="${e === qSel ? 'background:var(--p);color:#fff' : ''}">${esc(n)}</button>`).join('');
   const rowsHtml = list.map(({ e, n }) => qMemHtml(e, n, e === qSel)).join('');
   return `<details class="sec" style="margin:0 0 12px"><summary>${bn ? 'দ্রুত বাজার এন্ট্রি' : 'Quick bazar entry'}</summary><div class="secBody">
-      <div class="sub" style="margin-bottom:8px">${bn ? 'সদস্য বেছে অংক লেখো। অংক লিখলে পাশে নতুন ঘর খুলবে। একসাথে কয়েকটা: 20+49 = 69। দশমিক: 30,50 = 30.5। তারিখ: আজকের।' : 'Pick a member, then type amounts. A new box opens beside each one. Several at once: 20+49 = 69. Decimal: 30,50 = 30.5. Date: today.'}</div>
+      <div class="sub" style="margin-bottom:8px">${bn ? 'সদস্য বেছে অংক লেখো। অংক লিখলে পাশে নতুন ঘর খুলবে। একসাথে কয়েকটা: 20+49 = 69। দশমিক: 30,50 = 30.5। তারিখ বেছে নাও (ডিফল্ট আজকের)।' : 'Pick a member, then type amounts. A new box opens beside each one. Several at once: 20+49 = 69. Decimal: 30,50 = 30.5. Pick the date (default today).'}</div>
+      <div class="row" style="gap:8px;margin-bottom:10px;flex-wrap:wrap"><span class="sub">${bn ? 'তারিখ' : 'Date'}</span><input type="date" id="qDate" value="${today}" style="flex:1;min-width:150px"></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${picks}</div>
       <div id="qList">${rowsHtml || `<div class="empty">${t('noEntries')}</div>`}</div>
       <button class="pri" onclick="saveQuick()" style="width:100%;margin-top:12px">${bn ? 'সব সেভ করো' : 'Save all'}</button>
@@ -1778,7 +1780,7 @@ document.addEventListener('input', ev => {
 });
 async function saveQuick() {
   const bn = lang === 'bn';
-  const date = new Date().toLocaleDateString('en-CA');   // today, YYYY-MM-DD in local time
+  const date = ($('qDate') && $('qDate').value) || new Date().toLocaleDateString('en-CA');   // the chosen date (default today)
   if (closedMonths.includes(date.slice(0, 7))) { toast(bn ? 'এই মাস বন্ধ আছে' : 'This month is closed', true); return; }
   const rows = [...document.querySelectorAll('.qAmt')].map(i => ({ email: i.dataset.email, amt: qSum(i.value) })).filter(r => r.amt > 0);
   if (!rows.length) { toast(bn ? 'অন্তত একটা অংক দাও' : 'Enter at least one amount', true); return; }
