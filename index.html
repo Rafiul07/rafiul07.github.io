@@ -1649,11 +1649,11 @@ async function delEntry(id) {
 /* ---- quick entry: admin types one amount per member for one date, all saved at once (counted as approved) ---- */
 /* one member block: name on top, amount boxes side by side (text box so "20,49" can be typed) */
 function qBoxHtml(email) {
-  return `<input type="text" inputmode="decimal" class="qAmt" data-email="${esc(email)}" placeholder="0" style="width:88px;flex:none">`;
+  return `<input type="text" inputmode="decimal" class="qAmt" data-email="${esc(email)}" placeholder="0" style="width:100%;min-width:0;padding:8px 4px;text-align:center">`;
 }
-/* one strip per member: 5 boxes visible, the strip scrolls sideways as boxes are added */
+/* one block per member: 6 boxes per line, a new line starts when the 6th is full (all visible at a glance) */
 function qMemHtml(email, label, show) {
-  return `<div class="qMem${show ? '' : ' hidden'}" data-email="${esc(email)}" style="margin-bottom:10px"><div class="sub" style="margin-bottom:4px">${esc(label)}</div><div class="qBoxes" style="display:flex;gap:6px;overflow-x:auto;max-width:100%;padding-bottom:4px">${qBoxHtml(email)}</div></div>`;
+  return `<div class="qMem${show ? '' : ' hidden'}" data-email="${esc(email)}" style="margin-bottom:10px"><div class="sub" style="margin-bottom:4px">${esc(label)}</div><div class="qBoxes" style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">${qBoxHtml(email)}</div></div>`;
 }
 let qSel = null;   // the member whose boxes are shown
 function qPick(email) {
@@ -1689,7 +1689,6 @@ document.addEventListener('input', ev => {
   const box = i.closest('.qBoxes');
   if (!box || box.lastElementChild !== i) return;
   box.insertAdjacentHTML('beforeend', qBoxHtml(i.dataset.email));
-  box.scrollLeft = box.scrollWidth;
 });
 async function saveQuick() {
   const bn = lang === 'bn';
