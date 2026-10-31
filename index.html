@@ -2602,13 +2602,13 @@ function renderAdmin() {
       </div></div>`).join('') : `<div class="empty">${isBn ? 'কোনো অপেক্ষমাণ এন্ট্রি নেই' : 'Nothing waiting for approval'}</div>`)
     + `</div>`;
   if (admTab === 'settings') {
-  h += `<div class="card"><h3>${isBn ? 'সদস্য যোগ করার কোড' : 'Invite code'}</h3>
-      <div class="sub">${isBn ? 'নতুন সদস্য এই কোড দিয়ে সরাসরি যোগ দিতে পারবে।' : 'New members join directly with this code.'}</div>
-      <div class="num" style="font-size:26px;font-weight:800;letter-spacing:3px;margin:10px 0">${esc(inviteCode || '—')}</div>
-      <div class="acts" style="margin-top:8px"><button class="pri" style="flex:1" onclick="copyInvite()">${isBn ? 'কোড কপি' : 'Copy code'}</button><button class="ghost" style="flex:1" onclick="copyInviteLink()">${isBn ? 'লিংক কপি (WhatsApp এ পাঠাও)' : 'Copy link (for WhatsApp)'}</button><button class="ghost" style="flex:1" onclick="newInviteCode()">${isBn ? 'নতুন code বানাও' : 'New code'}</button></div></div>`;
-  h += `<div class="card"><h3>${isBn ? 'Mess এর নাম' : 'Mess name'}</h3>
+  h += sec(isBn ? 'সদস্য যোগ করার কোড' : 'Invite code', `
+      <div class="sub" style="margin-bottom:6px">${isBn ? 'নতুন সদস্য এই কোড দিয়ে সরাসরি যোগ দিতে পারবে।' : 'New members join directly with this code.'}</div>
+      <div class="num" style="font-size:24px;font-weight:800;letter-spacing:3px;margin:8px 0">${esc(inviteCode || '—')}</div>
+      <div class="acts" style="margin-top:8px"><button class="pri" style="flex:1" onclick="copyInvite()">${isBn ? 'কোড কপি' : 'Copy code'}</button><button class="ghost" style="flex:1" onclick="copyInviteLink()">${isBn ? 'লিংক কপি' : 'Copy link'}</button><button class="ghost" style="flex:1" onclick="newInviteCode()">${isBn ? 'নতুন code' : 'New code'}</button></div>`, false);
+  h += sec(isBn ? 'Mess এর নাম' : 'Mess name', `
       <input id="mName" value="${esc(messName)}">
-      <button class="pri" style="width:100%;margin-top:8px" onclick="saveMessName()">${isBn ? 'নাম সেভ করো' : 'Save name'}</button></div>`;
+      <button class="pri" style="width:100%;margin-top:8px" onclick="saveMessName()">${isBn ? 'নাম সেভ করো' : 'Save name'}</button>`, false);
   h += meCardHtml();
   h += gh(isBn ? 'মেস' : 'Mess');
   h += sec(t('management'), `
