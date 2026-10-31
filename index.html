@@ -1638,7 +1638,8 @@ function renderNotes() {
   const colorOf = id => { let h = 0; for (const c of String(id || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return colors[h % colors.length]; };
   box.innerHTML = notes.length ? notes.map((n) => {
     const when = n.at ? new Date(n.at).toLocaleString(isBn ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-    const canDel = n.by === me || isMgr;
+    // the mess admin can remove any note, without unlocking the control panel
+    const canDel = n.by === me || isMgr || (!!MESS_ADMIN && me === MESS_ADMIN);
     const c = colorOf(n.id);
     return `<div class="noteItem">
       <div class="row between"><span class="noteBy" style="color:${c}">${esc(nameOf(n.by))}</span><span class="noteWhen num">${esc(when)}</span></div>
