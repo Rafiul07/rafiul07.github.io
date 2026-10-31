@@ -707,7 +707,13 @@ function superCardHtml() {
   return `<div class="card"><h3>${bn ? 'সব mess (শুধু তুমি দেখবে)' : 'All messes (only you see this)'}</h3>
     ${allMesses ? `<div class="sub" style="margin-bottom:8px">${bn ? 'মোট mess' : 'Total messes'}: <b class="num">${allMesses.length}</b></div>` : ''}
     ${list}
-    <button class="pri" style="width:100%;margin-top:10px" onclick="loadAllMesses()">${bn ? 'তালিকা লোড / আবার লোড করো' : 'Load / refresh list'}</button></div>`;
+    <button class="pri" style="width:100%;margin-top:10px" onclick="loadAllMesses()">${bn ? 'তালিকা লোড / আবার লোড করো' : 'Load / refresh list'}</button>
+    <hr style="margin:16px 0;opacity:.2">
+    <h3 style="margin:0 0 8px">${bn ? 'নতুন mess বানাও' : 'Create a new mess'}</h3>
+    <input id="nmName" placeholder="${bn ? 'মেসের নাম' : 'Mess name'}">
+    <input id="nmAdmin" type="email" placeholder="${bn ? 'Admin এর email' : 'Admin email'}" style="margin-top:8px">
+    <div class="sub" style="margin-top:6px">${bn ? 'Admin আগে নিজের account খুলবে। তারপর এখানে তার email দিলে সে ওই mess এর admin হবে।' : 'The admin must sign up first. Then their email here makes them the admin of this mess.'}</div>
+    <button class="pri" style="width:100%;margin-top:10px" onclick="createMessFor()">${bn ? 'মেস বানাও' : 'Create mess'}</button></div>`;
 }
 let myReq = undefined;   // my join request: undefined = not loaded, null = none, object = pending
 let reqs = [];          // admin: pending join requests
@@ -868,21 +874,23 @@ async function forgot() {
 function signupName() {
   try { return localStorage.getItem('mh_signup_name') || ''; } catch (x) { return ''; }
 }
-/* a new person creates a mess: they become its admin. The mess, its invite code, their link and their member doc are written in this order */
-async function createMess() {
+/* only the super admin creates a mess. It sets the mess name and its admin email; the admin then gives the invite code to members.
+   The mess doc, its invite code and the admin's link are written here. The admin's own member doc is made on their first login */
+async function createMessFor() {
   const bn = lang === 'bn';
-  const name = ($('cName').value || '').trim();
+  if (me !== SUPER_EMAIL) return;
+  const name = (($('nmName') && $('nmName').value) || '').trim();
+  const adm = (($('nmAdmin') && $('nmAdmin').value) || '').trim().toLowerCase();
   if (!name) return toast(bn ? 'Mess এর নাম লেখো' : 'Enter a mess name', true);
+  if (!adm.includes('@')) return toast(bn ? 'Admin এর সঠিক email দাও' : 'Enter a valid admin email', true);
   const mid = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-  const nm = signupName() || me.split('@')[0];
   try {
-    await db.collection('messes').doc(mid).set({ name, admin: me, inviteCode: code, createdAt: Date.now() });
+    await db.collection('messes').doc(mid).set({ name, admin: adm, inviteCode: code, createdAt: Date.now() });
     await db.collection('codes').doc(code).set({ messId: mid });
-    await db.collection('users').doc(me).set({ messId: mid, name: nm });
-    await db.collection('messes').doc(mid).collection('members').doc(me).set({ email: me, name: nm.toUpperCase(), days: 30, deposit: 0 });
-    try { localStorage.removeItem('mh_signup_name'); } catch (x) {}
-    location.reload();   // reload picks up the new mess from users/{email}
+    await db.collection('users').doc(adm).set({ messId: mid, name: adm.split('@')[0] });
+    toast(bn ? 'মেস বানানো হয়েছে' : 'Mess created');
+    loadAllMesses();
   } catch (e) { showErr(e); }
 }
 /* join: look up the invite code, then send a pending request into that mess. The mess admin approves it */
@@ -1054,12 +1062,7 @@ function renderPending() {
         : 'Your request is sent. The mess admin must approve it before you can see the accounts.'}</div>
       <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`
     : `<div class="card" style="padding:20px">
-      <h3 style="margin:0 0 8px">${bn ? 'নতুন mess বানাও' : 'Create a new mess'}</h3>
-      <div class="sub" style="margin-bottom:8px">${bn ? 'তুমি এই mess-এর অ্যাডমিন হবে।' : 'You will be the admin of this mess.'}</div>
-      <input id="cName" placeholder="${bn ? 'Mess এর নাম' : 'Mess name'}">
-      <button class="pri" style="width:100%;margin-top:10px" onclick="createMess()">${bn ? 'Mess বানাও' : 'Create mess'}</button>
-      <hr style="margin:18px 0;opacity:.2">
-      <h3 style="margin:0 0 8px">${bn ? 'বা invite code দিয়ে যোগ দাও' : 'Or join with an invite code'}</h3>
+      <h3 style="margin:0 0 8px">${bn ? 'invite code দিয়ে যোগ দাও' : 'Join with an invite code'}</h3>
       <input id="jCode" placeholder="${bn ? 'Invite code' : 'Invite code'}" style="text-transform:uppercase">
       <button class="ghost" style="width:100%;margin-top:10px" onclick="joinByCode()">${bn ? 'অনুরোধ পাঠাও' : 'Send request'}</button>
       ${me === LEGACY_ADMIN ? `<hr style="margin:18px 0;opacity:.2"><button class="pri" style="width:100%" onclick="migrateLegacy()">${bn ? 'আগের সব data এই mess-এ আনো (একবার)' : 'Move old data into this mess (once)'}</button>` : ''}
@@ -2206,7 +2209,7 @@ function renderAdmin() {
   const keep = active && active.closest && active.closest('#pgAdmin') ? { id: active.id, v: active.value, pos: active.selectionStart } : null;
   const memKeep = collectMemKeep();
   const typed = {};
-  ['nEmail', 'nName', 'nPw', 'mSearch', 'mName'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
+  ['nEmail', 'nName', 'nPw', 'mSearch', 'mName', 'nmName', 'nmAdmin'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
 
   const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
   const tabBtn = (k, label) => `<button class="admTab ${admTab === k ? 'pri' : 'ghost'}" onclick="admTabSet('${k}')">${label}</button>`;
