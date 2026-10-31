@@ -420,7 +420,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 .meOut{width:100%;margin-top:14px;padding:12px;border-radius:14px;font-size:clamp(15px,4vw,16px);font-weight:800;color:var(--bad,#ff6b6b);background:color-mix(in srgb,var(--bad,#ff6b6b) 12%,transparent);border:1px solid color-mix(in srgb,var(--bad,#ff6b6b) 40%,transparent);cursor:pointer}
 .meOut:active{transform:scale(.98)}
 .pwWrap{position:relative}.pwWrap input{width:100%;padding-right:46px}.eyeBtn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;font-size:18px;cursor:pointer;padding:4px;min-height:0}
-.superTabs,.superChips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.superTabs button,.superChips button{flex:1 1 auto;padding:8px 10px}
+.superMini{display:inline-flex;align-items:center;border-radius:10px;overflow:hidden;border:1px solid rgba(128,128,128,.35)}.superMini button{border:0;border-radius:0;padding:7px 9px;background:transparent}.superMini.on{background:rgba(124,92,255,.18)}.superTabs,.superChips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.superTabs button,.superChips button{flex:1 1 auto;padding:8px 10px}
 </style>
 </head>
 <body>
@@ -861,7 +861,7 @@ async function loadAllMesses() {
       out.push({ id: d.id, name: m.name || d.id, admin: m.admin || '', code: m.inviteCode || '',
                  active: m.active !== false, archived: m.archived === true, statusNote: m.statusNote || '',
                  createdAt: m.createdAt || 0, count: mem.size, tB: sum.exists ? Number(sum.data().tB || 0) : 0,
-                 memList: mem.docs.map(x => ({ email: x.id, name: x.data().name || x.id })) });
+                 memList: mem.docs.map(x => ({ email: x.id, name: x.data().name || x.id, days: x.data().days, deposit: x.data().deposit })) });
     }
     allMesses = out.sort((a, b) => b.createdAt - a.createdAt);
     const logs = await db.collection('superLogs').orderBy('at', 'desc').limit(30).get();
@@ -883,6 +883,7 @@ async function logSuper(action, m, extra) {
 }
 /* super admin page state */
 let superTab = 'messes', superFilter = 'all', superQ = '';
+let superOpenTabs = [];   // one tab per mess the super admin opened (ids)
 let superDraft = { name: '', admin: '', notice: '' };   // typed text is kept across redraws
 const SUPER_TABS = [['messes', 'মেস', 'Messes'], ['new', 'নতুন মেস', 'New mess'], ['notice', 'ঘোষণা', 'Notice'], ['log', 'Log', 'Log'], ['settings', 'সেটিংস', 'Settings']];
 function setSuperTab(k) { superTab = k; renderSuper(); }
@@ -892,38 +893,70 @@ function superCopy(txt) {
   if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast(bn ? 'কপি হয়েছে' : 'Copied')).catch(() => toast(txt, true));
   else toast(txt, true);
 }
-/* one card per mess: status, admin, numbers, invite code and its actions (i = index in allMesses) */
+/* one card per mess in the list; the details and actions live in that mess's own tab (i = index in allMesses) */
 function superRow(m, i) {
   const bn = lang === 'bn';
   const st = m.archived ? (bn ? 'আর্কাইভ' : 'Archived') : (m.active ? (bn ? 'চালু' : 'On') : (bn ? 'বন্ধ' : 'Off'));
   const cls = m.archived ? 'b-warn' : (m.active ? 'b-ok' : '');
-  const open = superOpen.has(m.id);
-  const memHtml = open
-    ? `<div class="sub" style="margin-top:8px;line-height:1.8">${(m.memList || []).map(x => `${esc(x.name)} · ${esc(x.email)}${x.email === m.admin ? ' <b>(Admin)</b>' : ''}`).join('<br>') || (bn ? 'কোনো সদস্য নেই' : 'No members')}</div>`
-    : '';
-  const acts = m.archived
-    ? `<button class="ghost" onclick="superAct(${i},'restore')">${bn ? 'ফিরিয়ে আনো' : 'Restore'}</button>`
-    : `<button class="ghost" onclick="superAct(${i},'toggle')">${m.active ? (bn ? 'বন্ধ করো' : 'Switch off') : (bn ? 'চালু করো' : 'Switch on')}</button>
-       <button class="ghost" onclick="superAct(${i},'admin')">${bn ? 'Admin বদলাও' : 'Change admin'}</button>
-       <button class="ghost" onclick="superAct(${i},'rename')">${bn ? 'নাম বদলাও' : 'Rename'}</button>
-       <button class="ghost" onclick="superAct(${i},'reset')">${bn ? 'Admin password reset' : 'Reset admin password'}</button>
-       <button class="bad" onclick="superAct(${i},'archive')">${bn ? 'আর্কাইভ' : 'Archive'}</button>`;
   return `<div class="card sm" data-s="${esc((m.name + ' ' + m.admin + ' ' + m.id).toLowerCase())}" style="margin:10px 0">
     <div class="row between"><b>${esc(m.name)}</b><span class="badge ${cls}">${st}</span></div>
     <div class="sub">${esc(m.admin)}</div>
-    <div class="sub">${bn ? 'সদস্য' : 'Members'}: <b class="num">${m.count}</b> · ${bn ? 'বাজার' : 'Bazar'}: <b class="num">${f2(m.tB)}</b> · ${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—'}</div>
-    <div class="sub">${bn ? 'Invite code' : 'Invite code'}: <b>${esc(m.code || '—')}</b></div>
-    ${memHtml}
-    <div class="acts" style="flex-wrap:wrap;margin-top:8px">
-      <button class="ghost" onclick="superAct(${i},'members')">${open ? (bn ? 'সদস্য লুকাও' : 'Hide members') : (bn ? 'সদস্য দেখো' : 'Show members')}</button>
+    <div class="sub">${bn ? 'সদস্য' : 'Members'}: <b class="num">${m.count}</b> · ${bn ? 'বাজার' : 'Bazar'}: <b class="num">${f2(m.tB)}</b></div>
+    <div class="acts" style="margin-top:8px">
+      <button class="pri" onclick="superOpenMess('${m.id}')">${bn ? 'খোলো' : 'Open'}</button>
       ${m.code ? `<button class="ghost" onclick="superCopy('${esc(m.code)}')">${bn ? 'কোড কপি' : 'Copy code'}</button>` : ''}
-      ${acts}
     </div></div>`;
 }
 /* search only hides or shows the cards already on screen, so typing keeps focus */
 function superSearch(q) {
   superQ = String(q || '').trim().toLowerCase();
   document.querySelectorAll('#superList .sm').forEach(el => { el.style.display = (!superQ || el.dataset.s.includes(superQ)) ? '' : 'none'; });
+}
+/* open a mess in its own tab; close the tab again with the ✕ */
+function superOpenMess(id) {
+  if (!superOpenTabs.includes(id)) superOpenTabs.push(id);
+  superTab = 'm:' + id;
+  renderSuper();
+}
+function superCloseTab(id) {
+  superOpenTabs = superOpenTabs.filter(x => x !== id);
+  if (superTab === 'm:' + id) superTab = 'messes';
+  renderSuper();
+}
+/* actions use the mess id, so they still work after the list is reloaded */
+function superActId(id, what) {
+  const i = (allMesses || []).findIndex(x => x.id === id);
+  if (i < 0) return toast(lang === 'bn' ? 'তালিকা আবার লোড করো' : 'Reload the list first', true);
+  return superAct(i, what);
+}
+/* one mess's own page: admin, every member's details, and its actions */
+function superMessTabHtml(id) {
+  const bn = lang === 'bn';
+  const m = (allMesses || []).find(x => x.id === id);
+  if (!m) return `<div class="card"><div class="sub">${bn ? 'এই mess পাওয়া যায়নি। তালিকা আবার লোড করো।' : 'Mess not found. Reload the list.'}</div></div>`;
+  const st = m.archived ? (bn ? 'আর্কাইভ (অ্যাক্সেস নেই)' : 'Archived (no access)') : (m.active ? (bn ? 'চালু' : 'On') : (bn ? 'বন্ধ' : 'Off'));
+  const members = (m.memList || []).map(x => `<div class="entry" style="flex-direction:column;align-items:stretch">
+      <div class="row between"><b>${esc(x.name)}</b>${x.email === m.admin ? `<span class="badge b-ok">Admin</span>` : ''}</div>
+      <div class="sub">${esc(x.email)}</div>
+      <div class="sub">${bn ? 'দিন' : 'Days'}: <b class="num">${x.days != null ? x.days : 30}</b> · ${bn ? 'জমা' : 'Deposit'}: <b class="num">${f2(x.deposit || 0)}</b></div>
+    </div>`).join('') || `<div class="sub">${bn ? 'কোনো সদস্য নেই' : 'No members'}</div>`;
+  const acts = m.archived
+    ? `<button class="pri" onclick="superActId('${m.id}','restore')">${bn ? 'আবার অ্যাক্সেস দাও' : 'Restore access'}</button>`
+    : `<button class="ghost" onclick="superActId('${m.id}','toggle')">${m.active ? (bn ? 'বন্ধ করো' : 'Switch off') : (bn ? 'চালু করো' : 'Switch on')}</button>
+       <button class="ghost" onclick="superActId('${m.id}','admin')">${bn ? 'Admin বদলাও' : 'Change admin'}</button>
+       <button class="ghost" onclick="superActId('${m.id}','rename')">${bn ? 'নাম বদলাও' : 'Rename'}</button>
+       <button class="ghost" onclick="superActId('${m.id}','reset')">${bn ? 'Admin password reset' : 'Reset admin password'}</button>
+       <button class="bad" onclick="superActId('${m.id}','archive')">${bn ? 'এই mess এর অ্যাক্সেস সরাও' : 'Remove access (archive)'}</button>`;
+  return `<div class="card">
+      <h3 style="margin:0 0 6px">${esc(m.name)}</h3>
+      <div class="sub">${st}</div>
+      <div class="sub" style="margin-top:6px">Admin: <b>${esc(m.admin)}</b></div>
+      <div class="sub">${bn ? 'Invite code' : 'Invite code'}: <b>${esc(m.code || '—')}</b> ${m.code ? `<button class="ghost" onclick="superCopy('${esc(m.code)}')">${bn ? 'কপি' : 'Copy'}</button>` : ''}</div>
+      <div class="sub">${bn ? 'সদস্য' : 'Members'}: <b class="num">${m.count}</b> · ${bn ? 'মোট বাজার' : 'Total bazar'}: <b class="num">${f2(m.tB)}</b> · ${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—'}</div>
+      <h3 style="margin:14px 0 6px">${bn ? 'কাজ' : 'Actions'}</h3>
+      <div class="acts" style="flex-wrap:wrap">${acts}</div>
+    </div>
+    <div class="card"><h3 style="margin:0 0 6px">${bn ? 'সদস্যদের তালিকা' : 'Members'} (${m.count})</h3>${members}</div>`;
 }
 function superKpi() {
   const bn = lang === 'bn';
@@ -940,7 +973,13 @@ function superKpi() {
 }
 function superTabHtml() {
   const bn = lang === 'bn';
-  return `<div class="superTabs">${SUPER_TABS.map(([k, b, e]) => `<button class="${superTab === k ? 'pri' : 'ghost'}" onclick="setSuperTab('${k}')">${bn ? b : e}</button>`).join('')}</div>`;
+  const fixed = SUPER_TABS.map(([k, b, e]) => `<button class="${superTab === k ? 'pri' : 'ghost'}" onclick="setSuperTab('${k}')">${bn ? b : e}</button>`).join('');
+  const minis = superOpenTabs.map(id => {
+    const m = (allMesses || []).find(x => x.id === id);
+    const label = m ? esc(m.name.length > 16 ? m.name.slice(0, 16) + '…' : m.name) : id;
+    return `<span class="superMini ${superTab === 'm:' + id ? 'on' : ''}"><button onclick="setSuperTab('m:${id}')">${label}</button><button onclick="superCloseTab('${id}')" aria-label="close">✕</button></span>`;
+  }).join('');
+  return `<div class="superTabs">${fixed}</div>${minis ? `<div class="superTabs">${minis}</div>` : ''}`;
 }
 function superMessesHtml() {
   const bn = lang === 'bn';
@@ -1088,7 +1127,8 @@ function renderSuper() {
   $('nav').innerHTML = '';
   $('qBar').classList.add('hidden'); $('bazarStatus').classList.add('hidden');
   $('roleTag').innerText = 'Super admin';
-  const body = superTab === 'messes' ? superMessesHtml()
+  const body = superTab.startsWith('m:') ? superMessTabHtml(superTab.slice(2))
+    : superTab === 'messes' ? superMessesHtml()
     : superTab === 'new' ? superNewHtml()
     : superTab === 'notice' ? superNoticeHtml()
     : superTab === 'log' ? superLogHtml()
