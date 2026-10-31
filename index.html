@@ -2225,6 +2225,7 @@ async function newInviteQr() {
   const now = Date.now();
   try {
     await db.collection('invites').doc(tok).set({ messId: MID, createdAt: now, expiresAt: now + 24 * 3600 * 1000, used: false, by: me });
+    lastQrTok = tok;
     drawInviteQr(tok);
     logAct(bn ? 'নতুন QR বানানো' : 'New QR made');
   } catch (e) { showErr(e); }
@@ -2544,7 +2545,11 @@ async function shareSummary() {
   } catch (e) { /* share cancelled */ }
 }
 
-function renderSettings() { $('pgSettings').innerHTML = settingsHtml(); }
+let lastQrTok = '';   // the one-time QR shown in the control panel (kept across redraws)
+function renderSettings() {
+  $('pgSettings').innerHTML = settingsHtml();
+  if (lastQrTok) drawInviteQr(lastQrTok);
+}
 function meCardHtml() {
   const nm = nameOf(me);
   return `<div class="card meCard">
