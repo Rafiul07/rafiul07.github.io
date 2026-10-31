@@ -1372,7 +1372,7 @@ async function unlockAdmin() {
   try {
     sess = firebase.initializeApp(FB_CONFIG, 'adminSess' + Date.now());
     await sess.auth().setPersistence(firebase.auth.Auth.Persistence.NONE); // admin session lives in memory only
-    await sess.auth().signInWithEmailAndPassword(me, pw);   // the admin signs in again with their own account
+    await sess.auth().signInWithEmailAndPassword(MESS_ADMIN, pw);   // the admin password belongs to the mess admin account, not to the member
   } catch (e) {
     if (sess) sess.delete().catch(() => {});
     toast(t('wrongPw'), true); return;
