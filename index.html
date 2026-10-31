@@ -1870,11 +1870,30 @@ async function saveEntry() {
 
 /* ================= MESS_ADMIN ACTIONS ================= */
 const isClosed = x => closedMonths.includes(String(x.date).slice(0, 7));
+/* asks for the mess admin password and checks it against the admin account (a separate, temporary sign-in) */
+async function checkAdminPw() {
+  const pw = await sheet({ title: t('enterAdminPw'), type: 'password', raw: true });
+  if (!pw) return false;
+  let sess = null;
+  try {
+    sess = firebase.initializeApp(FB_CONFIG, 'pwCheck' + Date.now());
+    await sess.auth().setPersistence(firebase.auth.Auth.Persistence.NONE);
+    await sess.auth().signInWithEmailAndPassword(MESS_ADMIN, pw);
+    await sess.auth().signOut();
+    return true;
+  } catch (e) {
+    toast(t('wrongPw'), true);
+    return false;
+  } finally {
+    if (sess) sess.delete().catch(() => {});
+  }
+}
 async function toggleClose() {
   const v = await sheet({ title: lang === 'bn' ? 'মাস লেখো (যেমন 2026-10)' : 'Month (e.g. 2026-10)', value: month !== 'all' ? month : today().slice(0, 7), ph: '2026-10' });
   if (!v) return;
   const m = String(v).trim();
   if (!/^\d{4}-\d{2}$/.test(m)) { toast(t('needDateAmt'), true); return; }
+  if (!(await checkAdminPw())) return;   // closing or reopening a month needs the admin password
   const next = closedMonths.includes(m) ? closedMonths.filter(x => x !== m) : [...closedMonths, m];
   ADBm('settings').doc('app').set({ closedMonths: next }, { merge: true })
     .then(() => { toast(t('saved')); logAct((next.includes(m) ? 'Month closed · ' : 'Month reopened · ') + m); }).catch(showErr);
