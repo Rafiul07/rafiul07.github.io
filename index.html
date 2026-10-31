@@ -1791,6 +1791,8 @@ function pushSummary(c) {
 function renderHome() {
   $('qBar').classList.remove('hidden');
   let h = '';
+  // mess name at the top, for admin and members alike
+  if (messName) h += `<div style="font-weight:900;font-size:18px;margin:2px 2px 10px">${esc(messName)}</div>`;
   if (notice) h += `<div class="card" style="border-color:var(--p)"><h3>${lang === 'bn' ? 'ঘোষণা' : 'Notice'}</h3><div>${esc(notice)}</div></div>`;
   if (isMgr) {
     const c = calc();
