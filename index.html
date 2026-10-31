@@ -1173,6 +1173,8 @@ async function createMessFor() {
 /* join: look up the invite code, then send a pending request into that mess. The mess admin approves it */
 async function joinByCode() {
   const bn = lang === 'bn';
+  const tok = urlInviteToken();
+  if (tok) return joinByInvite(tok);
   const code = ($('jCode').value || '').trim().toUpperCase();
   if (!code) return toast(bn ? 'Invite code লেখো' : 'Enter the invite code', true);
   try {
@@ -2214,17 +2216,49 @@ function urlInviteCode() {
 function inviteLink() {
   return location.origin + location.pathname + '?code=' + encodeURIComponent(inviteCode);
 }
-/* QR for this mess's invite link. The code belongs to this mess only, so the QR cannot be used to join another mess */
-function showInviteQr() {
+/* one-time QR: a new invite is saved in invites/{token}, valid for 24 hours and for one join only */
+async function newInviteQr() {
+  const bn = lang === 'bn';
+  if (!MID || !isMgr) return;
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const tok = Array.from(crypto.getRandomValues(new Uint8Array(14)), b => chars[b % chars.length]).join('');
+  const now = Date.now();
+  try {
+    await db.collection('invites').doc(tok).set({ messId: MID, createdAt: now, expiresAt: now + 24 * 3600 * 1000, used: false, by: me });
+    drawInviteQr(tok);
+    logAct(bn ? 'নতুন QR বানানো' : 'New QR made');
+  } catch (e) { showErr(e); }
+}
+function drawInviteQr(tok) {
   const bn = lang === 'bn';
   const box = $('qrBox');
   if (!box) return;
-  if (!inviteCode) return toast(bn ? 'আগে invite code তৈরি হোক' : 'No invite code yet', true);
   if (typeof QRCode === 'undefined') return toast(bn ? 'QR লোড হয়নি, ইন্টারনেট দেখো' : 'QR did not load. Check the internet.', true);
   box.innerHTML = '';
-  new QRCode(box, { text: inviteLink(), width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
-  box.insertAdjacentHTML('beforeend', `<div class="sub" style="color:#111;margin-top:8px">${bn ? 'এই QR শুধু এই mess এর জন্য কাজ করবে' : 'This QR works only for this mess'}</div>`);
+  new QRCode(box, { text: location.origin + location.pathname + '?invite=' + tok, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+  box.insertAdjacentHTML('beforeend', `<div class="sub" style="color:#111;margin-top:8px">${bn ? 'এই QR একবার ব্যবহার হবে, ২৪ ঘণ্টা পর বাতিল' : 'Works once, expires in 24 hours'}</div>`);
   box.classList.remove('hidden');
+}
+/* the invite token from a one-time QR link (?invite=...) */
+function urlInviteToken() {
+  try { return (new URLSearchParams(location.search).get('invite') || '').trim().slice(0, 40); } catch (e) { return ''; }
+}
+/* join with a one-time QR: the QR must be unused and not expired; it is marked used after the request is sent */
+async function joinByInvite(tok) {
+  const bn = lang === 'bn';
+  try {
+    const iv = await db.collection('invites').doc(tok).get();
+    if (!iv.exists) return toast(bn ? 'এই QR কাজ করছে না' : 'This QR is not valid', true);
+    const d = iv.data();
+    if (d.used) return toast(bn ? 'এই QR আগেই ব্যবহার হয়ে গেছে' : 'This QR was already used', true);
+    if (Date.now() > d.expiresAt) return toast(bn ? 'এই QR-এর মেয়াদ শেষ' : 'This QR has expired', true);
+    await db.collection('messes').doc(d.messId).collection('requests').doc(me)
+      .set({ email: me, name: signupName() || me.split('@')[0], status: 'pending', createdAt: Date.now() });
+    await db.collection('invites').doc(tok).update({ used: true, usedBy: me, usedAt: Date.now() });
+    try { localStorage.setItem('mh_join_mid', d.messId); } catch (x) {}
+    toast(bn ? 'অনুরোধ পাঠানো হয়েছে' : 'Request sent');
+    watchJoinReq();
+  } catch (e) { showErr(e); }
 }
 function copyInviteLink() {
   if (!inviteCode) return;
@@ -2590,7 +2624,7 @@ function renderAdmin() {
   h += `<div class="card"><h3>${isBn ? 'সদস্য যোগ করার কোড' : 'Invite code'}</h3>
       <div class="sub">${isBn ? 'নতুন সদস্য এই কোড দিয়ে যোগ দিতে পারবে। তুমি অনুমোদন দিলে যোগ হবে।' : 'New members use this code to join. You approve them.'}</div>
       <div class="num" style="font-size:26px;font-weight:800;letter-spacing:3px;margin:10px 0">${esc(inviteCode || '—')}</div>
-      <div class="acts" style="margin-top:8px"><button class="pri" style="flex:1" onclick="copyInvite()">${isBn ? 'কোড কপি' : 'Copy code'}</button><button class="ghost" style="flex:1" onclick="copyInviteLink()">${isBn ? 'লিংক কপি (WhatsApp এ পাঠাও)' : 'Copy link (for WhatsApp)'}</button><button class="ghost" style="flex:1" onclick="showInviteQr()">${isBn ? 'QR দেখাও' : 'Show QR'}</button></div><div id="qrBox" class="hidden" style="margin-top:10px;text-align:center;background:#fff;padding:12px;border-radius:14px"></div></div>`;
+      <div class="acts" style="margin-top:8px"><button class="pri" style="flex:1" onclick="copyInvite()">${isBn ? 'কোড কপি' : 'Copy code'}</button><button class="ghost" style="flex:1" onclick="copyInviteLink()">${isBn ? 'লিংক কপি (WhatsApp এ পাঠাও)' : 'Copy link (for WhatsApp)'}</button><button class="ghost" style="flex:1" onclick="newInviteQr()">${isBn ? 'নতুন QR বানাও' : 'New QR'}</button></div><div id="qrBox" class="hidden" style="margin-top:10px;text-align:center;background:#fff;padding:12px;border-radius:14px"></div></div>`;
   h += `<div class="card"><h3>${isBn ? 'Mess এর নাম' : 'Mess name'}</h3>
       <input id="mName" value="${esc(messName)}">
       <button class="pri" style="width:100%;margin-top:8px" onclick="saveMessName()">${isBn ? 'নাম সেভ করো' : 'Save name'}</button></div>`;
