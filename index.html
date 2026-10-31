@@ -2558,8 +2558,9 @@ function settingsHtml(skipMe = false) {
   let h = skipMe ? '' : meCardHtml();
 
   h += gh(isBn ? 'অ্যাপ' : 'App');
+  h += sec(t('language'), `
+      ${seg('setLang', [['en', 'English'], ['bn', 'বাংলা']], lang)}`, false);
   h += sec(t('preferences'), `
-      <div class="lbl">${t('language')}</div>${seg('setLang', [['en', 'English'], ['bn', 'বাংলা']], lang)}
       <div class="lbl">${t('theme')}</div>${themeGridHtml()}
       ${isMgr ? themeAdminHtml() : ''}
       ${isMgr ? '' : `<div class="sub" style="margin-top:6px">${t('themeByAdmin')}</div>`}`, false);
