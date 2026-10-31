@@ -7,6 +7,7 @@
 <title>MESS HISAB PRO</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -2213,6 +2214,18 @@ function urlInviteCode() {
 function inviteLink() {
   return location.origin + location.pathname + '?code=' + encodeURIComponent(inviteCode);
 }
+/* QR for this mess's invite link. The code belongs to this mess only, so the QR cannot be used to join another mess */
+function showInviteQr() {
+  const bn = lang === 'bn';
+  const box = $('qrBox');
+  if (!box) return;
+  if (!inviteCode) return toast(bn ? 'আগে invite code তৈরি হোক' : 'No invite code yet', true);
+  if (typeof QRCode === 'undefined') return toast(bn ? 'QR লোড হয়নি, ইন্টারনেট দেখো' : 'QR did not load. Check the internet.', true);
+  box.innerHTML = '';
+  new QRCode(box, { text: inviteLink(), width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+  box.insertAdjacentHTML('beforeend', `<div class="sub" style="color:#111;margin-top:8px">${bn ? 'এই QR শুধু এই mess এর জন্য কাজ করবে' : 'This QR works only for this mess'}</div>`);
+  box.classList.remove('hidden');
+}
 function copyInviteLink() {
   if (!inviteCode) return;
   const bn = lang === 'bn';
@@ -2577,7 +2590,7 @@ function renderAdmin() {
   h += `<div class="card"><h3>${isBn ? 'সদস্য যোগ করার কোড' : 'Invite code'}</h3>
       <div class="sub">${isBn ? 'নতুন সদস্য এই কোড দিয়ে যোগ দিতে পারবে। তুমি অনুমোদন দিলে যোগ হবে।' : 'New members use this code to join. You approve them.'}</div>
       <div class="num" style="font-size:26px;font-weight:800;letter-spacing:3px;margin:10px 0">${esc(inviteCode || '—')}</div>
-      <div class="acts" style="margin-top:8px"><button class="pri" style="flex:1" onclick="copyInvite()">${isBn ? 'কোড কপি' : 'Copy code'}</button><button class="ghost" style="flex:1" onclick="copyInviteLink()">${isBn ? 'লিংক কপি (WhatsApp এ পাঠাও)' : 'Copy link (for WhatsApp)'}</button></div></div>`;
+      <div class="acts" style="margin-top:8px"><button class="pri" style="flex:1" onclick="copyInvite()">${isBn ? 'কোড কপি' : 'Copy code'}</button><button class="ghost" style="flex:1" onclick="copyInviteLink()">${isBn ? 'লিংক কপি (WhatsApp এ পাঠাও)' : 'Copy link (for WhatsApp)'}</button><button class="ghost" style="flex:1" onclick="showInviteQr()">${isBn ? 'QR দেখাও' : 'Show QR'}</button></div><div id="qrBox" class="hidden" style="margin-top:10px;text-align:center;background:#fff;padding:12px;border-radius:14px"></div></div>`;
   h += `<div class="card"><h3>${isBn ? 'Mess এর নাম' : 'Mess name'}</h3>
       <input id="mName" value="${esc(messName)}">
       <button class="pri" style="width:100%;margin-top:8px" onclick="saveMessName()">${isBn ? 'নাম সেভ করো' : 'Save name'}</button></div>`;
