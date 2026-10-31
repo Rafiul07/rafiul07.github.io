@@ -1341,7 +1341,7 @@ function renderPending() {
       <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`
     : `<div class="card" style="padding:20px">
       <h3 style="margin:0 0 8px">${bn ? 'invite code দিয়ে যোগ দাও' : 'Join with an invite code'}</h3>
-      <input id="jCode" placeholder="${bn ? 'Invite code' : 'Invite code'}" style="text-transform:uppercase">
+      <input id="jCode" value="${esc(urlInviteCode())}" placeholder="${bn ? 'Invite code' : 'Invite code'}" style="text-transform:uppercase">
       <button class="ghost" style="width:100%;margin-top:10px" onclick="joinByCode()">${bn ? 'অনুরোধ পাঠাও' : 'Send request'}</button>
       ${me === LEGACY_ADMIN ? `<hr style="margin:18px 0;opacity:.2"><button class="pri" style="width:100%" onclick="migrateLegacy()">${bn ? 'আগের সব data এই mess-এ আনো (একবার)' : 'Move old data into this mess (once)'}</button>` : ''}
       <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button>
@@ -2206,6 +2206,20 @@ async function toggleClose() {
   ADBm('settings').doc('app').set({ closedMonths: next }, { merge: true })
     .then(() => { toast(t('saved')); logAct((next.includes(m) ? 'Month closed · ' : 'Month reopened · ') + m); }).catch(showErr);
 }
+/* a link that opens the app with the code already filled in: ...index.html?code=ABC123 */
+function urlInviteCode() {
+  try { return (new URLSearchParams(location.search).get('code') || '').trim().toUpperCase().slice(0, 12); } catch (e) { return ''; }
+}
+function inviteLink() {
+  return location.origin + location.pathname + '?code=' + encodeURIComponent(inviteCode);
+}
+function copyInviteLink() {
+  if (!inviteCode) return;
+  const bn = lang === 'bn';
+  const txt = inviteLink();
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast(bn ? 'লিংক কপি হয়েছে' : 'Link copied')).catch(() => toast(txt, true));
+  else toast(txt, true);
+}
 function copyInvite() {
   if (!inviteCode) return;
   const ok = () => toast(lang === 'bn' ? 'কোড কপি হয়েছে' : 'Code copied');
@@ -2563,7 +2577,7 @@ function renderAdmin() {
   h += `<div class="card"><h3>${isBn ? 'সদস্য যোগ করার কোড' : 'Invite code'}</h3>
       <div class="sub">${isBn ? 'নতুন সদস্য এই কোড দিয়ে যোগ দিতে পারবে। তুমি অনুমোদন দিলে যোগ হবে।' : 'New members use this code to join. You approve them.'}</div>
       <div class="num" style="font-size:26px;font-weight:800;letter-spacing:3px;margin:10px 0">${esc(inviteCode || '—')}</div>
-      <button class="pri" style="width:100%" onclick="copyInvite()">${isBn ? 'কপি করো' : 'Copy'}</button></div>`;
+      <div class="acts" style="margin-top:8px"><button class="pri" style="flex:1" onclick="copyInvite()">${isBn ? 'কোড কপি' : 'Copy code'}</button><button class="ghost" style="flex:1" onclick="copyInviteLink()">${isBn ? 'লিংক কপি (WhatsApp এ পাঠাও)' : 'Copy link (for WhatsApp)'}</button></div></div>`;
   h += `<div class="card"><h3>${isBn ? 'Mess এর নাম' : 'Mess name'}</h3>
       <input id="mName" value="${esc(messName)}">
       <button class="pri" style="width:100%;margin-top:8px" onclick="saveMessName()">${isBn ? 'নাম সেভ করো' : 'Save name'}</button></div>`;
