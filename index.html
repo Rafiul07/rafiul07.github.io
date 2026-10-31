@@ -1420,7 +1420,7 @@ auth.onAuthStateChanged(async user => {
   unsubs.push(db.collection('messes').doc(MID).onSnapshot(d => {
     inviteCode = d.exists ? (d.data().inviteCode || '') : '';
     messName = d.exists ? (d.data().name || '') : '';
-    if (isMgr) render();
+    render();
   }, () => {}));
   // everyone can read members and entries (no photos there); pay slips live in slips/{id}, readable by owner and admin only
   unsubs.push(DBm('members').onSnapshot(s => {
@@ -1800,7 +1800,7 @@ function renderHome() {
       `<button class="chip ${month === m ? 'on' : ''}" onclick="month='${m}';render()">${m === 'all' ? t('allMonths') : monthLabel(m)}</button>`).join('')}</div>`;
     const sorted = c.em.slice().sort((a, b) => bazarOf(b) - bazarOf(a));
     const maxB = Math.max(1, ...sorted.map(bazarOf));
-    h += `<div class="card"><h3>${t('members')}</h3>` + sorted.map(e => {
+    h += `<div class="card"><h3>${t('members')}${messName ? ' · ' + esc(messName) : ''}</h3>` + sorted.map(e => {
       const pct = Math.round(bazarOf(e) / maxB * 100);
       const b = balOf(e, c.rate), pos = b >= 0;
       return `<div class="mrow" onclick="openMember('${esc(e)}')">
