@@ -673,6 +673,13 @@ let lastSum = '';
 let lastStatus = {}, deferredPrompt = null;
 let notes = [];
 let inviteCode = '';    // this mess's invite code (admin sees it in the control panel)
+let messName = '';      // this mess's name (admin can change it in the control panel)
+function saveMessName() {
+  const n = (($('mName') && $('mName').value) || '').trim();
+  if (!n) return toast(lang === 'bn' ? 'নাম লেখো' : 'Enter a name', true);
+  db.collection('messes').doc(MID).update({ name: n })
+    .then(() => toast(t('saved'))).catch(showErr);
+}
 const SUPER_EMAIL = 'rafiul.fr@yahoo.com';   // super admin: sees the list of all messes (name, admin, member count)
 let allMesses = null;   // super admin: loaded list (null = not loaded yet)
 async function loadAllMesses() {
@@ -1124,6 +1131,7 @@ auth.onAuthStateChanged(async user => {
   // the mess doc holds the invite code; the admin reads it for the control panel
   unsubs.push(db.collection('messes').doc(MID).onSnapshot(d => {
     inviteCode = d.exists ? (d.data().inviteCode || '') : '';
+    messName = d.exists ? (d.data().name || '') : '';
     if (isMgr) render();
   }, () => {}));
   // everyone can read members and entries (no photos there); pay slips live in slips/{id}, readable by owner and admin only
@@ -2198,7 +2206,7 @@ function renderAdmin() {
   const keep = active && active.closest && active.closest('#pgAdmin') ? { id: active.id, v: active.value, pos: active.selectionStart } : null;
   const memKeep = collectMemKeep();
   const typed = {};
-  ['nEmail', 'nName', 'nPw', 'mSearch'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
+  ['nEmail', 'nName', 'nPw', 'mSearch', 'mName'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
 
   const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
   const tabBtn = (k, label) => `<button class="admTab ${admTab === k ? 'pri' : 'ghost'}" onclick="admTabSet('${k}')">${label}</button>`;
@@ -2215,6 +2223,9 @@ function renderAdmin() {
       <div class="sub">${isBn ? 'নতুন সদস্য এই কোড দিয়ে যোগ দিতে পারবে। তুমি অনুমোদন দিলে যোগ হবে।' : 'New members use this code to join. You approve them.'}</div>
       <div class="num" style="font-size:26px;font-weight:800;letter-spacing:3px;margin:10px 0">${esc(inviteCode || '—')}</div>
       <button class="pri" style="width:100%" onclick="copyInvite()">${isBn ? 'কপি করো' : 'Copy'}</button></div>`;
+  h += `<div class="card"><h3>${isBn ? 'Mess এর নাম' : 'Mess name'}</h3>
+      <input id="mName" value="${esc(messName)}">
+      <button class="pri" style="width:100%;margin-top:8px" onclick="saveMessName()">${isBn ? 'নাম সেভ করো' : 'Save name'}</button></div>`;
   if (me === SUPER_EMAIL) h += superCardHtml();
   h += meCardHtml();
   h += gh(isBn ? 'মেস' : 'Mess');
