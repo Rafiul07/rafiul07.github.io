@@ -1967,7 +1967,8 @@ async function saveQuick() {
   const rows = [...document.querySelectorAll('.qAmt')].map(i => ({ email: i.dataset.email, amt: qSum(i.value) })).filter(r => r.amt > 0);
   if (!rows.length) { toast(bn ? 'অন্তত একটা অংক দাও' : 'Enter at least one amount', true); return; }
   const b = ADB().batch(), now = Date.now();
-  rows.forEach(r => b.set(ADBm('entries').doc(), { memberEmail: r.email, date, amount: r.amt, note: '', status: 'approved', reason: '', createdAt: now, addedByAdmin: true }));
+  // each row gets its own time (1 ms apart, first row newest) so the list keeps the order they were typed in
+  rows.forEach((r, i) => b.set(ADBm('entries').doc(), { memberEmail: r.email, date, amount: r.amt, note: '', status: 'approved', reason: '', createdAt: now - i, addedByAdmin: true }));
   b.commit().then(() => {
     toast(t('saved'));
     logAct('Quick entry · ' + date + ' · ' + rows.length + ' entries');
