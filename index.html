@@ -975,6 +975,7 @@ function watchJoinReq() {
 }
 /* email not verified yet (new sign-up): only the verify screen shows. Admin and members are never blocked here */
 function renderVerify() {
+  $('qBar').classList.add('hidden'); $('bazarStatus').classList.add('hidden');   // only the verify card shows
   const bn = lang === 'bn';
   $('app').classList.remove('hidden');
   Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== 'home'));
@@ -1050,6 +1051,7 @@ function resendVerify() {
 }
 /* signed in but not approved yet: the app opens, only a short note shows, no data and no tabs */
 function renderPending() {
+  $('qBar').classList.add('hidden'); $('bazarStatus').classList.add('hidden');   // only the create / join card shows
   const bn = lang === 'bn', has = myReq !== undefined && myReq !== null;
   $('app').classList.remove('hidden');
   Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== 'home'));
@@ -1323,6 +1325,7 @@ function render() {
   // signed in but not a member yet: app shell with only a short note
   if (!isMgr && loaded.members && !members.some(m => m.email === me)) { renderPending(); return; }
   $('pendingBox').classList.add('hidden');
+  $('qBar').classList.remove('hidden');
   $('app').classList.remove('hidden');
   $('roleTag').innerText = isMgr ? t('admin') : t('member');
   if (isMgr && loaded.members && loaded.entries) pushSummary(calc());
