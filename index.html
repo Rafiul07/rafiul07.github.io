@@ -372,6 +372,10 @@ body.th-bangladesh{--bg:#f2fbf6;--card:#ffffff;--card2:#e8f6ee;--tx:#0d2a1f;--su
 body.th-france{--bg:#0a1230;--card:#141d45;--card2:#1c2759;--tx:#f5f7ff;--sub:#b4bcdc;--bd:#2a3670;--inp:#0e1638;--p:#ed2939;--s:#3b6fd8}
 body.th-barcelona{--bg:#0b0f2e;--card:#151a40;--card2:#1d2352;--tx:#fdf6e3;--sub:#b9b5d6;--bd:#2c3370;--inp:#0f1438;--p:#a50044;--s:#004d98}
 body.th-ocean::before,body.th-forest::before,body.th-sunset::before,body.th-rose::before,body.th-realmadrid::before,body.th-barcelona::before,body.th-bangladesh::before,body.th-france::before{background:radial-gradient(60% 100% at 50% 0%,color-mix(in srgb,var(--p) 14%,transparent),transparent 70%)}
+/* flag wallpapers: the whole background, softened so text stays readable */
+body.th-bangladesh::before,body.th-france::before{inset:0;height:auto}
+body.th-bangladesh::before{background:radial-gradient(circle at 50% 42%,rgba(244,42,65,.30) 0 21%,transparent 22%),linear-gradient(180deg,rgba(0,106,78,.26),rgba(0,106,78,.12))}
+body.th-france::before{background:linear-gradient(90deg,rgba(0,35,149,.30) 0 33.3%,rgba(255,255,255,.12) 33.3% 66.6%,rgba(237,41,57,.30) 66.6%)}
 
 /* ---- login page ---- */
 .login{min-height:100vh;min-height:100dvh;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));background:radial-gradient(1200px 600px at 10% -10%,color-mix(in srgb,var(--p) 30%,transparent),transparent 60%),radial-gradient(900px 500px at 110% 110%,color-mix(in srgb,var(--p2,#4fc3e8) 26%,transparent),transparent 60%)}
