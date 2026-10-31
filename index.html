@@ -673,6 +673,35 @@ let lastSum = '';
 let lastStatus = {}, deferredPrompt = null;
 let notes = [];
 let inviteCode = '';    // this mess's invite code (admin sees it in the control panel)
+const SUPER_EMAIL = 'rafiul.fr@yahoo.com';   // super admin: sees the list of all messes (name, admin, member count)
+let allMesses = null;   // super admin: loaded list (null = not loaded yet)
+async function loadAllMesses() {
+  if (me !== SUPER_EMAIL) return;
+  try {
+    const snap = await db.collection('messes').get();
+    const out = [];
+    for (const d of snap.docs) {
+      const m = d.data();
+      const mem = await d.ref.collection('members').get();
+      out.push({ id: d.id, name: m.name || d.id, admin: m.admin || '', createdAt: m.createdAt || 0, count: mem.size });
+    }
+    allMesses = out.sort((a, b) => b.createdAt - a.createdAt);
+    render();
+  } catch (e) { showErr(e); }
+}
+function superCardHtml() {
+  const bn = lang === 'bn';
+  const list = allMesses
+    ? (allMesses.length
+        ? allMesses.map(m => `<div class="entry"><div class="grow"><b>${esc(m.name)}</b>
+            <div class="sub">${esc(m.admin)} · <span class="num">${m.count}</span> ${bn ? 'জন সদস্য' : 'members'} · ${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—'}</div></div></div>`).join('')
+        : `<div class="empty">${bn ? 'এখনো কোনো mess নেই' : 'No messes yet'}</div>`)
+    : '';
+  return `<div class="card"><h3>${bn ? 'সব mess (শুধু তুমি দেখবে)' : 'All messes (only you see this)'}</h3>
+    ${allMesses ? `<div class="sub" style="margin-bottom:8px">${bn ? 'মোট mess' : 'Total messes'}: <b class="num">${allMesses.length}</b></div>` : ''}
+    ${list}
+    <button class="pri" style="width:100%;margin-top:10px" onclick="loadAllMesses()">${bn ? 'তালিকা লোড / আবার লোড করো' : 'Load / refresh list'}</button></div>`;
+}
 let myReq = undefined;   // my join request: undefined = not loaded, null = none, object = pending
 let reqs = [];          // admin: pending join requests
 let openAdminNext = false;
@@ -866,12 +895,14 @@ async function joinByCode() {
   } catch (e) { showErr(e); }
 }
 /* one-time move of the old single-mess data (root collections) into messes/main. Only the original admin account sees the button */
-const LEGACY_ADMIN = 'admin@gmail.com';
+const LEGACY_ADMIN = 'rafiul.fr@yahoo.com';
+const OLD_ADMIN = 'admin@gmail.com';   // old main admin: its rows are moved to the new main admin
 async function migrateLegacy() {
   const bn = lang === 'bn';
   if (me !== LEGACY_ADMIN) return;
   const MIDL = 'main', code = 'MAIN' + Math.random().toString(36).slice(2, 6).toUpperCase();
   const chunks = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
+  const fixE = e => (e === OLD_ADMIN ? me : e);
   try {
     toast(bn ? 'পুরনো data সরানো হচ্ছে...' : 'Moving old data...');
     const [mem, ent, sli, not, sum, set] = await Promise.all([
@@ -881,22 +912,27 @@ async function migrateLegacy() {
     await base.set({ name: bn ? 'মেস' : 'Mess', admin: me, inviteCode: code, createdAt: Date.now() });
     await db.collection('codes').doc(code).set({ messId: MIDL });
     await db.collection('users').doc(me).set({ messId: MIDL, name: me.split('@')[0] });
+    const memData = d => { const x = { ...d.data() }; if (x.email === OLD_ADMIN) x.email = me; return x; };
     for (const part of chunks(mem.docs, 300)) {
       const b = db.batch();
-      part.forEach(d => b.set(base.collection('members').doc(d.id), d.data()));
+      part.forEach(d => b.set(base.collection('members').doc(fixE(d.id)), memData(d)));
       await b.commit();
     }
-    // members who are not the admin get their link now, so they can sign in and see this mess
-    for (const part of chunks(mem.docs.filter(d => d.id !== me), 300)) {
+    // members who are not the new admin get their link now, so they can sign in and see this mess
+    for (const part of chunks(mem.docs.filter(d => fixE(d.id) !== me), 300)) {
       const b = db.batch();
-      part.forEach(d => b.set(db.collection('users').doc(d.id), { messId: MIDL, name: d.data().name || d.id.split('@')[0] }));
+      part.forEach(d => b.set(db.collection('users').doc(fixE(d.id)), { messId: MIDL, name: d.data().name || d.id.split('@')[0] }));
       await b.commit();
     }
     for (const part of chunks(ent.docs, 300)) {
-      const b = db.batch(); part.forEach(d => b.set(base.collection('entries').doc(d.id), d.data())); await b.commit();
+      const b = db.batch();
+      part.forEach(d => { const x = { ...d.data() }; if (x.memberEmail === OLD_ADMIN) x.memberEmail = me; b.set(base.collection('entries').doc(d.id), x); });
+      await b.commit();
     }
     for (const part of chunks(not.docs, 300)) {
-      const b = db.batch(); part.forEach(d => b.set(base.collection('notes').doc(d.id), d.data())); await b.commit();
+      const b = db.batch();
+      part.forEach(d => { const x = { ...d.data() }; if (x.by === OLD_ADMIN) x.by = me; b.set(base.collection('notes').doc(d.id), x); });
+      await b.commit();
     }
     // slips can be large, so small batches
     for (const part of chunks(sli.docs, 20)) {
@@ -2179,6 +2215,7 @@ function renderAdmin() {
       <div class="sub">${isBn ? 'নতুন সদস্য এই কোড দিয়ে যোগ দিতে পারবে। তুমি অনুমোদন দিলে যোগ হবে।' : 'New members use this code to join. You approve them.'}</div>
       <div class="num" style="font-size:26px;font-weight:800;letter-spacing:3px;margin:10px 0">${esc(inviteCode || '—')}</div>
       <button class="pri" style="width:100%" onclick="copyInvite()">${isBn ? 'কপি করো' : 'Copy'}</button></div>`;
+  if (me === SUPER_EMAIL) h += superCardHtml();
   h += meCardHtml();
   h += gh(isBn ? 'মেস' : 'Mess');
   h += sec(t('management'), `
