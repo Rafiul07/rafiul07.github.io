@@ -1178,11 +1178,14 @@ async function joinByCode() {
     const c = await db.collection('codes').doc(code).get();
     if (!c.exists) return toast(bn ? 'এই কোড মেলেনি' : 'Code not found', true);
     const mid = c.data().messId;
-    await db.collection('messes').doc(mid).collection('requests').doc(me)
-      .set({ email: me, name: signupName() || me.split('@')[0], status: 'pending', createdAt: Date.now() });
-    try { localStorage.setItem('mh_join_mid', mid); } catch (x) {}
-    toast(bn ? 'অনুরোধ পাঠানো হয়েছে' : 'Request sent');
-    watchJoinReq();
+    const name = signupName() || me.split('@')[0];
+    // the code is the proof: the account is linked to this mess, and the member row is added to it
+    await db.collection('users').doc(me).set({ messId: mid, name, code });
+    await db.collection('messes').doc(mid).collection('members').doc(me)
+      .set({ email: me, name, days: 30, deposit: 0 });
+    try { localStorage.removeItem('mh_join_mid'); } catch (x) {}
+    toast(bn ? 'যোগ দেওয়া হয়েছে' : 'You have joined');
+    setTimeout(() => location.reload(), 600);
   } catch (e) { showErr(e); }
 }
 /* one-time move of the old single-mess data (root collections) into messes/main. Only the original admin account sees the button */
@@ -1342,7 +1345,7 @@ function renderPending() {
     : `<div class="card" style="padding:20px">
       <h3 style="margin:0 0 8px">${bn ? 'invite code দিয়ে যোগ দাও' : 'Join with an invite code'}</h3>
       <input id="jCode" value="${esc(urlInviteCode())}" placeholder="${bn ? 'Invite code' : 'Invite code'}" style="text-transform:uppercase">
-      <button class="ghost" style="width:100%;margin-top:10px" onclick="joinByCode()">${bn ? 'অনুরোধ পাঠাও' : 'Send request'}</button>
+      <button class="ghost" style="width:100%;margin-top:10px" onclick="joinByCode()">${bn ? 'যোগ দাও' : 'Join'}</button>
       ${me === LEGACY_ADMIN ? `<hr style="margin:18px 0;opacity:.2"><button class="pri" style="width:100%" onclick="migrateLegacy()">${bn ? 'আগের সব data এই mess-এ আনো (একবার)' : 'Move old data into this mess (once)'}</button>` : ''}
       <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button>
     </div>`;
@@ -1602,7 +1605,7 @@ function render() {
   if (blocked && !isMgr) { renderBlocked(); return; }
   // not in a mess yet: verify screen, or the create / join screen
   if (!MID) {
-    if (auth.currentUser && !auth.currentUser.emailVerified) renderVerify(); else renderPending();
+    renderPending();
     return;
   }
   // new sign-up whose email is not verified yet: verify screen only (members and admin pass)
@@ -2213,6 +2216,26 @@ function urlInviteCode() {
 function inviteLink() {
   return location.origin + location.pathname + '?code=' + encodeURIComponent(inviteCode);
 }
+/* admin: a new code for the mess; the old code stops working. Members already in the mess stay */
+async function newInviteCode() {
+  const bn = lang === 'bn';
+  if (!MID || !isMgr) return;
+  const ok = await sheet({
+    title: bn ? 'নতুন code বানাবে? পুরোনো code আর কাজ করবে না।' : 'Make a new code? The old code will stop working.',
+    input: false, okText: bn ? 'নতুন বানাও' : 'Make new'
+  });
+  if (!ok) return;
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const code = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => chars[b % chars.length]).join('');
+  const old = inviteCode;
+  try {
+    await db.collection('codes').doc(code).set({ messId: MID });
+    await db.collection('messes').doc(MID).update({ inviteCode: code });
+    if (old) await db.collection('codes').doc(old).delete();
+    logAct(bn ? 'নতুন invite code বানানো' : 'New invite code made');
+    toast(bn ? 'নতুন code তৈরি হয়েছে' : 'New code made');
+  } catch (e) { showErr(e); }
+}
 function copyInviteLink() {
   if (!inviteCode) return;
   const bn = lang === 'bn';
@@ -2577,7 +2600,7 @@ function renderAdmin() {
   h += `<div class="card"><h3>${isBn ? 'সদস্য যোগ করার কোড' : 'Invite code'}</h3>
       <div class="sub">${isBn ? 'নতুন সদস্য এই কোড দিয়ে যোগ দিতে পারবে। তুমি অনুমোদন দিলে যোগ হবে।' : 'New members use this code to join. You approve them.'}</div>
       <div class="num" style="font-size:26px;font-weight:800;letter-spacing:3px;margin:10px 0">${esc(inviteCode || '—')}</div>
-      <div class="acts" style="margin-top:8px"><button class="pri" style="flex:1" onclick="copyInvite()">${isBn ? 'কোড কপি' : 'Copy code'}</button><button class="ghost" style="flex:1" onclick="copyInviteLink()">${isBn ? 'লিংক কপি (WhatsApp এ পাঠাও)' : 'Copy link (for WhatsApp)'}</button></div></div>`;
+      <div class="acts" style="margin-top:8px"><button class="pri" style="flex:1" onclick="copyInvite()">${isBn ? 'কোড কপি' : 'Copy code'}</button><button class="ghost" style="flex:1" onclick="copyInviteLink()">${isBn ? 'লিংক কপি (WhatsApp এ পাঠাও)' : 'Copy link (for WhatsApp)'}</button><button class="ghost" style="flex:1" onclick="newInviteCode()">${isBn ? 'নতুন code বানাও' : 'New code'}</button></div></div>`;
   h += `<div class="card"><h3>${isBn ? 'Mess এর নাম' : 'Mess name'}</h3>
       <input id="mName" value="${esc(messName)}">
       <button class="pri" style="width:100%;margin-top:8px" onclick="saveMessName()">${isBn ? 'নাম সেভ করো' : 'Save name'}</button></div>`;
