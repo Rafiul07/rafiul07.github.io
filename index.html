@@ -368,8 +368,10 @@ body.th-rose{--bg:#140816;--card:#201025;--card2:#2b1634;--tx:#fdf2fb;--sub:#c9a
 body.th-mint{--bg:#eefaf5;--card:#ffffff;--card2:#f3fbf7;--tx:#0f2a20;--sub:#4d6f62;--bd:#cfe9de;--inp:#f4fbf8;--p:#10b981;--s:#06b6d4}
 body.th-mint .nav,body.th-mint .top{background:#ffffff}
 body.th-realmadrid{--bg:#f4f6fb;--card:#ffffff;--card2:#eef2fa;--tx:#0b1a33;--sub:#4b5a78;--bd:#d5dcea;--inp:#f7f9fd;--p:#1e3a8a;--s:#c9a227}
+body.th-bangladesh{--bg:#f2fbf6;--card:#ffffff;--card2:#e8f6ee;--tx:#0d2a1f;--sub:#4a6b5c;--bd:#cfe6d9;--inp:#f7fcf9;--p:#006a4e;--s:#f42a41}
+body.th-france{--bg:#0a1230;--card:#141d45;--card2:#1c2759;--tx:#f5f7ff;--sub:#b4bcdc;--bd:#2a3670;--inp:#0e1638;--p:#ed2939;--s:#3b6fd8}
 body.th-barcelona{--bg:#0b0f2e;--card:#151a40;--card2:#1d2352;--tx:#fdf6e3;--sub:#b9b5d6;--bd:#2c3370;--inp:#0f1438;--p:#a50044;--s:#004d98}
-body.th-ocean::before,body.th-forest::before,body.th-sunset::before,body.th-rose::before,body.th-realmadrid::before,body.th-barcelona::before{background:radial-gradient(60% 100% at 50% 0%,color-mix(in srgb,var(--p) 14%,transparent),transparent 70%)}
+body.th-ocean::before,body.th-forest::before,body.th-sunset::before,body.th-rose::before,body.th-realmadrid::before,body.th-barcelona::before,body.th-bangladesh::before,body.th-france::before{background:radial-gradient(60% 100% at 50% 0%,color-mix(in srgb,var(--p) 14%,transparent),transparent 70%)}
 
 /* ---- login page ---- */
 .login{min-height:100vh;min-height:100dvh;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));background:radial-gradient(1200px 600px at 10% -10%,color-mix(in srgb,var(--p) 30%,transparent),transparent 60%),radial-gradient(900px 500px at 110% 110%,color-mix(in srgb,var(--p2,#4fc3e8) 26%,transparent),transparent 60%)}
@@ -2909,7 +2911,9 @@ const PRESET_THEMES = {
   rose:   { bn: 'গোলাপ',      en: 'Rose',    light: false },
   mint:   { bn: 'মিন্ট',      en: 'Mint',    light: true  },
   realmadrid: { bn: 'রিয়াল মাদ্রিদ', en: 'Real Madrid', light: true },
-  barcelona:  { bn: 'বার্সেলোনা',    en: 'Barcelona',   light: false }
+  barcelona:  { bn: 'বার্সেলোনা',    en: 'Barcelona',   light: false },
+  bangladesh: { bn: 'বাংলাদেশ',      en: 'Bangladesh',  light: true },
+  france:     { bn: 'ফ্রান্স',        en: 'France',      light: false }
 };
 const ALL_THEMES = ['dark', 'light', 'auto', ...Object.keys(PRESET_THEMES)];
 let themesList = [...ALL_THEMES];          // shared list (settings doc), 'dark' always kept
