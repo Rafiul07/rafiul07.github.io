@@ -2677,11 +2677,22 @@ const THEME_SW = {
   realmadrid: ['#f4f6fb', '#1e3a8a', '#c9a227'], barcelona: ['#0b0f2e', '#a50044', '#004d98'],
   bangladesh: ['#f2fbf6', '#006a4e', '#f42a41'], france: ['#0a1230', '#ed2939', '#3b6fd8']
 };
+// small flag-style picture on each card: national flags, and club colour stripes (no crests or logos)
+const FLAG_CSS = {
+  bangladesh: 'background:#006a4e;position:relative',
+  france: 'background:linear-gradient(90deg,#002395 0 33.3%,#ffffff 33.3% 66.6%,#ed2939 66.6%)',
+  realmadrid: 'background:linear-gradient(180deg,#ffffff 0 70%,#c9a227 70% 80%,#1e3a8a 80%)',
+  barcelona: 'background:linear-gradient(90deg,#004d98 0 25%,#a50044 25% 50%,#004d98 50% 75%,#a50044 75%)'
+};
+function flagHtml(k) {
+  const extra = k === 'bangladesh' ? '<i style="position:absolute;left:36%;top:50%;width:46%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:#f42a41"></i>' : '';
+  return `<span style="width:48px;height:32px;border-radius:6px;border:1px solid var(--bd);overflow:hidden;display:block;${FLAG_CSS[k]}">${extra}</span>`;
+}
 function themeGridHtml() {
   return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">` + themeList().map(k => {
     const on = theme === k, sw = THEME_SW[k] || ['#888', '#888', '#888'];
     return `<button onclick="setThemeMode('${k}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:12px;border-radius:14px;min-height:0;text-align:left;border:2px solid ${on ? 'var(--p)' : 'var(--bd)'};background:${on ? 'color-mix(in srgb,var(--p) 14%,var(--card))' : 'var(--card2)'};color:var(--tx);font-weight:700">
-      <span style="display:flex;gap:5px">${sw.map(c => `<i style="width:18px;height:18px;border-radius:50%;background:${c};border:1px solid var(--bd);display:block"></i>`).join('')}</span>
+      ${FLAG_CSS[k] ? flagHtml(k) : `<span style="display:flex;gap:5px">${sw.map(c => `<i style="width:18px;height:18px;border-radius:50%;background:${c};border:1px solid var(--bd);display:block"></i>`).join('')}</span>`}
       <span>${esc(themeLabel(k))}${on ? ' ✓' : ''}</span></button>`;
   }).join('') + `</div>`;
 }
