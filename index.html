@@ -1124,7 +1124,7 @@ auth.onAuthStateChanged(async user => {
       MESS_ADMIN = ms.exists ? ms.data().admin : '';
     }
   } catch (e) { showErr(e); }
-  isMgr = !!MID && me === MESS_ADMIN;
+  isMgr = false;   // even the mess admin opens the control panel only after typing the admin password
   if (!MID) {
     // not in any mess yet: no data is read. Shows verify / create-or-join screen
     loaded = { members: true, entries: true };
@@ -1143,7 +1143,7 @@ auth.onAuthStateChanged(async user => {
   unsubs.push(DBm('members').onSnapshot(s => {
     members = s.docs.map(d => ({ email: d.id, ...d.data() })); loaded.members = true;
     // admin rights can come from the member doc too (admin: true), so re-check after every members update
-    isMgr = accountAdmin() || adminUnlocked;
+    isMgr = adminUnlocked;   // admin rights apply only after the password is entered
     if (isMgr && !adminLogsOn) { adminLogsOn = true; startAdminListeners(); }
     if (!isMgr && adminLogsOn) { adminUnsubs.forEach(u => u()); adminUnsubs = []; adminLogsOn = false; }
     render();
