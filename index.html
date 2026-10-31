@@ -797,11 +797,11 @@ const nameOf = e => { const s = String(e || ''); const m = memberOf(s); return m
 function scoped() { return month === 'all' ? entries : entries.filter(x => String(x.date).slice(0, 7) === month); }
 /* money math counts only approved entries; pending (submitted) entries are not in any balance yet */
 /* the main admin only controls the app: its entries (if any) are not part of the mess money */
-function approvedScoped() { return scoped().filter(x => x.status === 'approved' && x.memberEmail !== MESS_ADMIN); }
+function approvedScoped() { return scoped().filter(x => x.status === 'approved'); }
 const bazarOf = e => approvedScoped().filter(x => x.memberEmail === e).reduce((a, x) => a + num(x.amount), 0);
 /* people who share the cost = current members (member doc exists). A removed member's bazar is not in the totals, so the balances always add up to zero. */
 /* the main admin account is not a mess member: it does not share the cost (no days, no balance) */
-function allEmails() { return members.filter(m => m.email !== MESS_ADMIN).map(m => m.email); }
+function allEmails() { return members.map(m => m.email); }
 function calc(list = approvedScoped()) {
   const em = allEmails();
   const tB = list.filter(x => em.includes(x.memberEmail)).reduce((a, x) => a + num(x.amount), 0);
@@ -1978,8 +1978,7 @@ let mSort = 'name';
 function renderMembers() {
   const q = ($('mSearch') ? $('mSearch').value : '').trim().toLowerCase();
   const rate = currentRate();
-  const rows = members   // the main admin account is not a mess member, so it is not listed here
-    .filter(m => m.email !== MESS_ADMIN)
+  const rows = members
     .filter(m => !q || (nameOf(m.email) + ' ' + m.email).toLowerCase().includes(q))
     .map(m => ({ m, b: bazarOf(m.email), bal: rate != null ? balOf(m.email, rate) : 0 }));
   rows.sort((x, y) => mSort === 'bazar' ? y.b - x.b
@@ -2101,7 +2100,7 @@ async function monthReport() {
   if (!v) return;
   const m = String(v).trim();
   if (!/^\d{4}-\d{2}$/.test(m)) { toast(t('needDateAmt'), true); return; }
-  const list = entries.filter(x => String(x.date).slice(0, 7) === m && x.status === 'approved' && x.memberEmail !== MESS_ADMIN);
+  const list = entries.filter(x => String(x.date).slice(0, 7) === m && x.status === 'approved');
   const c = calc(list);
   const rate = c.rate;
   const rows = c.em.map(e => {
