@@ -2602,6 +2602,7 @@ function renderAdmin() {
       </div></div>`).join('') : `<div class="empty">${isBn ? 'কোনো অপেক্ষমাণ এন্ট্রি নেই' : 'Nothing waiting for approval'}</div>`)
     + `</div>`;
   if (admTab === 'settings') {
+  h += meCardHtml();
   h += sec(isBn ? 'সদস্য যোগ করার কোড' : 'Invite code', `
       <div class="sub" style="margin-bottom:6px">${isBn ? 'নতুন সদস্য এই কোড দিয়ে সরাসরি যোগ দিতে পারবে।' : 'New members join directly with this code.'}</div>
       <div class="num" style="font-size:24px;font-weight:800;letter-spacing:3px;margin:8px 0">${esc(inviteCode || '—')}</div>
@@ -2609,7 +2610,6 @@ function renderAdmin() {
   h += sec(isBn ? 'Mess এর নাম' : 'Mess name', `
       <input id="mName" value="${esc(messName)}">
       <button class="pri" style="width:100%;margin-top:8px" onclick="saveMessName()">${isBn ? 'নাম সেভ করো' : 'Save name'}</button>`, false);
-  h += meCardHtml();
   h += gh(isBn ? 'মেস' : 'Mess');
   h += sec(t('management'), `
       <div class="lbl" style="margin-top:14px">${isBn ? 'ঘোষণা' : 'Notice'}</div>
