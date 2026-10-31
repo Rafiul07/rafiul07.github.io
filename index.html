@@ -2088,6 +2088,14 @@ async function addMember() {
     const fallback = email.split('@')[0].toUpperCase();
     if (s.exists) await ref.update({ name: name || s.data().name || fallback });
     else await ref.set({ email, name: name || fallback, days: 30, deposit: 0 });
+    // link the person to this mess right away, so they land in the app after login (no join request, no email verification)
+    // the rules refuse this write if the email already belongs to another mess
+    try {
+      await ADB().collection('users').doc(email).set({ messId: MID, name: name || fallback });
+    } catch (linkErr) {
+      toast(lang === 'bn' ? 'এই ইমেইল অন্য একটা mess এ আছে' : 'This email is already in another mess', true);
+      return;
+    }
     $('nEmail').value = ''; $('nName').value = ''; $('nPw').value = '';
     toast(existed ? (lang === 'bn' ? 'এই ইমেইলের login আগে থেকেই আছে, পাসওয়ার্ড বদলায়নি' : 'Login already exists, password not changed') : t('saved'));
   } catch (e) { showErr(e); }
