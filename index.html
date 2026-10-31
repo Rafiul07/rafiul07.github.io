@@ -1473,7 +1473,8 @@ auth.onAuthStateChanged(async user => {
     updateBazarStatus();
     const th = d.exists ? d.data().theme : null;
     if (d.exists && Array.isArray(d.data().themes)) themesList = d.data().themes.filter(k => ALL_THEMES.includes(k));
-    if (th && th !== theme && ALL_THEMES.includes(th)) { theme = th; localStorage.setItem('mh_theme', th); applyTheme(); }
+    // a theme just picked here may still show the old value from the server for a moment: don't switch back to it
+    if (th && th !== theme && ALL_THEMES.includes(th) && Date.now() - themePickedAt > 5000) { theme = th; localStorage.setItem('mh_theme', th); applyTheme(); }
     render();
   }, () => {}));
   resetForm();
@@ -2559,10 +2560,11 @@ function settingsHtml(skipMe = false) {
   h += gh(isBn ? 'অ্যাপ' : 'App');
   h += sec(t('preferences'), `
       <div class="lbl">${t('language')}</div>${seg('setLang', [['en', 'English'], ['bn', 'বাংলা']], lang)}
-      <div class="lbl">${t('theme')}</div>${seg('setThemeMode', themeList().map(k => [k, themeLabel(k)]), theme)}
+      <div class="lbl">${t('theme')}</div>${themeGridHtml()}
       ${isMgr ? themeAdminHtml() : ''}
-      ${isMgr ? '' : `<div class="sub" style="margin-top:6px">${t('themeByAdmin')}</div>`}
-      <div class="lbl">${t('fontSize')}</div>${seg('setFs', [['small', t('small')], ['medium', t('medium')], ['large', t('large')]], fs)}
+      ${isMgr ? '' : `<div class="sub" style="margin-top:6px">${t('themeByAdmin')}</div>`}`, false);
+  h += sec(t('fontSize'), `
+      ${seg('setFs', [['small', t('small')], ['medium', t('medium')], ['large', t('large')]], fs)}
       <div class="sample">${isBn ? 'এই লেখাটা এখন এই সাইজে দেখাবে।' : 'This is how text will look at this size.'}</div>`, false);
 
   h += sec(isBn ? 'নোটিফিকেশন ও ফোন' : 'Notifications & phone', `
@@ -2667,12 +2669,31 @@ function renderAdmin() {
 }
 
 function setLang(v) { lang = v; localStorage.setItem('mh_lang_bn', v); applyLang(); }
+let themePickedAt = 0;
+const THEME_SW = {
+  dark: ['#0a0a12', '#a855f7', '#22d3ee'], light: ['#f2f4fa', '#a855f7', '#22d3ee'], auto: ['#0a0a12', '#f2f4fa', '#a855f7'],
+  ocean: ['#071827', '#38bdf8', '#2dd4bf'], forest: ['#07140e', '#34d399', '#a3e635'], sunset: ['#1a0b10', '#fb923c', '#f43f5e'],
+  rose: ['#140816', '#e879f9', '#fb7185'], mint: ['#eefaf5', '#10b981', '#06b6d4'],
+  realmadrid: ['#f4f6fb', '#1e3a8a', '#c9a227'], barcelona: ['#0b0f2e', '#a50044', '#004d98'],
+  bangladesh: ['#f2fbf6', '#006a4e', '#f42a41'], france: ['#0a1230', '#ed2939', '#3b6fd8']
+};
+function themeGridHtml() {
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">` + themeList().map(k => {
+    const on = theme === k, sw = THEME_SW[k] || ['#888', '#888', '#888'];
+    return `<button onclick="setThemeMode('${k}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:12px;border-radius:14px;min-height:0;text-align:left;border:2px solid ${on ? 'var(--p)' : 'var(--bd)'};background:${on ? 'color-mix(in srgb,var(--p) 14%,var(--card))' : 'var(--card2)'};color:var(--tx);font-weight:700">
+      <span style="display:flex;gap:5px">${sw.map(c => `<i style="width:18px;height:18px;border-radius:50%;background:${c};border:1px solid var(--bd);display:block"></i>`).join('')}</span>
+      <span>${esc(themeLabel(k))}${on ? ' ✓' : ''}</span></button>`;
+  }).join('') + `</div>`;
+}
 function setThemeMode(v) {
   if (!isMgr) { toast(t('adminOnly'), true); return; }
+  themePickedAt = Date.now();
+  const y = window.scrollY;
   theme = v; localStorage.setItem('mh_theme', v); applyTheme(); render();
+  window.scrollTo(0, y);
   ADBm('settings').doc('app').set({ theme: v }, { merge: true }).catch(showErr);
 }
-function setFs(v) { fs = v; localStorage.setItem('mh_fs', v); applyFs(); render(); }
+function setFs(v) { const y = window.scrollY; fs = v; localStorage.setItem('mh_fs', v); applyFs(); render(); window.scrollTo(0, y); }
 function applyFs() { document.body.style.fontSize = ({ small: '13px', medium: '15px', large: '18px' })[fs] || '15px'; }
 async function changePassword() {
   const cur = await sheet({ title: t('curPw'), type: 'password', raw: true });
