@@ -420,6 +420,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 .meOut{width:100%;margin-top:14px;padding:12px;border-radius:14px;font-size:clamp(15px,4vw,16px);font-weight:800;color:var(--bad,#ff6b6b);background:color-mix(in srgb,var(--bad,#ff6b6b) 12%,transparent);border:1px solid color-mix(in srgb,var(--bad,#ff6b6b) 40%,transparent);cursor:pointer}
 .meOut:active{transform:scale(.98)}
 .pwWrap{position:relative}.pwWrap input{width:100%;padding-right:46px}.eyeBtn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;font-size:18px;cursor:pointer;padding:4px;min-height:0}
+.superTabs,.superChips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.superTabs button,.superChips button{flex:1 1 auto;padding:8px 10px}
 </style>
 </head>
 <body>
@@ -880,58 +881,122 @@ async function logSuper(action, m, extra) {
     await db.collection('superLogs').add({ action, messId: m.id, messName: m.name, extra: extra || '', by: me, at: Date.now() });
   } catch (e) { console.warn('log failed', e); }
 }
-/* one row per mess, with its actions (i = index in allMesses) */
+/* super admin page state */
+let superTab = 'messes', superFilter = 'all', superQ = '';
+let superDraft = { name: '', admin: '', notice: '' };   // typed text is kept across redraws
+const SUPER_TABS = [['messes', 'মেস', 'Messes'], ['new', 'নতুন মেস', 'New mess'], ['notice', 'ঘোষণা', 'Notice'], ['log', 'Log', 'Log'], ['settings', 'সেটিংস', 'Settings']];
+function setSuperTab(k) { superTab = k; renderSuper(); }
+function setSuperFilter(f) { superFilter = f; renderSuper(); }
+function superCopy(txt) {
+  const bn = lang === 'bn';
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast(bn ? 'কপি হয়েছে' : 'Copied')).catch(() => toast(txt, true));
+  else toast(txt, true);
+}
+/* one card per mess: status, admin, numbers, invite code and its actions (i = index in allMesses) */
 function superRow(m, i) {
   const bn = lang === 'bn';
-  const badge = m.archived ? (bn ? 'আর্কাইভ' : 'Archived') : (m.active ? (bn ? 'চালু' : 'On') : (bn ? 'বন্ধ' : 'Off'));
+  const st = m.archived ? (bn ? 'আর্কাইভ' : 'Archived') : (m.active ? (bn ? 'চালু' : 'On') : (bn ? 'বন্ধ' : 'Off'));
+  const cls = m.archived ? 'b-warn' : (m.active ? 'b-ok' : '');
   const open = superOpen.has(m.id);
   const memHtml = open
-    ? `<div class="sub" style="margin-top:6px">${(m.memList || []).map(x => `${esc(x.name)} (${esc(x.email)})${x.email === m.admin ? ' · Admin' : ''}`).join('<br>') || (bn ? 'কোনো সদস্য নেই' : 'No members')}</div>`
+    ? `<div class="sub" style="margin-top:8px;line-height:1.8">${(m.memList || []).map(x => `${esc(x.name)} · ${esc(x.email)}${x.email === m.admin ? ' <b>(Admin)</b>' : ''}`).join('<br>') || (bn ? 'কোনো সদস্য নেই' : 'No members')}</div>`
     : '';
-  const actBtns = m.archived
+  const acts = m.archived
     ? `<button class="ghost" onclick="superAct(${i},'restore')">${bn ? 'ফিরিয়ে আনো' : 'Restore'}</button>`
     : `<button class="ghost" onclick="superAct(${i},'toggle')">${m.active ? (bn ? 'বন্ধ করো' : 'Switch off') : (bn ? 'চালু করো' : 'Switch on')}</button>
-      <button class="ghost" onclick="superAct(${i},'admin')">${bn ? 'Admin বদলাও' : 'Change admin'}</button>
-      <button class="ghost" onclick="superAct(${i},'reset')">${bn ? 'Admin পাসওয়ার্ড রিসেট' : 'Reset admin password'}</button>
-      <button class="ghost" onclick="superAct(${i},'rename')">${bn ? 'নাম বদলাও' : 'Rename'}</button>
-      <button class="bad" onclick="superAct(${i},'archive')">${bn ? 'আর্কাইভ' : 'Archive'}</button>`;
-  return `<div class="entry" style="flex-direction:column;align-items:stretch">
-    <div class="row between"><b>${esc(m.name)}</b><span class="badge ${m.active && !m.archived ? 'b-sub' : ''}">${badge}</span></div>
-    <div class="sub">${esc(m.admin)} · <span class="num">${m.count}</span> ${bn ? 'জন' : 'members'} · ${bn ? 'বাজার' : 'Bazar'} <span class="num">${f2(m.tB)}</span> · ${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—'}</div>
+       <button class="ghost" onclick="superAct(${i},'admin')">${bn ? 'Admin বদলাও' : 'Change admin'}</button>
+       <button class="ghost" onclick="superAct(${i},'rename')">${bn ? 'নাম বদলাও' : 'Rename'}</button>
+       <button class="ghost" onclick="superAct(${i},'reset')">${bn ? 'Admin password reset' : 'Reset admin password'}</button>
+       <button class="bad" onclick="superAct(${i},'archive')">${bn ? 'আর্কাইভ' : 'Archive'}</button>`;
+  return `<div class="card sm" data-s="${esc((m.name + ' ' + m.admin + ' ' + m.id).toLowerCase())}" style="margin:10px 0">
+    <div class="row between"><b>${esc(m.name)}</b><span class="badge ${cls}">${st}</span></div>
+    <div class="sub">${esc(m.admin)}</div>
+    <div class="sub">${bn ? 'সদস্য' : 'Members'}: <b class="num">${m.count}</b> · ${bn ? 'বাজার' : 'Bazar'}: <b class="num">${f2(m.tB)}</b> · ${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—'}</div>
+    <div class="sub">${bn ? 'Invite code' : 'Invite code'}: <b>${esc(m.code || '—')}</b></div>
     ${memHtml}
-    <div class="acts" style="flex-wrap:wrap">
+    <div class="acts" style="flex-wrap:wrap;margin-top:8px">
       <button class="ghost" onclick="superAct(${i},'members')">${open ? (bn ? 'সদস্য লুকাও' : 'Hide members') : (bn ? 'সদস্য দেখো' : 'Show members')}</button>
-      ${actBtns}
+      ${m.code ? `<button class="ghost" onclick="superCopy('${esc(m.code)}')">${bn ? 'কোড কপি' : 'Copy code'}</button>` : ''}
+      ${acts}
     </div></div>`;
 }
-function superCardHtml() {
+/* search only hides or shows the cards already on screen, so typing keeps focus */
+function superSearch(q) {
+  superQ = String(q || '').trim().toLowerCase();
+  document.querySelectorAll('#superList .sm').forEach(el => { el.style.display = (!superQ || el.dataset.s.includes(superQ)) ? '' : 'none'; });
+}
+function superKpi() {
   const bn = lang === 'bn';
-  const totalMembers = allMesses ? allMesses.reduce((a, m) => a + m.count, 0) : 0;
-  const totalBazar = allMesses ? allMesses.reduce((a, m) => a + m.tB, 0) : 0;
-  const list = allMesses
-    ? (allMesses.length ? allMesses.map((m, i) => superRow(m, i)).join('') : `<div class="empty">${bn ? 'এখনো কোনো mess নেই' : 'No messes yet'}</div>`)
-    : '';
-  const summary = allMesses
-    ? `<div class="sub" style="margin-bottom:8px">${bn ? 'মোট mess' : 'Messes'}: <b class="num">${allMesses.length}</b> · ${bn ? 'মোট সদস্য' : 'Members'}: <b class="num">${totalMembers}</b> · ${bn ? 'মোট বাজার' : 'Total bazar'}: <b class="num">${f2(totalBazar)}</b></div>`
-    : '';
-  return `<div class="card"><h3>${bn ? 'সব mess (শুধু তুমি দেখবে)' : 'All messes (only you see this)'}</h3>
-    <div class="sub" style="margin-bottom:6px">${APP_VERSION}</div>
-    ${summary}
-    ${list}
-    <button class="pri" style="width:100%;margin-top:10px" onclick="loadAllMesses()">${bn ? 'তালিকা লোড / আবার লোড করো' : 'Load / refresh list'}</button>
-    <hr style="margin:16px 0;opacity:.2">
-    <h3 style="margin:0 0 8px">${bn ? 'কাজের log (শুধু পড়া যাবে)' : 'Activity log (read only)'}</h3>
-    ${superLogs.length ? superLogs.map(l => `<div class="sub">${new Date(l.at).toLocaleString('en-GB')} · ${esc(l.action)} · ${esc(l.messName || '')}${l.extra ? ' → ' + esc(l.extra) : ''}</div>`).join('') : `<div class="sub">${bn ? 'এখনো কোনো কাজ লগ হয়নি' : 'No actions logged yet'}</div>`}
-    <hr style="margin:16px 0;opacity:.2">
-    <h3 style="margin:0 0 8px">${bn ? 'সব mess এ ঘোষণা' : 'Notice to all messes'}</h3>
-    <textarea id="bcTxt" rows="2" style="width:100%" placeholder="${bn ? 'যেমন: এই মাসের বাজার জমার শেষ তারিখ ৫ তারিখ' : 'e.g. Deposit due by the 5th'}"></textarea>
-    <button class="pri" style="width:100%;margin-top:8px" onclick="superBroadcast()">${bn ? 'সব mess এ পাঠাও' : 'Send to all messes'}</button>
-    <hr style="margin:16px 0;opacity:.2">
-    <h3 style="margin:0 0 8px">${bn ? 'নতুন mess বানাও' : 'Create a new mess'}</h3>
-    <input id="nmName" placeholder="${bn ? 'মেসের নাম' : 'Mess name'}">
-    <input id="nmAdmin" type="email" placeholder="${bn ? 'Admin এর email' : 'Admin email'}" style="margin-top:8px">
-    <div class="sub" style="margin-top:6px">${bn ? 'Admin আগে নিজের account খুলবে। তারপর এখানে তার email দিলে সে ওই mess এর admin হবে।' : 'The admin must sign up first. Then their email here makes them the admin of this mess.'}</div>
+  const a = allMesses || [];
+  const k = (l, v) => `<div class="card" style="padding:10px;text-align:center"><div class="sub">${l}</div><b class="num" style="font-size:18px">${v}</b></div>`;
+  return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">`
+    + k(bn ? 'মোট mess' : 'Messes', a.length)
+    + k(bn ? 'চালু' : 'On', a.filter(m => m.active && !m.archived).length)
+    + k(bn ? 'বন্ধ' : 'Off', a.filter(m => !m.active && !m.archived).length)
+    + k(bn ? 'আর্কাইভ' : 'Archived', a.filter(m => m.archived).length)
+    + k(bn ? 'সদস্য' : 'Members', a.reduce((x, m) => x + m.count, 0))
+    + k(bn ? 'মোট বাজার' : 'Total bazar', f2(a.reduce((x, m) => x + m.tB, 0)))
+    + `</div>`;
+}
+function superTabHtml() {
+  const bn = lang === 'bn';
+  return `<div class="superTabs">${SUPER_TABS.map(([k, b, e]) => `<button class="${superTab === k ? 'pri' : 'ghost'}" onclick="setSuperTab('${k}')">${bn ? b : e}</button>`).join('')}</div>`;
+}
+function superMessesHtml() {
+  const bn = lang === 'bn';
+  if (!allMesses) return `<div class="empty">${bn ? 'তালিকা লোড হচ্ছে…' : 'Loading…'}</div>`;
+  const keep = m => superFilter === 'all'
+    || (superFilter === 'on' && m.active && !m.archived)
+    || (superFilter === 'off' && !m.active && !m.archived)
+    || (superFilter === 'archived' && m.archived);
+  const chips = [['all', bn ? 'সব' : 'All'], ['on', bn ? 'চালু' : 'On'], ['off', bn ? 'বন্ধ' : 'Off'], ['archived', bn ? 'আর্কাইভ' : 'Archived']]
+    .map(([k, l]) => `<button class="${superFilter === k ? 'pri' : 'ghost'}" onclick="setSuperFilter('${k}')">${l}</button>`).join('');
+  const rows = allMesses.map((m, i) => keep(m) ? superRow(m, i) : '').join('');
+  return `<input id="superSearchIn" value="${esc(superQ)}" oninput="superSearch(this.value)" placeholder="${bn ? 'মেস, admin বা email খোঁজো' : 'Search mess, admin or email'}">
+    <div class="superChips">${chips}</div>
+    <button class="ghost" style="width:100%;margin:6px 0" onclick="loadAllMesses()">${bn ? 'তালিকা আবার লোড করো' : 'Reload list'}</button>
+    <div id="superList">${rows || `<div class="empty">${bn ? 'কোনো mess নেই' : 'No messes'}</div>`}</div>`;
+}
+function superNewHtml() {
+  const bn = lang === 'bn';
+  return `<div class="card"><h3 style="margin:0 0 8px">${bn ? 'নতুন mess বানাও' : 'Create a new mess'}</h3>
+    <input id="nmName" value="${esc(superDraft.name)}" oninput="superDraft.name=this.value" placeholder="${bn ? 'মেসের নাম' : 'Mess name'}">
+    <input id="nmAdmin" type="email" value="${esc(superDraft.admin)}" oninput="superDraft.admin=this.value" placeholder="${bn ? 'Admin এর email' : 'Admin email'}" style="margin-top:8px">
+    <div class="sub" style="margin-top:6px">${bn ? 'Admin আগে নিজের account খুলবে। তারপর তার email দিলে সে এই mess এর admin হবে। একটা email একটাই mess এ থাকতে পারবে।' : 'The admin must sign up first. Then their email makes them admin of this mess. One email can belong to one mess only.'}</div>
     <button class="pri" style="width:100%;margin-top:10px" onclick="createMessFor()">${bn ? 'মেস বানাও' : 'Create mess'}</button></div>`;
+}
+function superNoticeHtml() {
+  const bn = lang === 'bn';
+  return `<div class="card"><h3 style="margin:0 0 8px">${bn ? 'সব mess এ ঘোষণা' : 'Notice to all messes'}</h3>
+    <textarea id="bcTxt" rows="3" style="width:100%" oninput="superDraft.notice=this.value" placeholder="${bn ? 'যেমন: এই মাসের বাজার জমার শেষ তারিখ ৫ তারিখ' : 'e.g. Deposit due by the 5th'}">${esc(superDraft.notice)}</textarea>
+    <div class="sub" style="margin-top:6px">${bn ? 'প্রতিটি চালু mess এর Home এ এটা দেখাবে।' : 'Shown on the Home of every active mess.'}</div>
+    <button class="pri" style="width:100%;margin-top:8px" onclick="superBroadcast()">${bn ? 'সব mess এ পাঠাও' : 'Send to all messes'}</button></div>`;
+}
+function superLogHtml() {
+  const bn = lang === 'bn';
+  if (!superLogs.length) return `<div class="card"><div class="sub">${bn ? 'এখনো কোনো কাজ লগ হয়নি' : 'No actions logged yet'}</div></div>`;
+  return `<div class="card"><h3 style="margin:0 0 8px">${bn ? 'কাজের log (শুধু পড়া যাবে)' : 'Activity log (read only)'}</h3>`
+    + superLogs.map(l => `<div class="sub" style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,.2)">${new Date(l.at).toLocaleString('en-GB')} · <b>${esc(l.action)}</b> · ${esc(l.messName || '')}${l.extra ? ' → ' + esc(l.extra) : ''}</div>`).join('')
+    + `</div>`;
+}
+function superSettingsHtml() {
+  const bn = lang === 'bn';
+  return `<div class="card">
+    <h3 style="margin:0 0 8px">${bn ? 'ভাষা' : 'Language'}</h3>
+    <div class="acts"><button class="${lang === 'bn' ? 'pri' : 'ghost'}" onclick="setLang('bn')">বাংলা</button><button class="${lang === 'en' ? 'pri' : 'ghost'}" onclick="setLang('en')">English</button></div>
+    <h3 style="margin:14px 0 8px">${bn ? 'থিম' : 'Theme'}</h3>
+    <div class="acts"><button class="${theme === 'dark' ? 'pri' : 'ghost'}" onclick="setSuperTheme('dark')">Dark</button><button class="${theme === 'light' ? 'pri' : 'ghost'}" onclick="setSuperTheme('light')">Light</button></div>
+    <h3 style="margin:14px 0 8px">${bn ? 'আমার password' : 'My password'}</h3>
+    <button class="ghost" style="width:100%" onclick="superResetSelf()">${bn ? 'আমার password বদলানোর ইমেইল পাঠাও' : 'Send password reset email to me'}</button>
+    <h3 style="margin:14px 0 8px">${bn ? 'অ্যাকাউন্ট' : 'Account'}</h3>
+    <div class="sub" style="margin-bottom:8px">${esc(me)}</div>
+    <button class="bad" style="width:100%" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`;
+}
+function setSuperTheme(v) { theme = v; localStorage.setItem('mh_theme', v); applyTheme(); renderSuper(); }
+async function superResetSelf() {
+  const bn = lang === 'bn';
+  try { await auth.sendPasswordResetEmail(me); toast(bn ? 'ইমেইল পাঠানো হয়েছে' : 'Email sent'); }
+  catch (e) { showErr(e); }
 }
 /* super admin actions on one mess (i = index in allMesses). Nothing here deletes data: a mess is archived, never removed */
 async function superAct(i, what) {
@@ -1011,7 +1076,25 @@ async function superBroadcast() {
       await db.collection('messes').doc(m.id).collection('settings').doc('app').set({ notice: txt }, { merge: true });
     }
     toast(bn ? 'সব mess এ পাঠানো হয়েছে' : 'Sent to all messes');
+    await logSuper(bn ? 'ঘোষণা' : 'notice', { id: 'all', name: bn ? 'সব mess' : 'All messes' }, txt.slice(0, 60));
+    superDraft.notice = '';
   } catch (e) { showErr(e); }
+}
+/* super admin's only page: summary, tabs, and the active tab. Nothing from any mess is shown here */
+function renderSuper() {
+  $('app').classList.remove('hidden');
+  Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== 'home'));
+  page = 'home';
+  $('nav').innerHTML = '';
+  $('qBar').classList.add('hidden'); $('bazarStatus').classList.add('hidden');
+  $('roleTag').innerText = 'Super admin';
+  const body = superTab === 'messes' ? superMessesHtml()
+    : superTab === 'new' ? superNewHtml()
+    : superTab === 'notice' ? superNoticeHtml()
+    : superTab === 'log' ? superLogHtml()
+    : superSettingsHtml();
+  $('hContent').innerHTML = `<div class="sub" style="margin:4px 0 6px">${APP_VERSION}</div>${superKpi()}${superTabHtml()}${body}`;
+  if (superTab === 'messes' && superQ) superSearch(superQ);
 }
 function renderBlocked() {
   const bn = lang === 'bn';
@@ -1033,13 +1116,18 @@ async function createMessFor() {
   const adm = (($('nmAdmin') && $('nmAdmin').value) || '').trim().toLowerCase();
   if (!name) return toast(bn ? 'Mess এর নাম লেখো' : 'Enter a mess name', true);
   if (!adm.includes('@')) return toast(bn ? 'Admin এর সঠিক email দাও' : 'Enter a valid admin email', true);
-  const mid = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  const code = Math.random().toString(36).slice(2, 8).toUpperCase();
   try {
+    // one email belongs to one mess only
+    const link = await db.collection('users').doc(adm).get();
+    if (link.exists && link.data().messId) return toast(bn ? 'এই email আগে থেকেই একটা mess এ আছে' : 'This email is already in a mess', true);
+    const mid = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
     await db.collection('messes').doc(mid).set({ name, admin: adm, inviteCode: code, createdAt: Date.now() });
     await db.collection('codes').doc(code).set({ messId: mid });
     await db.collection('users').doc(adm).set({ messId: mid, name: adm.split('@')[0] });
-    toast(bn ? 'মেস বানানো হয়েছে' : 'Mess created');
+    await logSuper(bn ? 'নতুন mess' : 'mess created', { id: mid, name }, adm);
+    superDraft.name = ''; superDraft.admin = '';
+    toast((bn ? 'মেস বানানো হয়েছে। Invite code: ' : 'Mess created. Invite code: ') + code);
     loadAllMesses();
   } catch (e) { showErr(e); }
 }
@@ -1265,6 +1353,8 @@ auth.onAuthStateChanged(async user => {
   MID = ''; MESS_ADMIN = ''; isMgr = false; blocked = false; blockedNote = '';
   $('login').classList.add('hidden');
   $('app').classList.remove('hidden');
+  // super admin: only the all-messes page, no mess data is read for this account
+  if (me === SUPER_EMAIL) { loaded = { members: true, entries: true }; loadAllMesses(); return; }
   // which mess is this person in? users/{email} is written when the mess is created or a join request is approved
   try {
     const link = await db.collection('users').doc(me).get();
@@ -1470,6 +1560,7 @@ function go(p, fromHistory = false) {
 
 function render() {
   if (!me) return;
+  if (me === SUPER_EMAIL) { renderSuper(); return; }
   if (blocked && !isMgr) { renderBlocked(); return; }
   // not in a mess yet: verify screen, or the create / join screen
   if (!MID) {
@@ -2415,7 +2506,6 @@ function renderAdmin() {
   h += `<div class="card"><h3>${isBn ? 'Mess এর নাম' : 'Mess name'}</h3>
       <input id="mName" value="${esc(messName)}">
       <button class="pri" style="width:100%;margin-top:8px" onclick="saveMessName()">${isBn ? 'নাম সেভ করো' : 'Save name'}</button></div>`;
-  if (me === SUPER_EMAIL) h += superCardHtml();
   h += meCardHtml();
   h += gh(isBn ? 'মেস' : 'Mess');
   h += sec(t('management'), `
