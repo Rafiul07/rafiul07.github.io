@@ -962,13 +962,11 @@ function superKpi() {
   const bn = lang === 'bn';
   const a = allMesses || [];
   const k = (l, v) => `<div class="card" style="padding:10px;text-align:center"><div class="sub">${l}</div><b class="num" style="font-size:18px">${v}</b></div>`;
-  return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">`
+  return `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px">`
     + k(bn ? 'মোট mess' : 'Messes', a.length)
     + k(bn ? 'চালু' : 'On', a.filter(m => m.active && !m.archived).length)
     + k(bn ? 'বন্ধ' : 'Off', a.filter(m => !m.active && !m.archived).length)
     + k(bn ? 'আর্কাইভ' : 'Archived', a.filter(m => m.archived).length)
-    + k(bn ? 'সদস্য' : 'Members', a.reduce((x, m) => x + m.count, 0))
-    + k(bn ? 'মোট বাজার' : 'Total bazar', f2(a.reduce((x, m) => x + m.tB, 0)))
     + `</div>`;
 }
 function superTabHtml() {
