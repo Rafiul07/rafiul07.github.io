@@ -583,7 +583,8 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 </div>
 
 <script>
-const MANAGER = 'admin@gmail.com'; // admin account: runs the app and is also a mess member
+let MID = '';          // id of the mess this person belongs to (set on login, from users/{email})
+let MESS_ADMIN = '';   // admin email of that mess (from messes/{MID}.admin); the admin is also a mess member
 
 const FB_CONFIG = {
   apiKey: "AIzaSyDphTQKfSWT6HbYaaFqIE22y9jj6xbtXco",
@@ -597,6 +598,9 @@ firebase.initializeApp(FB_CONFIG);
 const auth = firebase.auth();
 const db = firebase.firestore();
 db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); // offline: writes queue and sync later
+/* every mess's data lives under messes/{MID}/... ; these helpers point at the current mess */
+const DBm = n => db.collection('messes').doc(MID).collection(n);
+const ADBm = n => ADB().collection('messes').doc(MID).collection(n);
 
 /* ================= TEXT ================= */
 const T = {
@@ -668,6 +672,7 @@ function toggleAllView() {
 let lastSum = '';
 let lastStatus = {}, deferredPrompt = null;
 let notes = [];
+let inviteCode = '';    // this mess's invite code (admin sees it in the control panel)
 let myReq = undefined;   // my join request: undefined = not loaded, null = none, object = pending
 let reqs = [];          // admin: pending join requests
 let openAdminNext = false;
@@ -676,7 +681,7 @@ let openAdminNext = false;
 let adminUnlocked = false, adminSess = null, adminDb = null, adminUnsubs = [];
 let adminLogsOn = false;
 /* admin rights: the main admin account, or a member whose member doc has admin: true */
-const isAdminRow = e => e === MANAGER || !!((memberOf(e) || {}).admin);
+const isAdminRow = e => e === MESS_ADMIN || !!((memberOf(e) || {}).admin);
 const accountAdmin = () => isAdminRow(me);
 const ADB = () => (accountAdmin() ? db : (adminDb || db));
 const ADBAuth = () => (accountAdmin() ? auth : (adminSess ? adminSess.auth() : auth));
@@ -750,11 +755,11 @@ const nameOf = e => { const s = String(e || ''); const m = memberOf(s); return m
 function scoped() { return month === 'all' ? entries : entries.filter(x => String(x.date).slice(0, 7) === month); }
 /* money math counts only approved entries; pending (submitted) entries are not in any balance yet */
 /* the main admin only controls the app: its entries (if any) are not part of the mess money */
-function approvedScoped() { return scoped().filter(x => x.status === 'approved' && x.memberEmail !== MANAGER); }
+function approvedScoped() { return scoped().filter(x => x.status === 'approved' && x.memberEmail !== MESS_ADMIN); }
 const bazarOf = e => approvedScoped().filter(x => x.memberEmail === e).reduce((a, x) => a + num(x.amount), 0);
 /* people who share the cost = current members (member doc exists). A removed member's bazar is not in the totals, so the balances always add up to zero. */
 /* the main admin account is not a mess member: it does not share the cost (no days, no balance) */
-function allEmails() { return members.filter(m => m.email !== MANAGER).map(m => m.email); }
+function allEmails() { return members.filter(m => m.email !== MESS_ADMIN).map(m => m.email); }
 function calc(list = approvedScoped()) {
   const em = allEmails();
   const tB = list.filter(x => em.includes(x.memberEmail)).reduce((a, x) => a + num(x.amount), 0);
@@ -823,11 +828,99 @@ async function forgot() {
     $('lMsg').innerText = lang === 'bn' ? 'লিংক পাঠানো গেলো না, ইমেইল ঠিক আছে কিনা দেখো' : 'Could not send the link, check the email';
   }
 }
-function sendReq(info) {
-  const d = info || {};
-  return db.collection('requests').doc(me).set({ email: me, name: d.name || me.split('@')[0], ...(d.phone ? { phone: d.phone } : {}), status: 'pending', createdAt: Date.now() })
-    .then(() => toast(lang === 'bn' ? 'অনুরোধ পাঠানো হয়েছে' : 'Request sent'))
-    .catch(showErr);
+/* name typed at sign-up (kept in this browser until the join request goes out) */
+function signupName() {
+  try { return localStorage.getItem('mh_signup_name') || ''; } catch (x) { return ''; }
+}
+/* a new person creates a mess: they become its admin. The mess, its invite code, their link and their member doc are written in this order */
+async function createMess() {
+  const bn = lang === 'bn';
+  const name = ($('cName').value || '').trim();
+  if (!name) return toast(bn ? 'Mess এর নাম লেখো' : 'Enter a mess name', true);
+  const mid = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const nm = signupName() || me.split('@')[0];
+  try {
+    await db.collection('messes').doc(mid).set({ name, admin: me, inviteCode: code, createdAt: Date.now() });
+    await db.collection('codes').doc(code).set({ messId: mid });
+    await db.collection('users').doc(me).set({ messId: mid, name: nm });
+    await db.collection('messes').doc(mid).collection('members').doc(me).set({ email: me, name: nm.toUpperCase(), days: 30, deposit: 0 });
+    try { localStorage.removeItem('mh_signup_name'); } catch (x) {}
+    location.reload();   // reload picks up the new mess from users/{email}
+  } catch (e) { showErr(e); }
+}
+/* join: look up the invite code, then send a pending request into that mess. The mess admin approves it */
+async function joinByCode() {
+  const bn = lang === 'bn';
+  const code = ($('jCode').value || '').trim().toUpperCase();
+  if (!code) return toast(bn ? 'Invite code লেখো' : 'Enter the invite code', true);
+  try {
+    const c = await db.collection('codes').doc(code).get();
+    if (!c.exists) return toast(bn ? 'এই কোড মেলেনি' : 'Code not found', true);
+    const mid = c.data().messId;
+    await db.collection('messes').doc(mid).collection('requests').doc(me)
+      .set({ email: me, name: signupName() || me.split('@')[0], status: 'pending', createdAt: Date.now() });
+    try { localStorage.setItem('mh_join_mid', mid); } catch (x) {}
+    toast(bn ? 'অনুরোধ পাঠানো হয়েছে' : 'Request sent');
+    watchJoinReq();
+  } catch (e) { showErr(e); }
+}
+/* one-time move of the old single-mess data (root collections) into messes/main. Only the original admin account sees the button */
+const LEGACY_ADMIN = 'admin@gmail.com';
+async function migrateLegacy() {
+  const bn = lang === 'bn';
+  if (me !== LEGACY_ADMIN) return;
+  const MIDL = 'main', code = 'MAIN' + Math.random().toString(36).slice(2, 6).toUpperCase();
+  const chunks = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
+  try {
+    toast(bn ? 'পুরনো data সরানো হচ্ছে...' : 'Moving old data...');
+    const [mem, ent, sli, not, sum, set] = await Promise.all([
+      db.collection('members').get(), db.collection('entries').get(), db.collection('slips').get(),
+      db.collection('notes').get(), db.collection('summary').doc('main').get(), db.collection('settings').doc('app').get()]);
+    const base = db.collection('messes').doc(MIDL);
+    await base.set({ name: bn ? 'মেস' : 'Mess', admin: me, inviteCode: code, createdAt: Date.now() });
+    await db.collection('codes').doc(code).set({ messId: MIDL });
+    await db.collection('users').doc(me).set({ messId: MIDL, name: me.split('@')[0] });
+    for (const part of chunks(mem.docs, 300)) {
+      const b = db.batch();
+      part.forEach(d => b.set(base.collection('members').doc(d.id), d.data()));
+      await b.commit();
+    }
+    // members who are not the admin get their link now, so they can sign in and see this mess
+    for (const part of chunks(mem.docs.filter(d => d.id !== me), 300)) {
+      const b = db.batch();
+      part.forEach(d => b.set(db.collection('users').doc(d.id), { messId: MIDL, name: d.data().name || d.id.split('@')[0] }));
+      await b.commit();
+    }
+    for (const part of chunks(ent.docs, 300)) {
+      const b = db.batch(); part.forEach(d => b.set(base.collection('entries').doc(d.id), d.data())); await b.commit();
+    }
+    for (const part of chunks(not.docs, 300)) {
+      const b = db.batch(); part.forEach(d => b.set(base.collection('notes').doc(d.id), d.data())); await b.commit();
+    }
+    // slips can be large, so small batches
+    for (const part of chunks(sli.docs, 20)) {
+      const b = db.batch(); part.forEach(d => b.set(base.collection('slips').doc(d.id), d.data())); await b.commit();
+    }
+    if (sum.exists) await base.collection('summary').doc('main').set(sum.data());
+    if (set.exists) await base.collection('settings').doc('app').set(set.data());
+    toast(bn ? 'সব data সরানো হয়েছে' : 'Old data moved');
+    location.reload();
+  } catch (e) { showErr(e); }
+}
+/* watches my join request in the mess I asked to join; when it disappears (approved or rejected) the page reloads to check */
+let joinUnsub = null;
+function watchJoinReq() {
+  if (joinUnsub) { joinUnsub(); joinUnsub = null; }
+  let mid = ''; try { mid = localStorage.getItem('mh_join_mid') || ''; } catch (x) {}
+  if (!mid || !me) { myReq = null; return; }
+  let sawDoc = false;
+  joinUnsub = db.collection('messes').doc(mid).collection('requests').doc(me).onSnapshot(d => {
+    if (d.exists) { sawDoc = true; myReq = d.data(); render(); return; }
+    myReq = null;
+    if (sawDoc) { try { localStorage.removeItem('mh_join_mid'); } catch (x) {} location.reload(); return; }
+    render();
+  }, () => { myReq = null; render(); });
 }
 /* email not verified yet (new sign-up): only the verify screen shows. Admin and members are never blocked here */
 function renderVerify() {
@@ -855,12 +948,7 @@ function checkVerified() {
   const u = auth.currentUser;
   if (!u) return;
   u.reload().then(() => {
-    if (u.emailVerified && !myReq) {
-      let nm = '';
-      try { nm = localStorage.getItem('mh_signup_name') || ''; localStorage.removeItem('mh_signup_name'); } catch (x) {}
-      if (nm) sendReq({ name: nm });   // the join request goes out only after the email is verified
-    }
-    render();
+    render();   // verified: the create-or-join screen shows; nothing is sent automatically
   }).catch(showErr);
 }
 /* wrong email at sign-up: delete this unverified account, then the user can sign up again with the right email */
@@ -917,13 +1005,23 @@ function renderPending() {
   page = 'home';
   $('nav').innerHTML = '';
   $('roleTag').innerText = bn ? 'নতুন' : 'New';
-  $('hContent').innerHTML = `<div class="card" style="text-align:center;padding:24px">
-    <div class="sub">${has
-      ? (bn ? 'তোমার অনুরোধ পাঠানো হয়েছে। অনুমোদনের পর হিসাব দেখতে পারবে।' : 'Your request is sent. You can see the accounts after approval.')
-      : (bn ? 'এখনো অনুরোধ পাঠানো হয়নি।' : 'No request sent yet.')}</div>
-    ${has ? '' : `<button class="pri" style="width:100%;margin-top:16px" onclick="sendReq()">${bn ? 'অনুরোধ পাঠাও' : 'Send request'}</button>`}
-    <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button>
-  </div>`;
+  $('hContent').innerHTML = has
+    ? `<div class="card" style="text-align:center;padding:24px"><div class="sub">${bn
+        ? 'তোমার অনুরোধ পাঠানো হয়েছে। mess-এর অ্যাডমিন অনুমোদন দিলে হিসাব দেখতে পারবে।'
+        : 'Your request is sent. The mess admin must approve it before you can see the accounts.'}</div>
+      <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`
+    : `<div class="card" style="padding:20px">
+      <h3 style="margin:0 0 8px">${bn ? 'নতুন mess বানাও' : 'Create a new mess'}</h3>
+      <div class="sub" style="margin-bottom:8px">${bn ? 'তুমি এই mess-এর অ্যাডমিন হবে।' : 'You will be the admin of this mess.'}</div>
+      <input id="cName" placeholder="${bn ? 'Mess এর নাম' : 'Mess name'}">
+      <button class="pri" style="width:100%;margin-top:10px" onclick="createMess()">${bn ? 'Mess বানাও' : 'Create mess'}</button>
+      <hr style="margin:18px 0;opacity:.2">
+      <h3 style="margin:0 0 8px">${bn ? 'বা invite code দিয়ে যোগ দাও' : 'Or join with an invite code'}</h3>
+      <input id="jCode" placeholder="${bn ? 'Invite code' : 'Invite code'}" style="text-transform:uppercase">
+      <button class="ghost" style="width:100%;margin-top:10px" onclick="joinByCode()">${bn ? 'অনুরোধ পাঠাও' : 'Send request'}</button>
+      ${me === LEGACY_ADMIN ? `<hr style="margin:18px 0;opacity:.2"><button class="pri" style="width:100%" onclick="migrateLegacy()">${bn ? 'আগের সব data এই mess-এ আনো (একবার)' : 'Move old data into this mess (once)'}</button>` : ''}
+      <button class="ghost" style="width:100%;margin-top:10px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button>
+    </div>`;
 }
 /* members can type just the name (rafiul): the mess domain is added. Anything with @ is used as typed */
 function loginEmail(raw) {
@@ -966,12 +1064,34 @@ auth.onAuthStateChanged(async user => {
     me = ''; return;
   }
   me = user.email.toLowerCase();
-  isMgr = me === MANAGER;
+  MID = ''; MESS_ADMIN = ''; isMgr = false;
   $('login').classList.add('hidden');
   $('app').classList.remove('hidden');
+  // which mess is this person in? users/{email} is written when the mess is created or a join request is approved
+  try {
+    const link = await db.collection('users').doc(me).get();
+    if (link.exists && link.data().messId) {
+      MID = link.data().messId;
+      const ms = await db.collection('messes').doc(MID).get();
+      MESS_ADMIN = ms.exists ? ms.data().admin : '';
+    }
+  } catch (e) { showErr(e); }
+  isMgr = !!MID && me === MESS_ADMIN;
+  if (!MID) {
+    // not in any mess yet: no data is read. Shows verify / create-or-join screen
+    loaded = { members: true, entries: true };
+    watchJoinReq();
+    render();
+    return;
+  }
 
+  // the mess doc holds the invite code; the admin reads it for the control panel
+  unsubs.push(db.collection('messes').doc(MID).onSnapshot(d => {
+    inviteCode = d.exists ? (d.data().inviteCode || '') : '';
+    if (isMgr) render();
+  }, () => {}));
   // everyone can read members and entries (no photos there); pay slips live in slips/{id}, readable by owner and admin only
-  unsubs.push(db.collection('members').onSnapshot(s => {
+  unsubs.push(DBm('members').onSnapshot(s => {
     members = s.docs.map(d => ({ email: d.id, ...d.data() })); loaded.members = true;
     // admin rights can come from the member doc too (admin: true), so re-check after every members update
     isMgr = accountAdmin() || adminUnlocked;
@@ -979,9 +1099,7 @@ auth.onAuthStateChanged(async user => {
     if (!isMgr && adminLogsOn) { adminUnsubs.forEach(u => u()); adminUnsubs = []; adminLogsOn = false; }
     render();
   }, () => { loaded.members = true; render(); }));   // not allowed to read members = not a member yet
-  myReq = undefined;
-  unsubs.push(db.collection('requests').doc(me).onSnapshot(d => { myReq = d.exists ? d.data() : null; render(); }, () => {}));
-  unsubs.push(db.collection('entries').onSnapshot(s => {
+  unsubs.push(DBm('entries').onSnapshot(s => {
     const prev = lastStatus;
     entries = s.docs.map(d => ({ id: d.id, ...d.data() }));
     lastStatus = {}; entries.forEach(x => { lastStatus[x.id] = x.status; });
@@ -993,23 +1111,23 @@ auth.onAuthStateChanged(async user => {
     loaded.entries = true; render();
   }, e => { if (isMgr || members.some(m => m.email === me)) showErr(e); }));
   if (isMgr) {
-    unsubs.push(db.collection('logs').orderBy('at', 'desc').limit(30).onSnapshot(s => {
+    unsubs.push(DBm('logs').orderBy('at', 'desc').limit(30).onSnapshot(s => {
       logs = s.docs.map(d => d.data()); if (page === 'settings') render();
     }, () => {}));
   }
   {
     // only the admin creates its own member doc here; every other member doc is created by the admin in "সব সদস্য"
-    if (me === MANAGER) db.collection('members').doc(me).get().then(s => {
-      if (!s.exists) db.collection('members').doc(me).set({ email: me, name: me.split('@')[0].toUpperCase(), days: 30, deposit: 0 });
+    if (me === MESS_ADMIN) DBm('members').doc(me).get().then(s => {
+      if (!s.exists) DBm('members').doc(me).set({ email: me, name: me.split('@')[0].toUpperCase(), days: 30, deposit: 0 });
     }).catch(() => {});
-    unsubs.push(db.collection('summary').doc('main').onSnapshot(d => {
+    unsubs.push(DBm('summary').doc('main').onSnapshot(d => {
       summary = d.exists ? d.data() : null; render();
     }, () => {}));
   }
-  unsubs.push(db.collection('notes').orderBy('at', 'desc').limit(50).onSnapshot(s => {
+  unsubs.push(DBm('notes').orderBy('at', 'desc').limit(50).onSnapshot(s => {
     notes = s.docs.map(d => ({ id: d.id, ...d.data() })); render();
   }, () => {}));
-  unsubs.push(db.collection('settings').doc('app').onSnapshot(d => {
+  unsubs.push(DBm('settings').doc('app').onSnapshot(d => {
     notice = (d.exists && d.data().notice) || '';
     closedMonths = (d.exists && d.data().closedMonths) || [];
     bazarMode = (d.exists && d.data().bazarMode) || 'slip';
@@ -1148,6 +1266,11 @@ function go(p, fromHistory = false) {
 
 function render() {
   if (!me) return;
+  // not in a mess yet: verify screen, or the create / join screen
+  if (!MID) {
+    if (auth.currentUser && !auth.currentUser.emailVerified) renderVerify(); else renderPending();
+    return;
+  }
   // new sign-up whose email is not verified yet: verify screen only (members and admin pass)
   if (!isMgr && loaded.members && !members.some(m => m.email === me) && auth.currentUser && !auth.currentUser.emailVerified) { renderVerify(); return; }
   // signed in but not a member yet: app shell with only a short note
@@ -1199,7 +1322,7 @@ async function unlockAdmin() {
   try {
     sess = firebase.initializeApp(FB_CONFIG, 'adminSess' + Date.now());
     await sess.auth().setPersistence(firebase.auth.Auth.Persistence.NONE); // admin session lives in memory only
-    await sess.auth().signInWithEmailAndPassword(MANAGER, pw);
+    await sess.auth().signInWithEmailAndPassword(me, pw);   // the admin signs in again with their own account
   } catch (e) {
     if (sess) sess.delete().catch(() => {});
     toast(t('wrongPw'), true); return;
@@ -1215,21 +1338,23 @@ async function unlockAdmin() {
 /* admin-only live data (activity log) comes through the admin session */
 function startAdminListeners() {
   adminUnsubs.forEach(u => u()); adminUnsubs = [];
-  adminUnsubs.push(ADB().collection('logs').orderBy('at', 'desc').limit(30).onSnapshot(s => {
+  adminUnsubs.push(ADBm('logs').orderBy('at', 'desc').limit(30).onSnapshot(s => {
     logs = s.docs.map(d => d.data()); if (page === 'settings' || page === 'admin') render();
   }, () => {}));
-  adminUnsubs.push(ADB().collection('requests').onSnapshot(s => {
+  adminUnsubs.push(ADBm('requests').onSnapshot(s => {
     reqs = s.docs.map(d => ({ email: d.id, ...d.data() })); render();
   }, () => {}));
 }
 function approveReq(email) {
   const r = reqs.find(x => x.email === email) || {};
-  ADB().collection('members').doc(email).set({ email, name: r.name || email.split('@')[0], days: 30, deposit: 0 }, { merge: true })
-    .then(() => ADB().collection('requests').doc(email).delete())
+  // approval = a link from this person to this mess (users/{email}) + their member doc; the request is then removed
+  ADB().collection('users').doc(email).set({ messId: MID, name: r.name || email.split('@')[0] })
+    .then(() => ADBm('members').doc(email).set({ email, name: r.name || email.split('@')[0], days: 30, deposit: 0 }, { merge: true }))
+    .then(() => ADBm('requests').doc(email).delete())
     .then(() => { toast(t('saved')); logAct('Approved join · ' + email); }).catch(showErr);
 }
 function rejectReq(email) {
-  ADB().collection('requests').doc(email).delete()
+  ADBm('requests').doc(email).delete()
     .then(() => { toast(t('deleted')); logAct('Rejected join · ' + email); }).catch(showErr);
 }
 let selReq = new Set();   // admin: selected join requests (emails)
@@ -1239,15 +1364,16 @@ function approveSel() {
   const list = reqs.filter(r => selReq.has(r.email)); if (!list.length) return;
   const b = ADB().batch();
   list.forEach(r => {
-    b.set(ADB().collection('members').doc(r.email), { email: r.email, name: r.name || r.email.split('@')[0], days: 30, deposit: 0 }, { merge: true });
-    b.delete(ADB().collection('requests').doc(r.email));
+    b.set(ADB().collection('users').doc(r.email), { messId: MID, name: r.name || r.email.split('@')[0] });
+    b.set(ADBm('members').doc(r.email), { email: r.email, name: r.name || r.email.split('@')[0], days: 30, deposit: 0 }, { merge: true });
+    b.delete(ADBm('requests').doc(r.email));
   });
   b.commit().then(() => { selReq = new Set(); toast(t('saved')); logAct('Approved join · ' + list.length + ' people'); }).catch(showErr);
 }
 function rejectSel() {
   const list = reqs.filter(r => selReq.has(r.email)); if (!list.length) return;
   const b = ADB().batch();
-  list.forEach(r => b.delete(ADB().collection('requests').doc(r.email)));
+  list.forEach(r => b.delete(ADBm('requests').doc(r.email)));
   b.commit().then(() => { selReq = new Set(); toast(t('deleted')); logAct('Rejected join · ' + list.length + ' people'); }).catch(showErr);
 }
 function reqCardHtml() {
@@ -1265,7 +1391,7 @@ async function postNote() {
   const el = $('noteTxt'); const text = el.value.trim();
   if (!text) { toast(lang === 'bn' ? 'কিছু লেখো' : 'Write something', true); return; }
   try {
-    await db.collection('notes').add({ text: text.slice(0, 300), by: me, at: Date.now() });
+    await DBm('notes').add({ text: text.slice(0, 300), by: me, at: Date.now() });
     el.value = '';
     toast(t('saved'));
   } catch (e) { showErr(e); }
@@ -1273,7 +1399,7 @@ async function postNote() {
 async function delNote(id) {
   const ok = await sheet({ title: lang === 'bn' ? 'এই নোট মুছবে?' : 'Delete this note?', input: false, okText: t('del') });
   if (!ok) return;
-  (isMgr ? ADB() : db).collection('notes').doc(id).delete().then(() => toast(t('deleted'))).catch(showErr);
+  (isMgr ? ADBm : DBm)('notes').doc(id).delete().then(() => toast(t('deleted'))).catch(showErr);
 }
 
 /* ===== Pay-slip photos live in slips/{entryId}, not in entries ===== */
@@ -1282,7 +1408,7 @@ const slipPending = {};
 function getSlip(id) {
   if (id in slipCache) return Promise.resolve(slipCache[id]);
   if (!slipPending[id]) {
-    slipPending[id] = (isMgr ? ADB() : db).collection('slips').doc(id).get()
+    slipPending[id] = (isMgr ? ADBm : DBm)('slips').doc(id).get()
       .then(s => { slipCache[id] = s.exists ? s.data().data : null; return slipCache[id]; })
       .catch(() => undefined) // permission/network error: not cached, retried on next render
       .finally(() => { delete slipPending[id]; });
@@ -1321,7 +1447,7 @@ function pushSummary(c) {
   const key = [c.tB.toFixed(2), c.tD, c.rate.toFixed(4)].join('|');
   if (key === lastSum) return;
   lastSum = key;
-  ADB().collection('summary').doc('main')
+  ADBm('summary').doc('main')
     .set({ tB: c.tB, tD: c.tD, rate: c.rate, updated: Date.now() })
     .catch(() => {});
 }
@@ -1666,21 +1792,21 @@ async function saveEntry() {
   $('fMsg').innerText = '…'; $('fMsg').classList.remove('err');
   try {
     const photo = f ? await compress(f) : null;
-    const W = isMgr ? ADB() : db;
+    const W = isMgr ? ADBm : DBm;
     if (editId) {
       const upd = { date, amount: amt, note };
       if (!isMgr) { upd.status = 'submitted'; upd.reason = ''; } // member edits go back to review
-      await W.collection('entries').doc(editId).update(upd);
+      await W('entries').doc(editId).update(upd);
       if (photo) {
-        await W.collection('slips').doc(editId).set({ data: photo });
+        await W('slips').doc(editId).set({ data: photo });
         slipCache[editId] = photo;
       }
     } else {
       // entry first (the slip rule checks that the entry exists), then the photo
       const who = isMgr && $('fMember') ? $('fMember').value : me;
-      const ref = await W.collection('entries').add({ memberEmail: who, date, amount: amt, note, status: 'submitted', reason: '', createdAt: Date.now(), addedByAdmin: isMgr });
+      const ref = await W('entries').add({ memberEmail: who, date, amount: amt, note, status: 'submitted', reason: '', createdAt: Date.now(), addedByAdmin: isMgr });
       try {
-        if (photo) { await W.collection('slips').doc(ref.id).set({ data: photo }); slipCache[ref.id] = photo; }
+        if (photo) { await W('slips').doc(ref.id).set({ data: photo }); slipCache[ref.id] = photo; }
       } catch (e) {
         await ref.delete().catch(() => {}); // no entry without its pay slip
         throw e;
@@ -1692,7 +1818,7 @@ async function saveEntry() {
   } catch (e) { formErr(t('errPrefix') + e.message); }
 }
 
-/* ================= MANAGER ACTIONS ================= */
+/* ================= MESS_ADMIN ACTIONS ================= */
 const isClosed = x => closedMonths.includes(String(x.date).slice(0, 7));
 async function toggleClose() {
   const v = await sheet({ title: lang === 'bn' ? 'মাস লেখো (যেমন 2026-10)' : 'Month (e.g. 2026-10)', value: month !== 'all' ? month : today().slice(0, 7), ph: '2026-10' });
@@ -1700,10 +1826,16 @@ async function toggleClose() {
   const m = String(v).trim();
   if (!/^\d{4}-\d{2}$/.test(m)) { toast(t('needDateAmt'), true); return; }
   const next = closedMonths.includes(m) ? closedMonths.filter(x => x !== m) : [...closedMonths, m];
-  ADB().collection('settings').doc('app').set({ closedMonths: next }, { merge: true })
+  ADBm('settings').doc('app').set({ closedMonths: next }, { merge: true })
     .then(() => { toast(t('saved')); logAct((next.includes(m) ? 'Month closed · ' : 'Month reopened · ') + m); }).catch(showErr);
 }
-function logAct(text) { ADB().collection('logs').add({ text, by: me, at: Date.now() }).catch(() => {}); }
+function copyInvite() {
+  if (!inviteCode) return;
+  const ok = () => toast(lang === 'bn' ? 'কোড কপি হয়েছে' : 'Code copied');
+  if (navigator.clipboard) navigator.clipboard.writeText(inviteCode).then(ok).catch(() => toast(inviteCode, true));
+  else toast(inviteCode, true);
+}
+function logAct(text) { ADBm('logs').add({ text, by: me, at: Date.now() }).catch(() => {}); }
 async function approve(id) {
   const x = entries.find(e => e.id === id) || {};
   const ok = await sheet({
@@ -1711,7 +1843,7 @@ async function approve(id) {
     input: false, okText: t('approve')
   });
   if (!ok) return;
-  ADB().collection('entries').doc(id).update({ status: 'approved', reason: '' })
+  ADBm('entries').doc(id).update({ status: 'approved', reason: '' })
     .then(() => logAct('Approved · ' + nameOf(x.memberEmail) + ' · ' + f2(x.amount))).catch(showErr);
 }
 async function delEntry(id) {
@@ -1720,12 +1852,12 @@ async function delEntry(id) {
   const ok = await sheet({ title: t('confirmDel'), input: false, okText: t('del') });
   if (!ok) return;
   const x = entries.find(e => e.id === id) || {};
-  const DB = isMgr ? ADB() : db;
+  const DB = isMgr ? ADBm : DBm;
   // entry first: if this is refused, nothing is removed and the reason is shown
-  try { await DB.collection('entries').doc(id).delete(); }
+  try { await DB('entries').doc(id).delete(); }
   catch (e) { showErr(e); return; }
   // the pay slip is removed separately; a leftover slip is harmless, so its failure does not block the delete
-  DB.collection('slips').doc(id).delete().catch(() => {});
+  DB('slips').doc(id).delete().catch(() => {});
   delete slipCache[id];
   toast(t('deleted'));
   if (isMgr) logAct('Deleted · ' + nameOf(x.memberEmail) + ' · ' + f2(x.amount));
@@ -1785,7 +1917,7 @@ async function saveQuick() {
   const rows = [...document.querySelectorAll('.qAmt')].map(i => ({ email: i.dataset.email, amt: qSum(i.value) })).filter(r => r.amt > 0);
   if (!rows.length) { toast(bn ? 'অন্তত একটা অংক দাও' : 'Enter at least one amount', true); return; }
   const b = ADB().batch(), now = Date.now();
-  rows.forEach(r => b.set(ADB().collection('entries').doc(), { memberEmail: r.email, date, amount: r.amt, note: '', status: 'approved', reason: '', createdAt: now, addedByAdmin: true }));
+  rows.forEach(r => b.set(ADBm('entries').doc(), { memberEmail: r.email, date, amount: r.amt, note: '', status: 'approved', reason: '', createdAt: now, addedByAdmin: true }));
   b.commit().then(() => {
     toast(t('saved'));
     logAct('Quick entry · ' + date + ' · ' + rows.length + ' entries');
@@ -1797,7 +1929,7 @@ function renderMembers() {
   const q = ($('mSearch') ? $('mSearch').value : '').trim().toLowerCase();
   const rate = currentRate();
   const rows = members   // the main admin account is not a mess member, so it is not listed here
-    .filter(m => m.email !== MANAGER)
+    .filter(m => m.email !== MESS_ADMIN)
     .filter(m => !q || (nameOf(m.email) + ' ' + m.email).toLowerCase().includes(q))
     .map(m => ({ m, b: bazarOf(m.email), bal: rate != null ? balOf(m.email, rate) : 0 }));
   rows.sort((x, y) => mSort === 'bazar' ? y.b - x.b
@@ -1857,7 +1989,7 @@ function daysSel() {
   const v = parseInt(prompt(bn ? 'কত দিন? (যেমন 30)' : 'How many days? (e.g. 30)', '30'), 10);
   if (!(v > 0)) return;
   const list = [...selMem]; const b = ADB().batch();
-  list.forEach(e => b.set(ADB().collection('members').doc(e), { days: v }, { merge: true }));
+  list.forEach(e => b.set(ADBm('members').doc(e), { days: v }, { merge: true }));
   b.commit().then(() => { selMem = new Set(); toast(t('saved')); logAct('Days set to ' + v + ' · ' + list.length + ' members'); }).catch(showErr);
 }
 async function removeSel() {
@@ -1865,17 +1997,17 @@ async function removeSel() {
   const ok = await sheet({ title: t('memberRemoveWarn'), input: false, okText: t('memberRemove') });
   if (!ok) return;
   const b = ADB().batch();
-  list.forEach(e => b.delete(ADB().collection('members').doc(e)));
+  list.forEach(e => b.delete(ADBm('members').doc(e)));
   b.commit().then(() => { selMem = new Set(); toast(t('deleted')); logAct('Removed members · ' + list.length); }).catch(showErr);
 }
 async function removeMember(email) {
   const ok = await sheet({ title: t('memberRemoveWarn'), input: false, okText: t('memberRemove') });
   if (!ok) return;
-  ADB().collection('members').doc(email).delete().then(() => toast(t('deleted'))).catch(showErr);
+  ADBm('members').doc(email).delete().then(() => toast(t('deleted'))).catch(showErr);
 }
 function saveMember(btn) {
   const c = btn.closest('.mcard'), email = c.dataset.email;
-  ADB().collection('members').doc(email).set({
+  ADBm('members').doc(email).set({
     email,
     name: c.querySelector('.mn').value.trim(),
     days: num(c.querySelector('.md').value),
@@ -1901,7 +2033,7 @@ async function addMember() {
         await sec.delete();
       }
     }
-    const ref = ADB().collection('members').doc(email);
+    const ref = ADBm('members').doc(email);
     const s = await ref.get();
     const fallback = email.split('@')[0].toUpperCase();
     if (s.exists) await ref.update({ name: name || s.data().name || fallback });
@@ -1919,7 +2051,7 @@ async function monthReport() {
   if (!v) return;
   const m = String(v).trim();
   if (!/^\d{4}-\d{2}$/.test(m)) { toast(t('needDateAmt'), true); return; }
-  const list = entries.filter(x => String(x.date).slice(0, 7) === m && x.status === 'approved' && x.memberEmail !== MANAGER);
+  const list = entries.filter(x => String(x.date).slice(0, 7) === m && x.status === 'approved' && x.memberEmail !== MESS_ADMIN);
   const c = calc(list);
   const rate = c.rate;
   const rows = c.em.map(e => {
@@ -2043,6 +2175,10 @@ function renderAdmin() {
       </div></div>`).join('') : `<div class="empty">${isBn ? 'কোনো অপেক্ষমাণ এন্ট্রি নেই' : 'Nothing waiting for approval'}</div>`)
     + `</div>`;
   if (admTab === 'settings') {
+  h += `<div class="card"><h3>${isBn ? 'সদস্য যোগ করার কোড' : 'Invite code'}</h3>
+      <div class="sub">${isBn ? 'নতুন সদস্য এই কোড দিয়ে যোগ দিতে পারবে। তুমি অনুমোদন দিলে যোগ হবে।' : 'New members use this code to join. You approve them.'}</div>
+      <div class="num" style="font-size:26px;font-weight:800;letter-spacing:3px;margin:10px 0">${esc(inviteCode || '—')}</div>
+      <button class="pri" style="width:100%" onclick="copyInvite()">${isBn ? 'কপি করো' : 'Copy'}</button></div>`;
   h += meCardHtml();
   h += gh(isBn ? 'মেস' : 'Mess');
   h += sec(t('management'), `
@@ -2100,7 +2236,7 @@ function setLang(v) { lang = v; localStorage.setItem('mh_lang_bn', v); applyLang
 function setThemeMode(v) {
   if (!isMgr) { toast(t('adminOnly'), true); return; }
   theme = v; localStorage.setItem('mh_theme', v); applyTheme(); render();
-  ADB().collection('settings').doc('app').set({ theme: v }, { merge: true }).catch(showErr);
+  ADBm('settings').doc('app').set({ theme: v }, { merge: true }).catch(showErr);
 }
 function setFs(v) { fs = v; localStorage.setItem('mh_fs', v); applyFs(); render(); }
 function applyFs() { document.body.style.fontSize = ({ small: '13px', medium: '15px', large: '18px' })[fs] || '15px'; }
@@ -2140,8 +2276,8 @@ async function resetAll() {
   }
   try {
     const [eSnap, sSnap, nSnap, mSnap] = await Promise.all([
-      ADB().collection('entries').get(), ADB().collection('slips').get(),
-      ADB().collection('notes').get(), ADB().collection('members').get()]);
+      ADBm('entries').get(), ADBm('slips').get(),
+      ADBm('notes').get(), ADBm('members').get()]);
     const ops = [
       ...eSnap.docs.map(d => ['del', d.ref]), ...sSnap.docs.map(d => ['del', d.ref]), ...nSnap.docs.map(d => ['del', d.ref]),
       ...mSnap.docs.map(d => ['reset', d.ref])];   // members stay, but days go back to 30 and deposit to 0
@@ -2153,7 +2289,7 @@ async function resetAll() {
     }
     await batch.commit();
     clearSlipCache();
-    await ADB().collection('summary').doc('main').set({ tB: 0, tD: 0, rate: 0, updated: Date.now() });
+    await ADBm('summary').doc('main').set({ tB: 0, tD: 0, rate: 0, updated: Date.now() });
     toast(t('resetDone'));
   } catch (e) { showErr(e); }
 }
@@ -2176,16 +2312,16 @@ function updateBazarStatus() {
 }
 function toggleBazarMode() {
   const next = bazarOn() ? 'admin' : 'slip';
-  ADB().collection('settings').doc('app').set({ bazarMode: next }, { merge: true })
+  ADBm('settings').doc('app').set({ bazarMode: next }, { merge: true })
     .then(() => { toast(t('saved')); logAct('Member bazar entry ' + (next === 'slip' ? 'ON' : 'OFF')); }).catch(showErr);
 }
 async function saveNotice() {
-  ADB().collection('settings').doc('app').set({ notice: $('noticeTxt').value.trim() }, { merge: true })
+  ADBm('settings').doc('app').set({ notice: $('noticeTxt').value.trim() }, { merge: true })
     .then(() => { toast(t('saved')); logAct('Notice updated'); }).catch(showErr);
 }
 async function backupJSON() {
   try {
-    const sSnap = await ADB().collection('slips').get(); // admin can read all slips
+    const sSnap = await ADBm('slips').get(); // admin can read all slips
     const slips = sSnap.docs.map(d => ({ id: d.id, data: d.data().data }));
     const data = { exported: new Date().toISOString(), members, entries: entries.map(x => { const { id, ...r } = x; return { id, ...r }; }), slips };
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -2202,13 +2338,13 @@ async function restoreJSON(file) {
   try {
     const d = JSON.parse(await file.text());
     const small = [], slipOps = [];
-    (d.members || []).forEach(m => small.push({ ref: ADB().collection('members').doc(m.email), data: (({ email, ...r }) => r)(m) }));
+    (d.members || []).forEach(m => small.push({ ref: ADBm('members').doc(m.email), data: (({ email, ...r }) => r)(m) }));
     (d.entries || []).forEach(x => {
       const { id, photo, ...r } = x; // old backups carry the photo inside the entry: move it to slips
-      small.push({ ref: ADB().collection('entries').doc(id), data: { ...r, photo: firebase.firestore.FieldValue.delete() } });
-      if (photo) slipOps.push({ ref: ADB().collection('slips').doc(id), data: { data: photo } });
+      small.push({ ref: ADBm('entries').doc(id), data: { ...r, photo: firebase.firestore.FieldValue.delete() } });
+      if (photo) slipOps.push({ ref: ADBm('slips').doc(id), data: { data: photo } });
     });
-    (d.slips || []).forEach(s => slipOps.push({ ref: ADB().collection('slips').doc(s.id), data: { data: s.data } }));
+    (d.slips || []).forEach(s => slipOps.push({ ref: ADBm('slips').doc(s.id), data: { data: s.data } }));
     for (let i = 0; i < small.length; i += 400) {
       const batch = ADB().batch();
       small.slice(i, i + 400).forEach(o => batch.set(o.ref, o.data, { merge: true }));
@@ -2230,14 +2366,14 @@ async function migrateSlips() {
   const ok = await sheet({ title: lang === 'bn' ? 'পুরোনো ছবি slips-এ সরাবে? একবারই চালাও।' : 'Move old photos to slips? Run once.', input: false, okText: lang === 'bn' ? 'সরাও' : 'Move' });
   if (!ok) return;
   try {
-    const snap = await ADB().collection('entries').get();
+    const snap = await ADBm('entries').get();
     const todo = snap.docs.filter(d => d.data().photo);
     if (!todo.length) { toast(lang === 'bn' ? 'কোনো পুরোনো ছবি নেই' : 'No old photos found'); return; }
     for (let i = 0; i < todo.length; i += 10) {
       const chunk = todo.slice(i, i + 10);
       // copy first, and only then remove the photo from the entry
       const copy = ADB().batch();
-      chunk.forEach(d => copy.set(ADB().collection('slips').doc(d.id), { data: d.data().photo }));
+      chunk.forEach(d => copy.set(ADBm('slips').doc(d.id), { data: d.data().photo }));
       await copy.commit();
       const strip = ADB().batch();
       chunk.forEach(d => strip.update(d.ref, { photo: firebase.firestore.FieldValue.delete() }));
@@ -2252,12 +2388,12 @@ let migrating = false;
 async function autoMigrate() {
   if (migrating) return; migrating = true;
   try {
-    const snap = await ADB().collection('entries').get();
+    const snap = await ADBm('entries').get();
     const todo = snap.docs.filter(d => d.data().photo);
     for (let i = 0; i < todo.length; i += 10) {
       const chunk = todo.slice(i, i + 10);
       const copy = ADB().batch();   // copy first, remove from the entry only after the copy succeeded
-      chunk.forEach(d => copy.set(ADB().collection('slips').doc(d.id), { data: d.data().photo }));
+      chunk.forEach(d => copy.set(ADBm('slips').doc(d.id), { data: d.data().photo }));
       await copy.commit();
       const strip = ADB().batch();
       chunk.forEach(d => strip.update(d.ref, { photo: firebase.firestore.FieldValue.delete() }));
@@ -2329,7 +2465,7 @@ async function newMonthReset() {
   const ok = await sheet({ title: lang === 'bn' ? 'সবার দিন ৩০ করবে? জমা বদলাবে না।' : 'Set all members to 30 days? Deposits stay.', input: false, okText: lang === 'bn' ? 'করো' : 'Reset' });
   if (!ok) return;
   const b = ADB().batch();
-  members.forEach(m => b.update(ADB().collection('members').doc(m.email), { days: 30 }));
+  members.forEach(m => b.update(ADBm('members').doc(m.email), { days: 30 }));
   b.commit().then(() => { toast(t('saved')); logAct('New month: all days set to 30'); }).catch(showErr);
 }
 
@@ -2357,12 +2493,12 @@ function themeAdminHtml() {
     ${off.length ? `<div class="sub" style="margin:10px 0 6px">${bn ? 'আবার যোগ করো' : 'Add back'}</div><div class="row" style="gap:8px">${off.map(k => `<button class="chip" onclick="addTheme('${k}')">+ ${esc(themeLabel(k))}</button>`).join('')}</div>` : ''}`;
 }
 function saveThemes() {
-  ADB().collection('settings').doc('app').set({ themes: themesList }, { merge: true }).catch(showErr);
+  ADBm('settings').doc('app').set({ themes: themesList }, { merge: true }).catch(showErr);
 }
 function removeTheme(k) {
   if (!isMgr || k === 'dark') return;
   themesList = themesList.filter(x => x !== k);
-  if (theme === k) { theme = 'dark'; localStorage.setItem('mh_theme', 'dark'); applyTheme(); ADB().collection('settings').doc('app').set({ theme: 'dark' }, { merge: true }).catch(showErr); }
+  if (theme === k) { theme = 'dark'; localStorage.setItem('mh_theme', 'dark'); applyTheme(); ADBm('settings').doc('app').set({ theme: 'dark' }, { merge: true }).catch(showErr); }
   saveThemes(); render();
 }
 function addTheme(k) {
@@ -2469,7 +2605,7 @@ function openMember(email) {
         <label class="mf"><span>${t('days')}</span><input id="mdDays" type="text" inputmode="numeric" data-orig="${daysOf(email)}" value="${daysOf(email)}"></label>
         <label class="mf"><span>${t('deposit')}</span><input id="mdDep" type="text" inputmode="decimal" data-orig="${depOf(email)}" value="${depOf(email)}"></label>
       </div>
-      ${email !== MANAGER ? `<button class="ghost" style="width:100%;margin-top:12px" onclick="toggleAdmin('${esc(email)}', ${!isAdminRow(email)})">${isAdminRow(email) ? (bn ? 'অ্যাডমিন থেকে সরাও' : 'Remove admin rights') : (bn ? 'অ্যাডমিন বানাও' : 'Make admin')}</button>` : ''}
+      ${email !== MESS_ADMIN ? `<button class="ghost" style="width:100%;margin-top:12px" onclick="toggleAdmin('${esc(email)}', ${!isAdminRow(email)})">${isAdminRow(email) ? (bn ? 'অ্যাডমিন থেকে সরাও' : 'Remove admin rights') : (bn ? 'অ্যাডমিন বানাও' : 'Make admin')}</button>` : ''}
       <div class="row" style="margin-top:12px">
         <button class="pri grow" onclick="saveMemberFields('${esc(email)}')">${t('save')}</button>
         <button class="bad" onclick="closeMember(); removeMember('${esc(email)}')">${t('del')}</button>
@@ -2492,7 +2628,7 @@ function openMember(email) {
 }
 /* admin can give or take admin rights from any member; the main admin account cannot be changed here */
 async function toggleAdmin(email, make) {
-  if (email === MANAGER) return;
+  if (email === MESS_ADMIN) return;
   const who = nameOf(email);
   const ok = await sheet({
     title: make
@@ -2501,13 +2637,13 @@ async function toggleAdmin(email, make) {
     input: false, okText: make ? (lang === 'bn' ? 'অ্যাডমিন বানাও' : 'Make admin') : (lang === 'bn' ? 'সরাও' : 'Remove')
   });
   if (!ok) return;
-  ADB().collection('members').doc(email).set({ admin: make }, { merge: true })
+  ADBm('members').doc(email).set({ admin: make }, { merge: true })
     .then(() => { toast(t('saved')); logAct((make ? 'Made admin · ' : 'Removed admin · ') + email); if (memOpen) openMember(memOpen); })
     .catch(showErr);
 }
 function saveMemberFields(email) {
   const nm = $('mdName').value.trim();
-  ADB().collection('members').doc(email).set({
+  ADBm('members').doc(email).set({
     ...(nm ? { name: nm } : {}),
     days: num($('mdDays').value),
     deposit: num($('mdDep').value)
