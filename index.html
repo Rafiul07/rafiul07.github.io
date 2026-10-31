@@ -1788,11 +1788,26 @@ function pushSummary(c) {
 }
 
 /* ================= HOME ================= */
+/* the mess name banner: its colour changes every hour (the palette cycles through the day) */
+const MESS_GRADS = [['#7c5cff', '#22d3ee'], ['#f97316', '#ec4899'], ['#10b981', '#84cc16'], ['#f43f5e', '#facc15'], ['#6366f1', '#ec4899'], ['#0ea5e9', '#22c55e']];
+function messGrad() {
+  const [a, b] = MESS_GRADS[Math.floor(Date.now() / 3600000) % MESS_GRADS.length];
+  return `linear-gradient(90deg, ${a}, ${b})`;
+}
+function messTitleHtml() {
+  const bn = lang === 'bn';
+  return `<div style="text-align:center;margin:6px 0 14px">
+    <div class="sub" style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.7">${bn ? 'আমাদের মেস' : 'Our mess'}</div>
+    <div id="messNameTitle" style="font-size:clamp(24px,7vw,34px);font-weight:900;letter-spacing:.5px;line-height:1.2;margin-top:4px;padding:2px 6px;background-image:${messGrad()};-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;filter:drop-shadow(0 4px 14px rgba(124,92,255,.25))">${esc(messName)}</div>
+  </div>`;
+}
+/* once a minute: if the hour has changed, the banner takes the next colour */
+setInterval(() => { const el = document.getElementById('messNameTitle'); if (el) el.style.backgroundImage = messGrad(); }, 60000);
 function renderHome() {
   $('qBar').classList.remove('hidden');
   let h = '';
   // mess name at the top, for admin and members alike
-  if (messName) h += `<div style="font-weight:900;font-size:18px;margin:2px 2px 10px">${esc(messName)}</div>`;
+  if (messName) h += messTitleHtml();
   if (notice) h += `<div class="card" style="border-color:var(--p)"><h3>${lang === 'bn' ? 'ঘোষণা' : 'Notice'}</h3><div>${esc(notice)}</div></div>`;
   if (isMgr) {
     const c = calc();
