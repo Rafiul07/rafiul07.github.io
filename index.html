@@ -1806,6 +1806,11 @@ setInterval(() => { const el = document.getElementById('messNameTitle'); if (el)
 function renderHome() {
   $('qBar').classList.remove('hidden');
   let h = '';
+  // a frozen member sees why they cannot add bazar entries
+  const meRow = memberOf(me);
+  const frozenNow = !isMgr && !!(meRow && meRow.frozen);
+  ['addBtn1', 'addBtn2'].forEach(id => { const b = $(id); if (b && frozenNow) b.style.display = 'none'; });
+  if (frozenNow) h += `<div class="card" style="border-color:var(--bad)"><h3>${lang === 'bn' ? 'অ্যাকাউন্ট ফ্রিজ করা আছে' : 'Account frozen'}</h3><div class="sub">${lang === 'bn' ? 'এখন নতুন বাজার যোগ বা বদলাতে পারবে না। বিস্তারিত জানতে admin এর সাথে কথা বলো।' : 'You cannot add or change bazar entries right now. Talk to the admin for details.'}</div></div>`;
   // mess name at the top, for admin and members alike
   if (messName) h += messTitleHtml();
   if (notice) h += `<div class="card" style="border-color:var(--p)"><h3>${lang === 'bn' ? 'ঘোষণা' : 'Notice'}</h3><div>${esc(notice)}</div></div>`;
@@ -2987,6 +2992,7 @@ function openMember(email) {
         <label class="mf"><span>${t('days')}</span><input id="mdDays" type="text" inputmode="numeric" data-orig="${daysOf(email)}" value="${daysOf(email)}"></label>
         <label class="mf"><span>${t('deposit')}</span><input id="mdDep" type="text" inputmode="decimal" data-orig="${depOf(email)}" value="${depOf(email)}"></label>
       </div>
+      ${email !== MESS_ADMIN ? `<button class="ghost" style="width:100%;margin-top:12px" onclick="toggleFreeze('${esc(email)}', ${!(memberOf(email) || {}).frozen})">${(memberOf(email) || {}).frozen ? (bn ? 'ফ্রিজ সরাও (আবার চালু করো)' : 'Unfreeze member') : (bn ? 'সদস্যকে ফ্রিজ করো (সাময়িক বন্ধ)' : 'Freeze member')}</button>` : ''}
       ${email !== MESS_ADMIN ? `<button class="ghost" style="width:100%;margin-top:12px" onclick="toggleAdmin('${esc(email)}', ${!isAdminRow(email)})">${isAdminRow(email) ? (bn ? 'অ্যাডমিন থেকে সরাও' : 'Remove admin rights') : (bn ? 'অ্যাডমিন বানাও' : 'Make admin')}</button>` : ''}
       <div class="row" style="margin-top:12px">
         <button class="pri grow" onclick="saveMemberFields('${esc(email)}')">${t('save')}</button>
@@ -3007,6 +3013,21 @@ function openMember(email) {
   $('memBox').classList.remove('hidden');
   openLayer('memBox');
   hydrateSlips();
+}
+/* freeze: the member can still log in and see their own history, but cannot add or change bazar entries. Nothing is deleted */
+async function toggleFreeze(email, freeze) {
+  const bn = lang === 'bn';
+  const who = nameOf(email);
+  const ok = await sheet({
+    title: freeze
+      ? (bn ? `${who} কে ফ্রিজ করবে? সে নতুন বাজার যোগ বা বদলাতে পারবে না। তার আগের হিসাব থাকবে।` : `Freeze ${who}? They cannot add or change bazar entries. Their history stays.`)
+      : (bn ? `${who} কে আবার চালু করবে?` : `Unfreeze ${who}?`),
+    input: false, okText: freeze ? (bn ? 'ফ্রিজ করো' : 'Freeze') : (bn ? 'চালু করো' : 'Unfreeze')
+  });
+  if (!ok) return;
+  ADBm('members').doc(email).set({ frozen: freeze }, { merge: true })
+    .then(() => { toast(t('saved')); logAct((freeze ? 'Frozen · ' : 'Unfrozen · ') + email); if (memOpen) openMember(memOpen); })
+    .catch(showErr);
 }
 /* admin can give or take admin rights from any member; the main admin account cannot be changed here */
 async function toggleAdmin(email, make) {
