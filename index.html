@@ -2270,7 +2270,7 @@ async function saveEntry() {
     toast(t('saved'));
     if ($('entryBox') && !$('entryBox').classList.contains('hidden')) closeEntryPop();
     if (isMgr && memOpen && $('memBox') && !$('memBox').classList.contains('hidden')) openMember(memOpen);
-  } catch (e) { formErr(t('errPrefix') + e.message); }
+  } catch (e) { formErr(t('errPrefix') + e.message); toast(t('errPrefix') + (e.code || '') + ' ' + e.message, true); console.error('save entry', e); }
 }
 
 /* ================= MESS_ADMIN ACTIONS ================= */
