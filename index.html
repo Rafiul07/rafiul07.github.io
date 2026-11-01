@@ -2437,6 +2437,8 @@ function quickSlipBody() {
   return `<div>
       <div class="sub" style="margin-bottom:8px">${bn ? 'স্লিপের ছবি বেছে নাও, প্রতিটার জন্য সদস্য আর অংক দাও। সেভ করলে সব এন্ট্রি অনুমোদিত হবে।' : 'Pick slip photos, then choose the member and amount for each. Saved entries are approved at once.'}</div>
       <div class="row" style="gap:8px;margin-bottom:10px;flex-wrap:wrap"><span class="sub">${bn ? 'তারিখ' : 'Date'}</span><input type="date" id="qDate" value="${today}" style="flex:1;min-width:150px"></div>
+      <div class="sub" style="margin-bottom:6px">${bn ? 'নতুন স্লিপ কার নামে যাবে' : 'New slips go to'}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${list.map(x => `<button class="ghost" onclick="qSlipPick('${esc(x.e)}')" style="${x.e === qSel ? 'background:var(--p);color:#fff' : ''}">${esc(x.n)}</button>`).join('')}</div>
       <label class="ghost" style="display:block;text-align:center;padding:12px;border-radius:14px;cursor:pointer">📎 ${bn ? 'স্লিপের ছবি বাছাই করো' : 'Pick slip photos'}<input type="file" accept="image/*" multiple onchange="qSlipFiles(this)" style="display:none"></label>
       <div style="margin-top:8px">${rows || `<div class="empty">${bn ? 'এখনও কোনো স্লিপ নেই' : 'No slips yet'}</div>`}</div>
       ${qSlips.length ? `<button class="pri" onclick="saveQuickSlips()" style="width:100%;margin-top:12px">${bn ? 'সব সেভ করো' : 'Save all'}</button>` : ''}
@@ -2445,12 +2447,13 @@ function quickSlipBody() {
 async function qSlipFiles(input) {
   const files = [...(input.files || [])];
   input.value = '';
-  const first = allEmails()[0] || '';
+  const first = (qSel && allEmails().includes(qSel)) ? qSel : (allEmails()[0] || '');
   for (const f of files) {
     try { qSlips.push({ photo: await compress(f), email: first, amt: '' }); } catch (e) { showErr(e); }
   }
   redrawKeep();
 }
+function qSlipPick(email) { qSel = email; redrawKeep(); }
 function qSlipSet(i, k, v) { if (!qSlips[i]) return; qSlips[i][k] = v; if (k === 'email') redrawKeep(); }
 function qSlipDel(i) { qSlips.splice(i, 1); redrawKeep(); }
 async function saveQuickSlips() {
