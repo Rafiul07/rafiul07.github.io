@@ -1008,6 +1008,8 @@ function superSettingsHtml() {
   return `<div class="card">
     <h3 style="margin:0 0 8px">${bn ? 'ভাষা' : 'Language'}</h3>
     <div class="acts"><button class="${lang === 'bn' ? 'pri' : 'ghost'}" onclick="setLang('bn')">বাংলা</button><button class="${lang === 'en' ? 'pri' : 'ghost'}" onclick="setLang('en')">English</button></div>
+    <h3 style="margin:14px 0 8px">${bn ? 'লেখার আকার' : 'Text size'}</h3>
+    <div class="acts">${[['small', bn ? 'ছোট' : 'Small'], ['medium', bn ? 'মাঝারি' : 'Medium'], ['big', bn ? 'বড়' : 'Large']].map(([k, l]) => `<button class="${superFont() === k ? 'pri' : 'ghost'}" onclick="setSuperFont('${k}')">${l}</button>`).join('')}</div>
     <h3 style="margin:14px 0 8px">${bn ? 'থিম' : 'Theme'}</h3>
     <div class="acts"><button class="${theme === 'dark' ? 'pri' : 'ghost'}" onclick="setSuperTheme('dark')">Dark</button><button class="${theme === 'light' ? 'pri' : 'ghost'}" onclick="setSuperTheme('light')">Light</button></div>
     <h3 style="margin:14px 0 8px">${bn ? 'আমার password' : 'My password'}</h3>
@@ -1015,6 +1017,14 @@ function superSettingsHtml() {
     <h3 style="margin:14px 0 8px">${bn ? 'অ্যাকাউন্ট' : 'Account'}</h3>
     <div class="sub" style="margin-bottom:8px">${esc(me)}</div>
     <button class="bad" style="width:100%" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`;
+}
+const SUPER_ZOOM = { small: 0.88, medium: 1, big: 1.16 };
+function superFont() {
+  try { const v = localStorage.getItem('mh_super_font'); return SUPER_ZOOM[v] ? v : 'medium'; } catch (x) { return 'medium'; }
+}
+function setSuperFont(k) {
+  try { localStorage.setItem('mh_super_font', k); } catch (x) {}
+  renderSuper();
 }
 function setSuperTheme(v) { theme = v; localStorage.setItem('mh_theme', v); applyTheme(); renderSuper(); }
 async function superResetSelf() {
@@ -1293,6 +1303,7 @@ function renderSuper() {
     : superTab === 'log' ? superLogHtml()
     : superSettingsHtml();
   $('hContent').innerHTML = `<div class="sub" style="margin:4px 0 6px">${APP_VERSION}</div>${superTab === 'messes' ? superKpi() : ''}${superTabHtml()}${body}`;
+  $('hContent').style.zoom = String(SUPER_ZOOM[superFont()]);
   if (superTab === 'messes' && superQ) superSearch(superQ);
 }
 function renderBlocked() {
