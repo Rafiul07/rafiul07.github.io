@@ -776,7 +776,8 @@ function approvedScoped() { return scoped().filter(x => x.status === 'approved')
 const bazarOf = e => approvedScoped().filter(x => x.memberEmail === e).reduce((a, x) => a + num(x.amount), 0);
 /* people who share the cost = current members (member doc exists). A removed member's bazar is not in the totals, so the balances always add up to zero. */
 /* the main admin account is not a mess member: it does not share the cost (no days, no balance) */
-function allEmails() { return members.map(m => m.email); }
+/* a member added in a later month is not part of an older month's money: joined = the month they were added */
+function allEmails() { return members.filter(m => month === 'all' || !m.joined || m.joined <= month).map(m => m.email); }
 function calc(list = approvedScoped()) {
   const em = allEmails();
   const tB = list.filter(x => em.includes(x.memberEmail)).reduce((a, x) => a + num(x.amount), 0);
@@ -1190,7 +1191,7 @@ async function joinByCode() {
     // the code is the proof: the account is linked to this mess, and the member row is added to it
     await db.collection('users').doc(me).set({ messId: mid, name, code });
     await db.collection('messes').doc(mid).collection('members').doc(me)
-      .set({ email: me, name, days: 30, deposit: 0 });
+      .set({ email: me, name, days: 30, deposit: 0, joined: new Date().toISOString().slice(0, 7) });
     try { localStorage.removeItem('mh_join_mid'); } catch (x) {}
     toast(bn ? 'যোগ দেওয়া হয়েছে' : 'You have joined');
     setTimeout(() => location.reload(), 600);
@@ -1757,7 +1758,7 @@ function approveReq(email) {
   const r = reqs.find(x => x.email === email) || {};
   // approval = a link from this person to this mess (users/{email}) + their member doc; the request is then removed
   ADB().collection('users').doc(email).set({ messId: MID, name: r.name || email.split('@')[0] })
-    .then(() => ADBm('members').doc(email).set({ email, name: r.name || email.split('@')[0], days: 30, deposit: 0 }, { merge: true }))
+    .then(() => ADBm('members').doc(email).set({ email, name: r.name || email.split('@')[0], days: 30, deposit: 0, joined: new Date().toISOString().slice(0, 7) }, { merge: true }))
     .then(() => ADBm('requests').doc(email).delete())
     .then(() => { toast(t('saved')); logAct('Approved join · ' + email); }).catch(showErr);
 }
@@ -2611,7 +2612,7 @@ async function addMember() {
     const s = await ref.get();
     const fallback = email.split('@')[0].toUpperCase();
     if (s.exists) await ref.update({ name: name || s.data().name || fallback });
-    else await ref.set({ email, name: name || fallback, days: 30, deposit: 0 });
+    else await ref.set({ email, name: name || fallback, days: 30, deposit: 0, joined: new Date().toISOString().slice(0, 7) });
     // link the person to this mess right away, so they land in the app after login (no join request, no email verification)
     // the rules refuse this write if the email already belongs to another mess
     try {
