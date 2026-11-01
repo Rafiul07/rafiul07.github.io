@@ -1921,7 +1921,7 @@ function renderHome() {
         </div>
       </div>`;
     }).join('') + `</div>`;
-    h += `<div class="card"><h3>${t('recent')}</h3>` + recentList(entries, 5, true) + `</div>`;
+    h += `<div class="card"><h3>${t('recent')}</h3>` + recentList(scoped(), 5, true) + `</div>`;   // follows the month picked above
   }
   {
     const r = currentRate();
