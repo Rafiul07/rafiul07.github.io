@@ -868,11 +868,14 @@ async function loadAllMesses() {
     const out = [];
     for (const d of snap.docs) {
       const m = d.data();
-      const [mem, sum] = await Promise.all([d.ref.collection('members').get(), d.ref.collection('summary').doc('main').get()]);
+      const [mem, sum, mon] = await Promise.all([d.ref.collection('members').get(), d.ref.collection('summary').doc('main').get(), d.ref.collection('monthly').get()]);
+      // all months: every closed month's saved total + the current month's total
+      const closedTot = mon.docs.reduce((a, x) => a + Number((x.data() || {}).total || 0), 0);
+      const curTot = sum.exists ? Number(sum.data().tB || 0) : 0;
       out.push({ id: d.id, name: m.name || d.id, admin: m.admin || '', code: m.inviteCode || '',
                  active: m.active !== false, archived: m.archived === true, statusNote: m.statusNote || '',
                  adminFrozen: m.adminFrozen === true, adminFreezeNote: m.adminFreezeNote || '',
-                 createdAt: m.createdAt || 0, count: mem.size, tB: sum.exists ? Number(sum.data().tB || 0) : 0,
+                 createdAt: m.createdAt || 0, count: mem.size, tB: curTot, allTB: closedTot + curTot, closedMonths: mon.size,
                  memList: mem.docs.map(x => ({ email: x.id, name: x.data().name || x.id, days: x.data().days, deposit: x.data().deposit })) });
     }
     allMesses = out.sort((a, b) => b.createdAt - a.createdAt);
@@ -920,7 +923,7 @@ function superRow(m, i) {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:12px 0;text-align:center">
       <div class="card" style="padding:8px 4px;margin:0"><div class="sub" style="font-size:11px">${bn ? 'সদস্য' : 'Members'}</div><b class="num">${m.count}</b></div>
-      <div class="card" style="padding:8px 4px;margin:0"><div class="sub" style="font-size:11px">${bn ? 'বাজার' : 'Bazar'}</div><b class="num">${f2(m.tB)}</b></div>
+      <div class="card" style="padding:8px 4px;margin:0"><div class="sub" style="font-size:11px">${bn ? 'বাজার (সব মাস)' : 'Bazar (all)'}</div><b class="num">${f2(m.allTB || 0)}</b></div>
       <div class="card" style="padding:8px 4px;margin:0"><div class="sub" style="font-size:11px">${bn ? 'তৈরি' : 'Created'}</div><b class="num" style="font-size:12px">${created}</b></div>
     </div>
     <div class="acts" style="flex-wrap:wrap;gap:6px">
@@ -979,11 +982,14 @@ function superMessTabHtml(id) {
       <div class="sub">${st}</div>
       <div class="sub" style="margin-top:6px">Admin: <b>${esc(m.admin)}</b>${m.adminFrozen ? ` · <span style="color:var(--bad)">${bn ? 'ফ্রিজ' : 'Frozen'}${m.adminFreezeNote ? ': ' + esc(m.adminFreezeNote) : ''}</span>` : ''}</div>
       <div class="sub">${bn ? 'Invite code' : 'Invite code'}: <b>${esc(m.code || '—')}</b> ${m.code ? `<button class="ghost" onclick="superCopy('${esc(m.code)}')">${bn ? 'কপি' : 'Copy'}</button>` : ''}</div>
-      <div class="sub">${bn ? 'সদস্য' : 'Members'}: <b class="num">${m.count}</b> · ${bn ? 'মোট বাজার' : 'Total bazar'}: <b class="num">${f2(m.tB)}</b> · ${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—'}</div>
+      <div class="sub">${bn ? 'সদস্য' : 'Members'}: <b class="num">${m.count}</b> · ${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—'}</div>
+      <div class="sub">${bn ? 'মোট বাজার (সব মাস)' : 'Total bazar (all months)'}: <b class="num">${f2(m.allTB || 0)}</b></div>
+      <div class="sub">${bn ? 'এই মাসের বাজার' : 'This month bazar'}: <b class="num">${f2(m.tB)}</b></div>
+      <details open style="margin-top:10px"><summary><b>${bn ? 'সদস্যদের তালিকা' : 'Members'} (${m.count})</b></summary><div style="margin-top:8px">${members}</div></details>
       <h3 style="margin:14px 0 6px">${bn ? 'কাজ' : 'Actions'}</h3>
       <div class="acts" style="flex-wrap:wrap">${acts}</div>
     </div>
-    <div class="card"><h3 style="margin:0 0 6px">${bn ? 'সদস্যদের তালিকা' : 'Members'} (${m.count})</h3>${members}</div>`;
+    `;
 }
 function superKpi() {
   const bn = lang === 'bn';
