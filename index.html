@@ -870,13 +870,16 @@ async function loadAllMesses() {
       const m = d.data();
       const [mem, sum, mon] = await Promise.all([d.ref.collection('members').get(), d.ref.collection('summary').doc('main').get(), d.ref.collection('monthly').get()]);
       // all months: every closed month's saved total + the current month's total
-      const closedTot = mon.docs.reduce((a, x) => a + Number((x.data() || {}).total || 0), 0);
+      // the current month comes from the live summary only; an old saved copy of it is ignored
+      const thisKey = new Date().toISOString().slice(0, 7);
+      const closedDocs = mon.docs.filter(x => x.id !== thisKey);
+      const closedTot = closedDocs.reduce((a, x) => a + Number((x.data() || {}).total || 0), 0);
       const curTot = sum.exists ? Number(sum.data().tB || 0) : 0;
       out.push({ id: d.id, name: m.name || d.id, admin: m.admin || '', code: m.inviteCode || '',
                  active: m.active !== false, archived: m.archived === true, statusNote: m.statusNote || '',
                  adminFrozen: m.adminFrozen === true, adminFreezeNote: m.adminFreezeNote || '',
-                 createdAt: m.createdAt || 0, count: mem.size, tB: curTot, allTB: closedTot + curTot, closedMonths: mon.size,
-                 months: [...mon.docs.map(x => ({ id: x.id, total: Number((x.data() || {}).total || 0) })), { id: new Date().toISOString().slice(0, 7), total: curTot, current: true }].sort((a, b) => (a.id < b.id ? 1 : -1)),
+                 createdAt: m.createdAt || 0, count: mem.size, tB: curTot, allTB: closedTot + curTot, closedMonths: closedDocs.length,
+                 months: [...closedDocs.map(x => ({ id: x.id, total: Number((x.data() || {}).total || 0) })), { id: new Date().toISOString().slice(0, 7), total: curTot, current: true }].sort((a, b) => (a.id < b.id ? 1 : -1)),
                  memList: mem.docs.map(x => ({ email: x.id, name: x.data().name || x.id, days: x.data().days, deposit: x.data().deposit })) });
     }
     allMesses = out.sort((a, b) => b.createdAt - a.createdAt);
