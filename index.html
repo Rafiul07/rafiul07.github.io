@@ -597,7 +597,10 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 
 <script>
 let MID = '';          // id of the mess this person belongs to (set on login, from users/{email})
-let MESS_FROZEN = false, MESS_FREEZE_NOTE = '';   // super admin froze the mess admin's write rights (messes/{MID}.adminFrozen)
+let MESS_FROZEN = false, MESS_FREEZE_NOTE = '';
+let MESS_SUB = null;   // this mess's subscription (messes/{MID}.subscription), shown to the mess admin
+// আপনার পেমেন্ট লিংক/নম্বর এখানে বসাও (CHANGE_ME থাকলে সেটা দেখানো হবে না)
+const PAY_LINKS = { paypal: 'https://paypal.me/CHANGE_ME', wise: 'https://wise.com/pay/me/CHANGE_ME', bkash: 'CHANGE_ME' };   // super admin froze the mess admin's write rights (messes/{MID}.adminFrozen)
 let MESS_ADMIN = '';   // admin email of that mess (from messes/{MID}.admin); the admin is also a mess member
 
 const FB_CONFIG = {
@@ -880,7 +883,7 @@ async function loadAllMesses() {
       out.push({ id: d.id, name: m.name || d.id, admin: m.admin || '', code: m.inviteCode || '',
                  active: m.active !== false, archived: m.archived === true, statusNote: m.statusNote || '',
                  adminFrozen: m.adminFrozen === true, adminFreezeNote: m.adminFreezeNote || '',
-                 createdAt: m.createdAt || 0, count: mem.size, tB: curTot, allTB: closedTot + curTot, closedMonths: closedDocs.length,
+                 createdAt: m.createdAt || 0, count: mem.size, sub: m.subscription || null, tB: curTot, allTB: closedTot + curTot, closedMonths: closedDocs.length,
                  months: closedDocs.map(x => ({ id: x.id, total: Number((x.data() || {}).total || 0) })).sort((a, b) => (a.id < b.id ? 1 : -1)),
                  memList: mem.docs.map(x => ({ email: x.id, name: x.data().name || x.id, days: x.data().days, deposit: x.data().deposit })) });
     }
@@ -991,6 +994,7 @@ function superMessTabHtml(id) {
       <div class="sub">${bn ? 'সদস্য' : 'Members'}: <b class="num">${m.count}</b> · ${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—'}</div>
       <div class="sub">${bn ? 'মোট বাজার (সব মাস)' : 'Total bazar (all months)'}: <b class="num">${f2(m.allTB || 0)}</b></div>
       <details style="margin-top:8px"><summary><b>${bn ? 'মাস অনুযায়ী বাজার' : 'Bazar by month'}</b></summary><div style="margin-top:6px">${(m.months || []).map(x => `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${monthLabel(x.id)}${x.current ? ' · ' + (bn ? 'চলতি' : 'current') : ''}</span><b class="num">${f2(x.total)}</b></div>`).join('') || `<div class="sub">${bn ? 'কোনো মাস নেই' : 'No months'}</div>`}</div></details>
+      ${superSubHtml(m)}
       <details open style="margin-top:10px"><summary><b>${bn ? 'সদস্যদের তালিকা' : 'Members'} (${m.count})</b></summary><div style="margin-top:8px">${members}</div></details>
       <h3 style="margin:14px 0 6px">${bn ? 'কাজ' : 'Actions'}</h3>
       <div class="acts" style="flex-wrap:wrap">${acts}</div>
@@ -1112,6 +1116,32 @@ async function superAct(i, what) {
       await noteToMess(m.id, (bn ? 'Admin বদলানো হয়েছে: ' : 'Admin changed: ') + m.admin + ' → ' + adm);
       await logSuper(bn ? 'admin বদলানো' : 'admin changed', m, adm);
       toast(t('saved')); return loadAllMesses();
+    }
+    if (what === 'subSet') {
+      const cur = m.sub || {};
+      const amt = await sheet({ title: bn ? 'ফি কত টাকা?' : 'Fee amount', value: cur.amount || '', ph: '500' });
+      if (!amt || +amt <= 0) return;
+      const cyc = await sheet({ title: bn ? 'মাসিক না বার্ষিক? (month / year)' : 'Cycle (month / year)', value: cur.cycle || 'month', ph: 'month' });
+      await db.collection('messes').doc(m.id).update({ 'subscription.amount': +amt, 'subscription.cycle': String(cyc || '').trim().toLowerCase() === 'year' ? 'year' : 'month' });
+      toast(bn ? 'ফি সেট হয়েছে' : 'Fee saved'); return loadAllMesses();
+    }
+    if (what === 'subPaid') {
+      const cur = m.sub || {};
+      const date = String(await sheet({ title: bn ? 'কবে পেলে? (YYYY-MM-DD)' : 'Date received (YYYY-MM-DD)', value: isoToday(), ph: 'YYYY-MM-DD' }) || '').trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return toast(bn ? 'তারিখ ভুল' : 'Wrong date', true);
+      const method = String(await sheet({ title: bn ? 'মাধ্যম (PayPal / Wise / bKash / Bank)' : 'Method (PayPal / Wise / bKash / Bank)', value: 'PayPal' }) || '').trim();
+      if (!method) return;
+      const ref = String(await sheet({ title: bn ? 'রেফারেন্স / ট্রানজ্যাকশন আইডি (না থাকলে ফাঁকা)' : 'Reference (optional)', value: '' }) || '').trim();
+      const amount = cur.amount || 0;
+      const from = (cur.paidUntil && cur.paidUntil > date) ? cur.paidUntil : date;
+      const until = addPeriod(from, cur.cycle);
+      await db.collection('messes').doc(m.id).update({
+        'subscription.paidUntil': until,
+        'subscription.lastPaid': date,
+        'subscription.history': firebase.firestore.FieldValue.arrayUnion({ date, amount, method, ref })
+      });
+      await logSuper(bn ? 'সাবস্ক্রিপশন পেমেন্ট' : 'subscription payment', m, { amount, method, ref, until });
+      toast(bn ? 'পেমেন্ট নথিভুক্ত হয়েছে' : 'Payment recorded'); return loadAllMesses();
     }
     if (what === 'deleteMess') {
       if (!m.archived) return toast(bn ? 'আগে মেসটি আর্কাইভ করো' : 'Archive the mess first', true);
@@ -1524,6 +1554,7 @@ auth.onAuthStateChanged(async user => {
       MESS_ADMIN = ms.exists ? ms.data().admin : '';
       MESS_FROZEN = ms.exists && ms.data().adminFrozen === true;
       MESS_FREEZE_NOTE = ms.exists ? (ms.data().adminFreezeNote || '') : '';
+      MESS_SUB = ms.exists ? (ms.data().subscription || null) : null;
       // switched off or archived: this person sees only the notice page
       const md = ms.exists ? ms.data() : {};
       blocked = ms.exists && (md.active === false || md.archived === true);
@@ -1957,7 +1988,7 @@ function frozenBanner() {
 }
 function renderHome() {
   $('qBar').classList.remove('hidden');
-  let h = frozenBanner();
+  let h = frozenBanner() + subBanner();
   // a frozen member sees why they cannot add bazar entries
   const meRow = memberOf(me);
   const frozenNow = !isMgr && !!(meRow && meRow.frozen);
@@ -3473,6 +3504,61 @@ function contactAdmin(e) {
   const subject = 'MESS HISAB PRO - সহায়তা';
   const body = 'আসসালামু আলাইকুম,\nআমার মেসের বিষয়ে একটু সাহায্য দরকার।\n\n';
   location.href = 'mailto:rafiul.fr@yahoo.com?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+}
+
+/* ================= SUBSCRIPTION ================= */
+function isoToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function addPeriod(ymd, cycle) {
+  const [y, mo, da] = ymd.split('-').map(Number);
+  const d = new Date(y, mo - 1, da);
+  if (cycle === 'year') d.setFullYear(d.getFullYear() + 1); else d.setMonth(d.getMonth() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// super admin: fee, status, payment history and buttons for one mess
+function superSubHtml(m) {
+  const bn = lang === 'bn';
+  const s = m.sub || {};
+  const ok = s.paidUntil && s.paidUntil >= isoToday();
+  const badge = !s.paidUntil ? `<span class="badge">${bn ? 'সেট নেই' : 'Not set'}</span>`
+    : ok ? `<span class="badge b-ok">${bn ? 'চালু' : 'Active'}</span>`
+    : `<span class="badge" style="background:var(--bad);color:#fff">${bn ? 'মেয়াদ শেষ' : 'Overdue'}</span>`;
+  const hist = (s.history || []).slice(-5).reverse().map(h =>
+    `<div class="sub">${esc(h.date)} · ${f2(h.amount || 0)} · ${esc(h.method || '')}${h.ref ? ' · ' + esc(h.ref) : ''}</div>`).join('')
+    || `<div class="sub">${bn ? 'কোনো পেমেন্ট নেই' : 'No payments yet'}</div>`;
+  return `<details style="margin-top:10px"><summary><b>${bn ? 'সাবস্ক্রিপশন' : 'Subscription'}</b> ${badge}</summary>
+    <div style="margin-top:6px">
+      <div class="sub">${bn ? 'ফি' : 'Fee'}: <b class="num">${s.amount ? f2(s.amount) : '—'}</b> / ${s.cycle === 'year' ? (bn ? 'বছর' : 'year') : (bn ? 'মাস' : 'month')}</div>
+      <div class="sub">${bn ? 'মেয়াদ শেষ' : 'Paid until'}: <b>${s.paidUntil || '—'}</b></div>
+      <div class="sub">${bn ? 'শেষ পেমেন্ট' : 'Last payment'}: ${s.lastPaid || '—'}</div>
+      <div style="margin-top:6px">${hist}</div>
+      <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="ghost" onclick="superActId('${m.id}','subSet')">${bn ? 'ফি সেট' : 'Set fee'}</button>
+        <button class="pri" onclick="superActId('${m.id}','subPaid')">${bn ? 'পেমেন্ট নিলাম' : 'Record payment'}</button>
+      </div>
+    </div></details>`;
+}
+// mess admin only: warning when the subscription is due within 7 days or expired, with the payment buttons
+function subBanner() {
+  if (!MESS_SUB || !MESS_SUB.paidUntil || me !== MESS_ADMIN) return '';
+  const bn = lang === 'bn';
+  const s = MESS_SUB;
+  const diffDays = Math.round((new Date(s.paidUntil) - new Date(isoToday())) / 86400000);
+  if (diffDays > 7) return '';
+  const over = diffDays < 0;
+  const real = v => v && !String(v).includes('CHANGE_ME');
+  const btns = [];
+  if (real(PAY_LINKS.paypal)) btns.push(`<a class="pri" href="${PAY_LINKS.paypal}" target="_blank" rel="noopener">PayPal</a>`);
+  if (real(PAY_LINKS.wise)) btns.push(`<a class="pri" href="${PAY_LINKS.wise}" target="_blank" rel="noopener">Wise</a>`);
+  const bk = real(PAY_LINKS.bkash) ? `<div class="sub" style="margin-top:6px">bKash / Nagad: <b>${esc(PAY_LINKS.bkash)}</b></div>` : '';
+  return `<div class="card" style="border-color:${over ? 'var(--bad)' : 'var(--accent)'};margin-bottom:12px">
+    <b style="color:${over ? 'var(--bad)' : 'inherit'}">${over ? (bn ? 'সাবস্ক্রিপশনের মেয়াদ শেষ' : 'Subscription expired') : (bn ? `আর ${diffDays} দিন বাকি` : `${diffDays} days left`)}</b>
+    <div class="sub" style="margin-top:4px">${bn ? 'মেয়াদ' : 'Paid until'}: <b>${s.paidUntil}</b> · ${bn ? 'ফি' : 'Fee'}: <b>${s.amount ? f2(s.amount) : '—'}</b></div>
+    ${bk}
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px">${btns.join('')}</div>
+  </div>`;
 }
 
 /* ================= INIT ================= */
