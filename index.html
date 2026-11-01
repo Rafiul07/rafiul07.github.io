@@ -2218,6 +2218,48 @@ function startEdit(id) {
   $('fMsg').innerText = ''; $('fMsg').classList.remove('err');
   openEntryPop(true);
 }
+/* profile photo: small square JPEG (160px) so the members list stays light */
+function avatarShrink(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const side = Math.min(img.width, img.height), S = 160;
+        const c = document.createElement('canvas'); c.width = S; c.height = S;
+        c.getContext('2d').drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, S, S);
+        res(c.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = rej; img.src = r.result;
+    };
+    r.onerror = rej; r.readAsDataURL(file);
+  });
+}
+function pickAvatar() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    try {
+      const photo = await avatarShrink(f);
+      await DBm('members').doc(me).set({ photo }, { merge: true });
+      toast(lang === 'bn' ? 'ছবি সেভ হয়েছে' : 'Photo saved');
+    } catch (e) { showErr(e); }
+  };
+  inp.click();
+}
+function removeAvatar() {
+  DBm('members').doc(me).set({ photo: '' }, { merge: true })
+    .then(() => toast(lang === 'bn' ? 'ছবি সরানো হয়েছে' : 'Photo removed'))
+    .catch(showErr);
+}
+/* round avatar: the member's photo if they have one, otherwise the first letter on a colour */
+function avHtml(email, style = '') {
+  const m = memberOf(email) || {};
+  const ch = (nameOf(email)[0] || '?').toUpperCase();
+  const hue = [...String(email)].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+  if (m.photo) return `<div class="mav" style="${style};padding:0;overflow:hidden"><img src="${m.photo}" alt="" style="width:100%;height:100%;object-fit:cover"></div>`;
+  return `<div class="mav" style="${style};background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>`;
+}
 function compress(file) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -2522,7 +2564,7 @@ function renderMembers() {
     const picked = selMem.has(m.email);
     return `<div class="card mcard mcompact" data-email="${esc(m.email)}" style="cursor:pointer;${picked ? 'border:2px solid var(--p);background:rgba(124,92,255,.08)' : ''}" onclick="openMember('${esc(m.email)}')">
       <div class="mhead" style="gap:10px;align-items:center;flex-wrap:nowrap">
-        <div class="mav" style="width:36px;height:36px;font-size:15px;flex-shrink:0;background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>
+        ${avHtml(m.email, 'width:36px;height:36px;font-size:15px;flex-shrink:0')}
         <div class="grow" style="min-width:0"><div class="mname" style="font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nm)}${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub num" style="font-size:12px">${f2(b)} · ${pct}% · ${t('days')} ${m.days ?? 30}</div></div>
         ${chip}
         <button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(m.email)}')">ⓘ</button>
@@ -2686,12 +2728,16 @@ function meCardHtml() {
   const nm = nameOf(me);
   return `<div class="card meCard">
       <div class="meTop">
-        <div class="meAv">${esc(nm.charAt(0).toUpperCase())}</div>
+        <div class="meAv" style="${(memberOf(me) || {}).photo ? 'padding:0;overflow:hidden' : ''}">${(memberOf(me) || {}).photo ? `<img src="${(memberOf(me) || {}).photo}" alt="" style="width:100%;height:100%;object-fit:cover">` : esc(nm.charAt(0).toUpperCase())}</div>
         <div class="meInfo">
           <div class="meName">${esc(nm)}</div>
           <div class="meMail">${esc(me)}</div>
         </div>
         <span class="meRole ${isMgr ? 'b-s' : 'b-p'}">${isMgr ? t('admin') : t('member')}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin:10px 0">
+        <button class="ghost" style="flex:1" onclick="pickAvatar()">📷 ${lang === 'bn' ? 'ছবি বদলাও' : 'Change photo'}</button>
+        ${(memberOf(me) || {}).photo ? `<button class="ghost" style="flex:1" onclick="removeAvatar()">${lang === 'bn' ? 'ছবি সরাও' : 'Remove photo'}</button>` : ''}
       </div>
       <button class="meOut" onclick="logout()">⎋ ${t('logout')}</button>
     </div>`;
@@ -3230,7 +3276,7 @@ function openMember(email) {
   $('memBody').dataset.email = email;
   $('memBody').innerHTML = `
     <div class="row" style="flex-wrap:nowrap;gap:12px;margin-bottom:12px">
-      <div class="mav" style="background:linear-gradient(135deg,var(--p),var(--s))">${esc(nameOf(email).charAt(0))}</div>
+      ${avHtml(email)}
       <div class="grow" style="min-width:0"><div class="mname">${esc(nameOf(email))}</div><div class="sub" style="word-break:break-all">${esc(email)} · ${all.length} ${bn ? 'টি এন্ট্রি' : 'entries'}</div></div>
     </div>
     ${rate != null ? `<details class="sec hisDet" style="margin:0 0 14px"><summary>${bn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</summary><div class="secBody">
