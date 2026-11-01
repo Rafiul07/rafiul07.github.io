@@ -2086,7 +2086,7 @@ function inboxHtml() {
       <div class="row between"><b>${esc(fmtDate(x.date))}</b><b class="num">${f2(x.amount)}</b></div>
       ${x.note ? `<div class="sub">${esc(x.note)}</div>` : ''}
       <div class="sub" style="margin-top:4px">${bn ? 'Admin এই এন্ট্রি মুছেছেন' : 'Admin deleted this entry'}${x.at ? ' · ' + new Date(x.at).toLocaleString(bn ? 'bn-BD' : 'en-GB') : ''}</div>
-      ${x.slip ? `<img src="${x.slip}" alt="" style="width:100%;max-width:280px;margin-top:8px;border-radius:12px;border:1px solid var(--bd)">`
+      ${x.slip ? `<img src="${x.slip}" alt="" onclick="openImg(this.src)" title="" style="display:block;width:96px;height:auto;margin-top:8px;border-radius:10px;border:1px solid var(--bd);cursor:zoom-in">`
         : `<div class="sub" style="margin-top:6px">${x.slipTooBig ? (bn ? 'pay slip এর ছবি খুব বড় ছিল, তাই রাখা যায়নি' : 'The pay slip photo was too large to keep') : (bn ? 'এই এন্ট্রিতে pay slip ছিল না' : 'No pay slip on this entry')}</div>`}
     </div>`).join('');
   return `<div class="card" style="border-color:${unread ? 'var(--p)' : 'var(--bd)'}">
