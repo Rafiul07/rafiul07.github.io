@@ -459,6 +459,8 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
     <button class="ghost" id="signupBtn" onclick="signupStart()" style="width:100%;margin-top:10px"></button>
     <button class="ghost" id="forgotBtn" onclick="forgot()" style="width:100%;margin-top:6px;font-size:14px"></button>
     <div id="lMsg" class="sub" style="color:var(--bad);margin-top:10px;min-height:16px"></div>
+    <a href="#" class="ghost" onclick="contactAdmin(event)" style="display:block;text-align:center;margin-top:14px;text-decoration:none;font-size:14px">📧 যোগাযোগ করুন</a>
+    <a href="https://www.facebook.com/share/1DyixNzAE5/" target="_blank" rel="noopener" class="ghost" style="display:block;text-align:center;margin-top:10px;text-decoration:none;font-size:14px">💬 Messenger / Facebook</a>
   </div>
 </div>
 
@@ -3464,6 +3466,14 @@ function saveMemberFields(email) {
   }, { merge: true }).then(() => { toast(t('saved')); logAct('Days/deposit · ' + email + ' · ' + num($('mdDays').value) + ' / ' + num($('mdDep').value)); if (memOpen) openMember(memOpen); }).catch(showErr);
 }
 function closeMember() { memOpen = null; $('memBox').classList.add('hidden'); dropLayer('memBox'); }
+
+/* ================= CONTACT SUPER ADMIN ================= */
+function contactAdmin(e) {
+  e.preventDefault();
+  const subject = 'MESS HISAB PRO - সহায়তা';
+  const body = 'আসসালামু আলাইকুম,\nআমার মেসের বিষয়ে একটু সাহায্য দরকার।\n\n';
+  location.href = 'mailto:rafiul.fr@yahoo.com?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+}
 
 /* ================= INIT ================= */
 $('fPhoto').onchange = e => {
