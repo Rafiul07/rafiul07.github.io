@@ -1966,20 +1966,22 @@ function renderHome() {
     const lastD = mineAll.map(x => String(x.date)).sort().pop();
     const since = lastD ? Math.floor((Date.now() - new Date(lastD + 'T00:00').getTime()) / 86400000) : null;
     if (since === null || since >= 5) h += `<div class="card" style="border-color:var(--p)"><h3>${isBn ? 'বাজার মনে করানো' : 'Reminder'}</h3><div class="sub">${since === null ? (isBn ? 'এখনও কোনো বাজার যোগ করোনি।' : 'You have not added any bazar yet.') : (isBn ? `শেষ বাজার ${since} দিন আগে। নতুন বাজার যোগ করো।` : `Last bazar was ${since} days ago. Add a new one.`)}</div></div>`;
+    // the cards below follow the month picked at the top (a new month starts from 0)
+    const mineM = mineAll.filter(x => month === 'all' || String(x.date).slice(0, 7) === month);
     const byM = {};
-    mineAll.forEach(x => { const mm = String(x.date).slice(0, 7); byM[mm] = byM[mm] || { sum: 0, n: 0 }; byM[mm].sum += num(x.amount); byM[mm].n++; });
+    mineM.forEach(x => { const mm = String(x.date).slice(0, 7); byM[mm] = byM[mm] || { sum: 0, n: 0 }; byM[mm].sum += num(x.amount); byM[mm].n++; });
     const mk = Object.keys(byM).sort().reverse();
     if (mk.length) h += `<div class="card"><h3>${isBn ? 'আমার মাসভিত্তিক বাজার' : 'My bazar by month'}</h3>` + mk.map(mm =>
       `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${monthLabel(mm)} <span class="sub">(${byM[mm].n})</span></span><b class="num">${f2(byM[mm].sum)}</b></div>`).join('') + `</div>`;
     // bazar / days / deposit already sit in the hero card above, so no separate tiles
     if (!isMgr) {
-      const all = entries.filter(x => x.memberEmail === me).sort(byNewest);
+      const all = mineM.slice().sort(byNewest);
       const shown = all.slice(0, homeLimit);
       const more = all.length > homeLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="homeMore()">${lang === 'bn' ? 'আরও দেখাও' : 'Show more'} (${all.length - homeLimit})</button>` : '';
       h += `<details class="sec" style="margin:0 0 14px"><summary>${t('recent')} <span class="sub">(${all.length})</span></summary><div class="secBody">` + (all.length ? shown.map(x => miniRow(x, true)).join('') + more : `<div class="empty">${t('noEntries')}</div>`) + `</div></details>`;
     }
     h += `<div class="card"><h3>${t('statusCount')}</h3>` + ['submitted', 'approved'].map(s =>
-      `<div class="row between" style="padding:6px 0"><span class="badge ${STATUS_CLS[s]}">${t(s)}</span><b class="num">${entries.filter(x => x.memberEmail === me && x.status === s).length}</b></div>`
+      `<div class="row between" style="padding:6px 0"><span class="badge ${STATUS_CLS[s]}">${t(s)}</span><b class="num">${mineM.filter(x => x.status === s).length}</b></div>`
     ).join('') + `</div>`;
     const r2 = currentRate();
     if (r2 != null && !isMgr) {   // admin already sees everyone in the members card above
