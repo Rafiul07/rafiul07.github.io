@@ -3606,7 +3606,7 @@ function superSubHtml(m) {
   const hist = (s.history || []).slice(-5).reverse().map(h =>
     `<div class="sub">${esc(h.date)} · ${f2(h.amount || 0)} · ${esc(h.method || '')}${h.ref ? ' · ' + esc(h.ref) : ''}</div>`).join('')
     || `<div class="sub">${bn ? 'কোনো পেমেন্ট নেই' : 'No payments yet'}</div>`;
-  return `<details style="margin-top:10px"><summary><b>${bn ? 'সাবস্ক্রিপশন' : 'Subscription'}</b> ${badge}</summary>
+  return `<details open style="margin-top:0"><summary><b>${bn ? 'সাবস্ক্রিপশন' : 'Subscription'}</b> ${badge}</summary>
     <div style="margin-top:6px">
       <div class="sub">${bn ? 'ফি' : 'Fee'}: <b class="num">${s.amount ? f2(s.amount) : '—'}</b> / ${planLabel(s.cycle, bn)}</div>
       <div class="sub">${bn ? 'মেয়াদ শেষ' : 'Paid until'}: <b>${s.paidUntil || '—'}</b></div>
@@ -3632,7 +3632,7 @@ function subBanner() {
   if (real(PAY_LINKS.paypal)) btns.push(`<a class="pri" href="${PAY_LINKS.paypal}" target="_blank" rel="noopener">PayPal</a>`);
   if (real(PAY_LINKS.wise)) btns.push(`<a class="pri" href="${PAY_LINKS.wise}" target="_blank" rel="noopener">Wise</a>`);
   const bk = real(PAY_LINKS.bkash) ? `<div class="sub" style="margin-top:6px">bKash / Nagad: <b>${esc(PAY_LINKS.bkash)}</b></div>` : '';
-  return `<div class="card" style="border-color:${over ? 'var(--bad)' : soon ? 'var(--accent)' : 'var(--line)'};margin-bottom:12px">
+  return `<div class="card" style="border-color:${over ? 'var(--bad)' : soon ? 'var(--warn)' : 'var(--bd)'};margin-bottom:12px">
     <b style="color:${over ? 'var(--bad)' : 'inherit'}">${over ? (bn ? 'সাবস্ক্রিপশনের মেয়াদ শেষ' : 'Subscription expired') : (bn ? `আর ${diffDays} দিন বাকি` : `${diffDays} days left`)}</b>
     <div class="sub" style="margin-top:4px">${bn ? 'মেয়াদ' : 'Paid until'}: <b>${s.paidUntil}</b> · ${bn ? 'ফি' : 'Fee'}: <b>${s.amount ? f2(s.amount) : '—'}</b></div>
     ${bk}
@@ -3655,14 +3655,14 @@ function subSettingsHtml() {
   const bk = real(PAY_LINKS.bkash) ? `<div class="sub" style="margin-top:6px">bKash / Nagad: <b>${esc(PAY_LINKS.bkash)}</b></div>` : '';
   const left = s.paidUntil ? Math.round((new Date(s.paidUntil) - new Date(isoToday())) / 86400000) : null;
   const warn = left === null ? '' : left < 0 ? `<div class="sub" style="color:var(--bad);margin-top:6px"><b>${bn ? 'মেয়াদ পেরিয়ে গেছে, এখনই নবায়ন করুন' : 'Expired, please renew now'}</b></div>`
-    : left <= SUB_REMIND_DAYS ? `<div class="sub" style="color:var(--accent);margin-top:6px"><b>${bn ? `মেয়াদ শেষ হতে আর ${left} দিন বাকি` : `${left} days left to renew`}</b></div>` : '';
+    : left <= SUB_REMIND_DAYS ? `<div class="sub" style="color:var(--warn);margin-top:6px"><b>${bn ? `মেয়াদ শেষ হতে আর ${left} দিন বাকি` : `${left} days left to renew`}</b></div>` : '';
   return `<div class="sub">${bn ? 'স্ট্যাটাস' : 'Status'}: <b>${status}</b></div>
     ${warn}
     <div class="sub">${bn ? 'ফি' : 'Fee'}: <b>${s.amount ? f2(s.amount) : '—'}</b> / ${planLabel(s.cycle, bn)}</div>
     ${bk}
     <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px">${btns.join('')}</div>
     <div style="margin-top:12px"><div class="sub">${bn ? 'সুপার অ্যাডমিনের দেওয়া কোড' : 'Code from super admin'}</div>
-      <input id="subCodeIn" placeholder="ABCD1234" autocapitalize="characters" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--fg);font:inherit;text-transform:uppercase"></div>
+      <input id="subCodeIn" placeholder="ABCD1234" autocapitalize="characters" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;text-transform:uppercase"></div>
     <button class="pri" style="width:100%;margin-top:8px" onclick="redeemSubCode()">${bn ? 'কোড দিয়ে সক্রিয় করো' : 'Activate with code'}</button>`;
 }
 // mess admin: use a one-time code from the super admin to extend the subscription
