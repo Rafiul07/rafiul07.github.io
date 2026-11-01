@@ -1125,6 +1125,20 @@ async function superAct(i, what) {
       await db.collection('messes').doc(m.id).update({ 'subscription.amount': +amt, 'subscription.cycle': String(cyc || '').trim().toLowerCase() === 'year' ? 'year' : 'month' });
       toast(bn ? 'ফি সেট হয়েছে' : 'Fee saved'); return loadAllMesses();
     }
+    if (what === 'subCode') {
+      const cur = m.sub || {};
+      if (!cur.amount) return toast(bn ? 'আগে ফি সেট করো' : 'Set the fee first', true);
+      const cyc = cur.cycle || 'month';
+      const today = isoToday();
+      const from = (cur.paidUntil && cur.paidUntil > today) ? cur.paidUntil : today;
+      const until = addPeriod(from, cyc);
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const code = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      await db.collection('subCodes').doc(code).set({ messId: m.id, amount: cur.amount, cycle: cyc, paidUntil: until, used: false, createdAt: Date.now() });
+      await logSuper(bn ? 'সাবস্ক্রিপশন কোড তৈরি' : 'subscription code created', m, { until });
+      await sheet({ title: bn ? 'এই কোডটি মেস অ্যাডমিনকে দাও (কপি করো)' : 'Give this code to the mess admin (copy it)', value: code });
+      return;
+    }
     if (what === 'subPaid') {
       const cur = m.sub || {};
       const date = String(await sheet({ title: bn ? 'কবে পেলে? (YYYY-MM-DD)' : 'Date received (YYYY-MM-DD)', value: isoToday(), ph: 'YYYY-MM-DD' }) || '').trim();
@@ -1988,7 +2002,7 @@ function frozenBanner() {
 }
 function renderHome() {
   $('qBar').classList.remove('hidden');
-  let h = frozenBanner() + subBanner();
+  let h = frozenBanner();
   // a frozen member sees why they cannot add bazar entries
   const meRow = memberOf(me);
   const frozenNow = !isMgr && !!(meRow && meRow.frozen);
@@ -2908,6 +2922,7 @@ function settingsHtml(skipMe = false) {
       <button class="item" onclick="changePassword()"><span>${t('changePw')}</span><span class="sub">›</span></button>
       <button class="item" onclick="resetPw()"><span>${t('resetPw')}</span><span class="sub">›</span></button>
       `);
+  if (me === MESS_ADMIN) h += sec(isBn ? 'সাবস্ক্রিপশন' : 'Subscription', subSettingsHtml(), true);
 
   return h;
 }
@@ -3537,6 +3552,7 @@ function superSubHtml(m) {
       <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">
         <button class="ghost" onclick="superActId('${m.id}','subSet')">${bn ? 'ফি সেট' : 'Set fee'}</button>
         <button class="pri" onclick="superActId('${m.id}','subPaid')">${bn ? 'পেমেন্ট নিলাম' : 'Record payment'}</button>
+        <button class="ghost" onclick="superActId('${m.id}','subCode')">${bn ? 'কোড তৈরি' : 'Make code'}</button>
       </div>
     </div></details>`;
 }
@@ -3546,19 +3562,72 @@ function subBanner() {
   const bn = lang === 'bn';
   const s = MESS_SUB;
   const diffDays = Math.round((new Date(s.paidUntil) - new Date(isoToday())) / 86400000);
-  if (diffDays > 7) return '';
   const over = diffDays < 0;
+  const soon = diffDays <= 7;
   const real = v => v && !String(v).includes('CHANGE_ME');
   const btns = [];
   if (real(PAY_LINKS.paypal)) btns.push(`<a class="pri" href="${PAY_LINKS.paypal}" target="_blank" rel="noopener">PayPal</a>`);
   if (real(PAY_LINKS.wise)) btns.push(`<a class="pri" href="${PAY_LINKS.wise}" target="_blank" rel="noopener">Wise</a>`);
   const bk = real(PAY_LINKS.bkash) ? `<div class="sub" style="margin-top:6px">bKash / Nagad: <b>${esc(PAY_LINKS.bkash)}</b></div>` : '';
-  return `<div class="card" style="border-color:${over ? 'var(--bad)' : 'var(--accent)'};margin-bottom:12px">
+  return `<div class="card" style="border-color:${over ? 'var(--bad)' : soon ? 'var(--accent)' : 'var(--line)'};margin-bottom:12px">
     <b style="color:${over ? 'var(--bad)' : 'inherit'}">${over ? (bn ? 'সাবস্ক্রিপশনের মেয়াদ শেষ' : 'Subscription expired') : (bn ? `আর ${diffDays} দিন বাকি` : `${diffDays} days left`)}</b>
     <div class="sub" style="margin-top:4px">${bn ? 'মেয়াদ' : 'Paid until'}: <b>${s.paidUntil}</b> · ${bn ? 'ফি' : 'Fee'}: <b>${s.amount ? f2(s.amount) : '—'}</b></div>
     ${bk}
     <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px">${btns.join('')}</div>
   </div>`;
+}
+
+// mess admin: subscription status, payment buttons and the code box (in Settings)
+function subSettingsHtml() {
+  const bn = lang === 'bn';
+  const s = MESS_SUB || {};
+  const ok = s.paidUntil && s.paidUntil >= isoToday();
+  const status = !s.paidUntil ? (bn ? 'সেট করা হয়নি' : 'Not set')
+    : ok ? `${bn ? 'চালু, শেষ হবে' : 'Active until'} ${s.paidUntil}`
+    : `<span style="color:var(--bad)">${bn ? 'মেয়াদ শেষ' : 'Expired'} (${s.paidUntil})</span>`;
+  const real = v => v && !String(v).includes('CHANGE_ME');
+  const btns = [];
+  if (real(PAY_LINKS.paypal)) btns.push(`<a class="pri" href="${PAY_LINKS.paypal}" target="_blank" rel="noopener">PayPal</a>`);
+  if (real(PAY_LINKS.wise)) btns.push(`<a class="pri" href="${PAY_LINKS.wise}" target="_blank" rel="noopener">Wise</a>`);
+  const bk = real(PAY_LINKS.bkash) ? `<div class="sub" style="margin-top:6px">bKash / Nagad: <b>${esc(PAY_LINKS.bkash)}</b></div>` : '';
+  return `<div class="sub">${bn ? 'স্ট্যাটাস' : 'Status'}: <b>${status}</b></div>
+    <div class="sub">${bn ? 'ফি' : 'Fee'}: <b>${s.amount ? f2(s.amount) : '—'}</b> / ${s.cycle === 'year' ? (bn ? 'বছর' : 'year') : (bn ? 'মাস' : 'month')}</div>
+    ${bk}
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px">${btns.join('')}</div>
+    <div style="margin-top:12px"><div class="sub">${bn ? 'সুপার অ্যাডমিনের দেওয়া কোড' : 'Code from super admin'}</div>
+      <input id="subCodeIn" placeholder="ABCD1234" autocapitalize="characters" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--fg);font:inherit;text-transform:uppercase"></div>
+    <button class="pri" style="width:100%;margin-top:8px" onclick="redeemSubCode()">${bn ? 'কোড দিয়ে সক্রিয় করো' : 'Activate with code'}</button>`;
+}
+// mess admin: use a one-time code from the super admin to extend the subscription
+async function redeemSubCode() {
+  const bn = lang === 'bn';
+  const code = String((document.getElementById('subCodeIn') || {}).value || '').trim().toUpperCase();
+  if (!code) return toast(bn ? 'কোড লেখো' : 'Enter the code', true);
+  try {
+    const cs = await db.collection('subCodes').doc(code).get();
+    if (!cs.exists) return toast(bn ? 'কোডটি ভুল' : 'Invalid code', true);
+    const c = cs.data();
+    if (c.used) return toast(bn ? 'এই কোডটি আগে ব্যবহার হয়েছে' : 'This code is already used', true);
+    if (c.messId !== MID) return toast(bn ? 'এই কোড এই মেসের নয়' : 'This code is for another mess', true);
+    const today = isoToday();
+    const amount = c.amount || 0;
+    const b = db.batch();
+    b.update(db.collection('messes').doc(MID), {
+      'subscription.paidUntil': c.paidUntil,
+      'subscription.cycle': c.cycle || 'month',
+      'subscription.amount': amount,
+      'subscription.lastPaid': today,
+      'subscription.lastCode': code,
+      'subscription.history': firebase.firestore.FieldValue.arrayUnion({ date: today, amount, method: 'code', ref: code })
+    });
+    b.update(db.collection('subCodes').doc(code), { used: true, usedAt: Date.now(), usedBy: me });
+    await b.commit();
+    MESS_SUB = { ...(MESS_SUB || {}), paidUntil: c.paidUntil, cycle: c.cycle || 'month', amount, lastPaid: today, lastCode: code };
+    toast(bn ? 'সাবস্ক্রিপশন সক্রিয় হয়েছে' : 'Subscription activated');
+    renderSettings();
+  } catch (e) {
+    toast(bn ? 'সক্রিয় করা যায়নি, কোড বা অনুমতি দেখো' : 'Could not activate, check the code', true);
+  }
 }
 
 /* ================= INIT ================= */
