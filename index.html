@@ -2242,7 +2242,7 @@ async function saveEntry() {
   if (closedMonths.includes(String(date).slice(0, 7)) || (oldE && isClosed(oldE))) {
     formErr(lang === 'bn' ? 'এই মাস বন্ধ আছে' : 'This month is closed'); return;
   }
-  if (!f && !editId) { formErr(t('needSlip')); return; }
+  if (!f && !editId && !isMgr) { formErr(t('needSlip')); return; }   // members must attach a slip; the admin may add the entry now and the slip later
   $('fMsg').innerText = '…'; $('fMsg').classList.remove('err');
   try {
     const photo = f ? await compress(f) : null;
@@ -2258,7 +2258,7 @@ async function saveEntry() {
     } else {
       // entry first (the slip rule checks that the entry exists), then the photo
       const who = isMgr && $('fMember') ? $('fMember').value : me;
-      const ref = await W('entries').add({ memberEmail: who, date, amount: amt, note, status: 'submitted', reason: '', createdAt: Date.now(), addedByAdmin: isMgr });
+      const ref = await W('entries').add({ memberEmail: who, date, amount: amt, note, status: isMgr ? 'approved' : 'submitted', reason: '', createdAt: Date.now(), addedByAdmin: isMgr });   // an admin's entry counts at once
       try {
         if (photo) { await W('slips').doc(ref.id).set({ data: photo }); slipCache[ref.id] = photo; }
       } catch (e) {
