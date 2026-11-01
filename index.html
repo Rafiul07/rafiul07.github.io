@@ -2268,6 +2268,7 @@ async function saveEntry() {
     resetForm();
     toast(t('saved'));
     if ($('entryBox') && !$('entryBox').classList.contains('hidden')) closeEntryPop();
+    if (isMgr && memOpen && $('memBox') && !$('memBox').classList.contains('hidden')) openMember(memOpen);
   } catch (e) { formErr(t('errPrefix') + e.message); }
 }
 
@@ -3148,6 +3149,13 @@ function slipBtnHtml(x) {
   if (!isMgr || closedMonths.includes(String(x.date).slice(0, 7))) return '';
   return `<div style="text-align:right;margin:-4px 0 10px"><button class="ghost" style="min-height:30px;font-size:13px;padding:4px 12px" onclick="addSlipFor('${x.id}')">📎 ${lang === 'bn' ? 'স্লিপ যোগ / বদলাও' : 'Add / change slip'}</button></div>`;
 }
+/* admin: new bazar entry for this member (the entry popup opens with their name selected) */
+function addEntryFor(email) {
+  if (!isMgr) return;
+  openEntryPop();
+  const sel = $('fMember');
+  if (sel) sel.value = email;
+}
 function memPick(id) { memPickId = memPickId === id ? '' : id; openMember(memOpen); }
 function memMonthSet(m) { memMonth = m; memLimit = 5; openMember(memOpen); }
 function openMember(email) {
@@ -3208,7 +3216,7 @@ function openMember(email) {
     </div></details>
     <details class="sec bazDet" style="margin:0 0 14px"><summary>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></summary><div class="secBody">
       ${monthPick}
-      ${all.length ? all.slice(0, memLimit).map(x => miniRow(x) + slipBtnHtml(x)).join('') + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
+      ${all.length ? all.slice(0, memLimit).map(x => miniRow(x) + slipBtnHtml(x)).join('') + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div><button class="pri" style="width:100%;margin-top:10px" onclick="addEntryFor('${esc(email)}')">+ ${bn ? 'বাজার যোগ করো' : 'Add bazar'}</button>`}
     </div></details>
     ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
       <div class="mgrid">
