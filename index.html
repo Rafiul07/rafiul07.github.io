@@ -1498,6 +1498,7 @@ auth.onAuthStateChanged(async user => {
     const prev = lastStatus;
     entries = s.docs.map(d => ({ id: d.id, ...d.data() }));
     lastStatus = {}; entries.forEach(x => { lastStatus[x.id] = x.status; });
+    refreshMemberPopup();   // the open member account shows any change at once
     if (!isMgr) entries.forEach(x => {
       if (x.memberEmail === me && prev[x.id] && prev[x.id] !== x.status) {
         if (x.status === 'approved') notifyMe(lang === 'bn' ? 'তোমার বাজার অনুমোদিত হয়েছে' : 'Your entry was approved');
@@ -3155,6 +3156,12 @@ function addEntryFor(email) {
   openEntryPop();
   const sel = $('fMember');
   if (sel) sel.value = email;
+}
+/* redraw the open member account (admin only) when entries change, so approvals, edits and new entries show at once */
+function refreshMemberPopup() {
+  const box = $('memBox');
+  if (!isMgr || !memOpen || !box || box.classList.contains('hidden')) return;
+  openMember(memOpen);
 }
 function memPick(id) { memPickId = memPickId === id ? '' : id; openMember(memOpen); }
 function memMonthSet(m) { memMonth = m; memLimit = 5; openMember(memOpen); }
