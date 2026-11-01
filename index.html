@@ -876,6 +876,7 @@ async function loadAllMesses() {
                  active: m.active !== false, archived: m.archived === true, statusNote: m.statusNote || '',
                  adminFrozen: m.adminFrozen === true, adminFreezeNote: m.adminFreezeNote || '',
                  createdAt: m.createdAt || 0, count: mem.size, tB: curTot, allTB: closedTot + curTot, closedMonths: mon.size,
+                 months: [...mon.docs.map(x => ({ id: x.id, total: Number((x.data() || {}).total || 0) })), { id: new Date().toISOString().slice(0, 7), total: curTot, current: true }].sort((a, b) => (a.id < b.id ? 1 : -1)),
                  memList: mem.docs.map(x => ({ email: x.id, name: x.data().name || x.id, days: x.data().days, deposit: x.data().deposit })) });
     }
     allMesses = out.sort((a, b) => b.createdAt - a.createdAt);
@@ -984,7 +985,7 @@ function superMessTabHtml(id) {
       <div class="sub">${bn ? 'Invite code' : 'Invite code'}: <b>${esc(m.code || '—')}</b> ${m.code ? `<button class="ghost" onclick="superCopy('${esc(m.code)}')">${bn ? 'কপি' : 'Copy'}</button>` : ''}</div>
       <div class="sub">${bn ? 'সদস্য' : 'Members'}: <b class="num">${m.count}</b> · ${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—'}</div>
       <div class="sub">${bn ? 'মোট বাজার (সব মাস)' : 'Total bazar (all months)'}: <b class="num">${f2(m.allTB || 0)}</b></div>
-      <div class="sub">${bn ? 'এই মাসের বাজার' : 'This month bazar'}: <b class="num">${f2(m.tB)}</b></div>
+      <details style="margin-top:8px"><summary><b>${bn ? 'মাস অনুযায়ী বাজার' : 'Bazar by month'}</b></summary><div style="margin-top:6px">${(m.months || []).map(x => `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${monthLabel(x.id)}${x.current ? ' · ' + (bn ? 'চলতি' : 'current') : ''}</span><b class="num">${f2(x.total)}</b></div>`).join('') || `<div class="sub">${bn ? 'কোনো মাস নেই' : 'No months'}</div>`}</div></details>
       <details open style="margin-top:10px"><summary><b>${bn ? 'সদস্যদের তালিকা' : 'Members'} (${m.count})</b></summary><div style="margin-top:8px">${members}</div></details>
       <h3 style="margin:14px 0 6px">${bn ? 'কাজ' : 'Actions'}</h3>
       <div class="acts" style="flex-wrap:wrap">${acts}</div>
