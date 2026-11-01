@@ -925,9 +925,8 @@ function superRow(m, i) {
         <div class="sub" style="word-break:break-all;font-size:12px">${esc(m.admin)}</div></div>
       <div style="flex:none;text-align:right"><span class="badge ${cls}">${st}</span>${frozenTag ? `<div style="margin-top:4px">${frozenTag}</div>` : ''}</div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:12px 0;text-align:center">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px 0;text-align:center">
       <div class="card" style="padding:8px 4px;margin:0"><div class="sub" style="font-size:11px">${bn ? 'সদস্য' : 'Members'}</div><b class="num">${m.count}</b></div>
-      <div class="card" style="padding:8px 4px;margin:0"><div class="sub" style="font-size:11px">${bn ? 'বাজার (সব মাস)' : 'Bazar (all)'}</div><b class="num">${f2(m.allTB || 0)}</b></div>
       <div class="card" style="padding:8px 4px;margin:0"><div class="sub" style="font-size:11px">${bn ? 'তৈরি' : 'Created'}</div><b class="num" style="font-size:12px">${created}</b></div>
     </div>
     <div class="acts" style="flex-wrap:wrap;gap:6px">
@@ -972,7 +971,8 @@ function superMessTabHtml(id) {
       <div class="sub">${bn ? 'দিন' : 'Days'}: <b class="num">${x.days != null ? x.days : 30}</b> · ${bn ? 'জমা' : 'Deposit'}: <b class="num">${f2(x.deposit || 0)}</b></div>
     </div>`).join('') || `<div class="sub">${bn ? 'কোনো সদস্য নেই' : 'No members'}</div>`;
   const acts = m.archived
-    ? `<button class="pri" onclick="superActId('${m.id}','restore')">${bn ? 'আবার অ্যাক্সেস দাও' : 'Restore access'}</button>`
+    ? `<button class="pri" onclick="superActId('${m.id}','restore')">${bn ? 'আবার অ্যাক্সেস দাও' : 'Restore access'}</button>
+       <button class="bad" onclick="superActId('${m.id}','deleteMess')">${bn ? 'মেসটি স্থায়ীভাবে মুছো' : 'Delete mess permanently'}</button>`
     : `<button class="ghost" onclick="superActId('${m.id}','toggle')">${m.active ? (bn ? 'বন্ধ করো' : 'Switch off') : (bn ? 'চালু করো' : 'Switch on')}</button>
        ${m.adminFrozen
           ? `<button class="pri" onclick="superActId('${m.id}','adminUnfreeze')">${bn ? 'Admin এর ফ্রিজ খোলো' : 'Unfreeze admin'}</button>`
@@ -1110,6 +1110,15 @@ async function superAct(i, what) {
       await noteToMess(m.id, (bn ? 'Admin বদলানো হয়েছে: ' : 'Admin changed: ') + m.admin + ' → ' + adm);
       await logSuper(bn ? 'admin বদলানো' : 'admin changed', m, adm);
       toast(t('saved')); return loadAllMesses();
+    }
+    if (what === 'deleteMess') {
+      if (!m.archived) return toast(bn ? 'আগে মেসটি আর্কাইভ করো' : 'Archive the mess first', true);
+      const typed = String((await sheet({ title: (bn ? 'মুছতে মেসের নাম হুবহু লেখো: ' : 'Type the exact mess name to delete: ') + m.name, ph: m.name })) || '').trim();
+      if (typed !== m.name) return toast(bn ? 'নাম মেলেনি, মোছা হয়নি' : 'Name does not match, nothing deleted', true);
+      if (!(await checkSuperPw())) return;
+      await logSuper(bn ? 'মেস স্থায়ীভাবে মুছে ফেলা' : 'mess permanently deleted', m);
+      await deleteMessAll(m);
+      toast(t('deleted')); return loadAllMesses();
     }
     if (what === 'adminFreeze') {
       const v = await sheet({ title: bn ? 'ফ্রিজের কারণ লেখো (admin দেখবে)' : 'Reason for freezing (the admin will see it)', ph: bn ? 'যেমন: মাসিক হিসাব অসম্পূর্ণ' : 'e.g. monthly accounts incomplete' });
@@ -2376,6 +2385,39 @@ async function saveEntry() {
 /* ================= MESS_ADMIN ACTIONS ================= */
 const isClosed = x => closedMonths.includes(String(x.date).slice(0, 7));
 /* asks for the mess admin password and checks it against the admin account (a separate, temporary sign-in) */
+/* super admin: password check before a permanent delete (signs in once on a separate app, the super admin stays signed in) */
+async function checkSuperPw() {
+  const pw = await sheet({ title: lang === 'bn' ? 'Super admin পাসওয়ার্ড দাও' : 'Enter super admin password', type: 'password', raw: true });
+  if (!pw) return false;
+  let sess = null;
+  try {
+    sess = firebase.initializeApp(FB_CONFIG, 'superPw' + Date.now());
+    await sess.auth().setPersistence(firebase.auth.Auth.Persistence.NONE);
+    await sess.auth().signInWithEmailAndPassword(SUPER_EMAIL, pw);
+    await sess.auth().signOut();
+    return true;
+  } catch (e) {
+    toast(lang === 'bn' ? 'পাসওয়ার্ড ভুল' : 'Wrong password', true);
+    return false;
+  } finally {
+    if (sess) sess.delete().catch(() => {});
+  }
+}
+/* deletes everything of one mess in batches (only allowed by the rules when the mess is archived) */
+async function deleteMessAll(m) {
+  const mref = db.collection('messes').doc(m.id);
+  for (const col of ['entries', 'slips', 'notes', 'members', 'summary', 'settings', 'requests', 'logs', 'monthly']) {
+    let snap;
+    do {
+      snap = await mref.collection(col).limit(400).get();
+      if (!snap.empty) { const b = db.batch(); snap.docs.forEach(d => b.delete(d.ref)); await b.commit(); }
+    } while (!snap.empty);
+  }
+  const us = await db.collection('users').where('messId', '==', m.id).get();
+  for (const d of us.docs) await d.ref.delete();
+  if (m.code) await db.collection('codes').doc(m.code).delete().catch(() => {});
+  await mref.delete();
+}
 async function checkAdminPw() {
   const pw = await sheet({ title: t('enterAdminPw'), type: 'password', raw: true });
   if (!pw) return false;
