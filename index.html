@@ -2081,18 +2081,21 @@ function inboxHtml() {
   if (!inboxItems.length) return '';
   const bn = lang === 'bn';
   const unread = inboxItems.filter(x => !x.readAt).length;
-  const list = inboxOpen ? inboxItems : inboxItems.slice(0, 2);
-  const rows = list.map(x => `<div style="padding:12px 0;border-top:1px solid var(--bd)">
+  const rows = inboxItems.map(x => `<div style="padding:12px 0;border-top:1px solid var(--bd)">
       <div class="row between"><b>${esc(fmtDate(x.date))}</b><b class="num">${f2(x.amount)}</b></div>
       ${x.note ? `<div class="sub">${esc(x.note)}</div>` : ''}
-      <div class="sub" style="margin-top:4px">${bn ? 'Admin এই এন্ট্রি মুছেছেন' : 'Admin deleted this entry'}${x.at ? ' · ' + new Date(x.at).toLocaleString(bn ? 'bn-BD' : 'en-GB') : ''}</div>
+      <div style="margin-top:6px">The admin deleted your payslip, so you can ask him why he deleted it if your payslip was correct.</div>
+      <div class="sub" style="margin-top:4px">${x.at ? new Date(x.at).toLocaleString(bn ? 'bn-BD' : 'en-GB') : ''}</div>
       ${x.slip ? `<img class="thumb" src="${x.slip}" alt="" onclick="openImg(this.src)" style="margin-top:8px">`
         : `<div class="sub" style="margin-top:6px">${x.slipTooBig ? (bn ? 'pay slip এর ছবি খুব বড় ছিল, তাই রাখা যায়নি' : 'The pay slip photo was too large to keep') : (bn ? 'এই এন্ট্রিতে pay slip ছিল না' : 'No pay slip on this entry')}</div>`}
     </div>`).join('');
-  return `<div class="card" style="border-color:${unread ? 'var(--p)' : 'var(--bd)'}">
-    <div class="row between"><h3 style="margin:0">${bn ? 'ইনবক্স' : 'Inbox'}</h3>${unread ? `<span class="badge b-p">${unread} ${bn ? 'নতুন' : 'new'}</span>` : ''}</div>
-    ${rows}
-    <button class="ghost" style="width:100%;margin-top:8px" onclick="toggleInbox()">${inboxOpen ? (bn ? 'কম দেখাও' : 'Show less') : (bn ? `সব দেখো (${inboxItems.length})` : `View all (${inboxItems.length})`)}</button></div>`;
+  return `<div class="card" style="border-color:${unread ? 'var(--p)' : 'var(--bd)'};padding:12px 16px">
+    <div class="row between" style="cursor:pointer" onclick="toggleInbox()">
+      <h3 style="margin:0">${bn ? 'ইনবক্স' : 'Inbox'}${unread ? ` <span class="badge b-p">${unread} ${bn ? 'নতুন' : 'new'}</span>` : ''}</h3>
+      <span class="sub">${inboxOpen ? (bn ? 'বন্ধ করো ▲' : 'Hide ▲') : (bn ? 'দেখো ▼' : 'Show ▼')}</span>
+    </div>
+    ${inboxOpen ? rows : ''}
+  </div>`;
 }
 async function toggleInbox() {
   inboxOpen = !inboxOpen;
