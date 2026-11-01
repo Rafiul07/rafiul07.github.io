@@ -2615,6 +2615,8 @@ async function delEntry(id) {
   if (!isMgr && target && target.addedByAdmin === true) { toast(lang === 'bn' ? 'অ্যাডমি যোগ করা এন্ট্রি মুছা যাবে না' : 'Admin-added entries cannot be deleted', true); return; }
   const ok = await sheet({ title: t('confirmDel'), input: false, okText: t('del') });
   if (!ok) return;
+  // the admin deletes the entry together with its pay slip: the admin password is needed
+  if (isMgr && !(await checkAdminPw())) return;
   const x = entries.find(e => e.id === id) || {};
   const DB = isMgr ? ADBm : DBm;
   // entry first: if this is refused, nothing is removed and the reason is shown
