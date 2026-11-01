@@ -906,6 +906,7 @@ let subExpired = false; // the reason is an expired subscription (the mess admin
 let blockedNote = '';   // notice the super admin left on the mess (shown on the switched-off page)
 let superLogs = [];     // super admin: latest actions, read-only, newest first
 let superOpen = new Set(); // super admin: mess rows whose member list is open
+let inboxItems = [], inboxLoaded = false, inboxOpen = false; // member inbox: notices from the admin
 async function loadAllMesses() {
   if (me !== SUPER_EMAIL) return;
   try {
@@ -1620,6 +1621,7 @@ auth.onAuthStateChanged(async user => {
   }
   me = user.email.toLowerCase();
   MID = ''; MESS_ADMIN = ''; isMgr = false; blocked = false; blockedNote = ''; subExpired = false;
+  inboxItems = []; inboxLoaded = false; inboxOpen = false;
   $('login').classList.add('hidden');
   $('app').classList.remove('hidden');
   // super admin: only the all-messes page, no mess data is read for this account
@@ -2066,6 +2068,43 @@ function frozenBanner() {
     <div class="sub" style="margin-top:4px">${bn ? 'Super admin এই mess এর admin এর লেখার অধিকার সাময়িক বন্ধ রেখেছে। Approve, নতুন এন্ট্রি, মাস বন্ধ/শুরু এখন করা যাবে না।' : 'The super admin has paused the admin\'s write rights. Approve, new entries and month changes are blocked for now.'}</div>
     ${MESS_FREEZE_NOTE ? `<div class="sub" style="margin-top:4px">${bn ? 'কারণ' : 'Reason'}: ${esc(MESS_FREEZE_NOTE)}</div>` : ''}</div>`;
 }
+/* ---- inbox: notices the admin leaves for a member when deleting one of their entries ---- */
+async function loadInbox() {
+  if (!MID || !me) return;
+  try {
+    const snap = await DBm('inbox').doc(me).collection('items').get();
+    inboxItems = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.at || 0) - (a.at || 0));
+  } catch (e) { inboxItems = []; }
+  const box = $('inboxBox'); if (box) box.innerHTML = inboxHtml();
+}
+function inboxHtml() {
+  if (!inboxItems.length) return '';
+  const bn = lang === 'bn';
+  const unread = inboxItems.filter(x => !x.readAt).length;
+  const list = inboxOpen ? inboxItems : inboxItems.slice(0, 2);
+  const rows = list.map(x => `<div style="padding:12px 0;border-top:1px solid var(--bd)">
+      <div class="row between"><b>${esc(fmtDate(x.date))}</b><b class="num">${f2(x.amount)}</b></div>
+      ${x.note ? `<div class="sub">${esc(x.note)}</div>` : ''}
+      <div class="sub" style="margin-top:4px">${bn ? 'Admin এই এন্ট্রি মুছেছেন' : 'Admin deleted this entry'}${x.at ? ' · ' + new Date(x.at).toLocaleString(bn ? 'bn-BD' : 'en-GB') : ''}</div>
+      ${x.slip ? `<img src="${x.slip}" alt="" style="width:100%;max-width:280px;margin-top:8px;border-radius:12px;border:1px solid var(--bd)">`
+        : `<div class="sub" style="margin-top:6px">${x.slipTooBig ? (bn ? 'pay slip এর ছবি খুব বড় ছিল, তাই রাখা যায়নি' : 'The pay slip photo was too large to keep') : (bn ? 'এই এন্ট্রিতে pay slip ছিল না' : 'No pay slip on this entry')}</div>`}
+    </div>`).join('');
+  return `<div class="card" style="border-color:${unread ? 'var(--p)' : 'var(--bd)'}">
+    <div class="row between"><h3 style="margin:0">${bn ? 'ইনবক্স' : 'Inbox'}</h3>${unread ? `<span class="badge b-p">${unread} ${bn ? 'নতুন' : 'new'}</span>` : ''}</div>
+    ${rows}
+    <button class="ghost" style="width:100%;margin-top:8px" onclick="toggleInbox()">${inboxOpen ? (bn ? 'কম দেখাও' : 'Show less') : (bn ? `সব দেখো (${inboxItems.length})` : `View all (${inboxItems.length})`)}</button></div>`;
+}
+async function toggleInbox() {
+  inboxOpen = !inboxOpen;
+  const box = $('inboxBox'); if (box) box.innerHTML = inboxHtml();
+  if (!inboxOpen) return;
+  // opening the list marks the notices as read; only the readAt field changes
+  const now = Date.now();
+  for (const x of inboxItems.filter(x => !x.readAt)) {
+    try { await DBm('inbox').doc(me).collection('items').doc(x.id).update({ readAt: now }); x.readAt = now; } catch (e) {}
+  }
+  if (box) box.innerHTML = inboxHtml();
+}
 function renderHome() {
   $('qBar').classList.remove('hidden');
   let h = frozenBanner();
@@ -2080,6 +2119,8 @@ function renderHome() {
   // mess name at the top, for admin and members alike
   if (messName) h += messTitleHtml();
   if (notice) h += `<div class="card" style="border-color:var(--p)"><h3>${lang === 'bn' ? 'ঘোষণা' : 'Notice'}</h3><div>${esc(notice)}</div></div>`;
+  h += `<div id="inboxBox">${inboxHtml()}</div>`;
+  if (!inboxLoaded && MID) { inboxLoaded = true; loadInbox(); }
   {
     const cur = new Date().toISOString().slice(0, 7);
     const months = [...new Set([cur, ...entries.map(x => String(x.date).slice(0, 7)).filter(Boolean)])].sort().reverse();
@@ -2526,6 +2567,12 @@ async function deleteMessAll(m) {
       if (!snap.empty) { const b = db.batch(); snap.docs.forEach(d => b.delete(d.ref)); await b.commit(); }
     } while (!snap.empty);
   }
+  const ib = await mref.collection('inbox').get();
+  for (const d of ib.docs) {
+    const its = await d.ref.collection('items').get();
+    if (!its.empty) { const b = db.batch(); its.docs.forEach(x => b.delete(x.ref)); await b.commit(); }
+    await d.ref.delete();
+  }
   const us = await db.collection('users').where('messId', '==', m.id).get();
   for (const d of us.docs) await d.ref.delete();
   if (m.code) await db.collection('codes').doc(m.code).delete().catch(() => {});
@@ -2619,6 +2666,16 @@ async function delEntry(id) {
   if (isMgr && !(await checkAdminPw())) return;
   const x = entries.find(e => e.id === id) || {};
   const DB = isMgr ? ADBm : DBm;
+  // admin deletes someone else's entry: first leave that member a notice with the date, amount and a copy of the pay slip
+  if (isMgr && x.memberEmail && x.memberEmail !== me) {
+    let slip = '';
+    try { const sl = await ADBm('slips').doc(id).get(); if (sl.exists) slip = sl.data().data || ''; } catch (e) {}
+    const tooBig = slip.length > 900000;
+    if (tooBig) slip = '';
+    try {
+      await ADBm('inbox').doc(x.memberEmail).collection('items').add({ to: x.memberEmail, date: x.date || '', amount: Number(x.amount) || 0, note: x.note || '', slip, slipTooBig: tooBig, by: me, at: Date.now(), readAt: null });
+    } catch (e) { showErr(e); return; }
+  }
   // entry first: if this is refused, nothing is removed and the reason is shown
   try { await DB('entries').doc(id).delete(); }
   catch (e) { showErr(e); return; }
