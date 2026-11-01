@@ -2638,13 +2638,14 @@ function renderAdmin() {
       <div class="lbl" style="margin-top:14px">${isBn ? 'ঘোষণা' : 'Notice'}</div>
       <textarea id="noticeTxt" rows="2" style="width:100%">${esc(notice)}</textarea>
       <button class="pri" style="width:100%;margin-top:8px" onclick="saveNotice()">${t('save')}</button>
-      <div class="lbl" style="margin-top:14px">${isBn ? 'নতুন মাস শুরু' : 'Start new month'}</div>
-      <div class="sub" style="margin-bottom:6px">${isBn ? 'সবার দিন ৩০ করবে। জমা বদলাবে না।' : 'Sets everyone to 30 days. Deposits stay the same.'}</div>
-      <button class="item" onclick="newMonthReset()"><span>${isBn ? 'সবার দিন ৩০ করো' : 'Set all to 30 days'}</span><span class="sub">›</span></button>
       <div class="lbl" style="margin-top:14px">${isBn ? 'মাস বন্ধ করা' : 'Close month'}</div>
       <div class="sub" style="margin-bottom:6px">${isBn ? 'বন্ধ মাসের এন্ট্রি আর বদলানো যাবে না।' : 'Entries in a closed month cannot be changed.'}</div>
       <div class="sub num" style="margin-bottom:6px">${isBn ? 'বন্ধ মাস' : 'Closed'}: ${closedMonths.length ? closedMonths.join(', ') : '—'}</div>
-      <button class="item" onclick="toggleClose()"><span>${isBn ? 'মাস বন্ধ / খোলা' : 'Close / reopen month'}</span><span class="sub">›</span></button>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="item" style="flex:1;margin:0" onclick="toggleClose()"><span>${isBn ? 'মাস বন্ধ / খোলা' : 'Close / reopen month'}</span><span class="sub">›</span></button>
+        <button class="item" style="flex:1;margin:0" onclick="newMonthReset()"><span>${isBn ? 'নতুন মাস শুরু' : 'Start new month'}</span><span class="sub">›</span></button>
+      </div>
+      <div class="sub" style="margin-top:6px">${isBn ? 'নতুন মাস শুরু করলে সবার দিন ৩০ হবে। জমা বদলাবে না।' : 'New month sets everyone to 30 days. Deposits stay the same.'}</div>
       <div class="lbl" style="margin-top:14px">${isBn ? 'রিপোর্ট' : 'Report'}</div>
       <button class="item" onclick="exportCSV()"><span>⬇️ ${t('exportCsv')}</span><span class="sub">›</span></button>
       <button class="item" onclick="monthReport()"><span>📊 ${isBn ? 'মাসের সারাংশ (টেবিল)' : 'Month report (table)'}</span><span class="sub">›</span></button>
