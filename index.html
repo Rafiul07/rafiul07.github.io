@@ -665,7 +665,7 @@ let me = '', isMgr = false, page = 'home', editId = '';
 let members = [], entries = [], summary = null, unsubs = [];
 let loaded = { members: false, entries: false };
 let filt = { m: 'all', s: 'all' };
-let month = 'all', memOpen = null, imgRot = 0, imgZ = 1;
+let month = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); })(), memOpen = null, imgRot = 0, imgZ = 1;
 let allView = false;
 let balLimit = 5;   // "সব সদস্য" list on the member home: rows shown (5 at a time)
 let memLimit = 5;   // admin member popup: entries shown so far (5 at a time)
@@ -1387,7 +1387,30 @@ let logs = [];
 let notice = '';
 let closedMonths = [];
 let autoClosed = [];
-let lastNewMonth = '';   // the month the app last started by itself (members' days set to 30 once per month)
+let lastNewMonth = '';
+let monthlyList = [];   // saved summaries of closed months (messes/{mid}/monthly), shown to everyone
+let monthView = '';
+/* the summary of one month as it is now: who spent what, days and balance. Saved when the month closes */
+function monthSnapshot(key) {
+  const saved = month; month = key;
+  const c = calc();
+  const rows = c.em.map(e => ({ email: e, name: nameOf(e), bazar: bazarOf(e), days: daysOf(e), bal: balOf(e, c.rate) }));
+  month = saved;
+  return { month: key, total: c.tB, rate: c.rate, rows, savedAt: Date.now() };
+}
+function monthlyHtml() {
+  if (!monthlyList.length) return '';
+  const bn = lang === 'bn';
+  const list = monthlyList.slice().sort((a, b) => (a.id < b.id ? 1 : -1));
+  const sel = list.find(x => x.id === monthView) || list[0];
+  return `<div class="card" style="margin-top:14px"><h3>${bn ? 'আগের মাসের হিসাব' : 'Past months'}</h3>
+    <div class="chips">${list.map(x => `<button class="chip ${sel.id === x.id ? 'on' : ''}" onclick="monthView='${x.id}';render()">${monthLabel(x.id)}</button>`).join('')}</div>
+    <div class="sub" style="margin:8px 0">${bn ? 'মোট বাজার' : 'Total bazar'}: <b class="num">${f2(sel.total || 0)}</b></div>
+    ${(sel.rows || []).map(r => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--bd)">
+      <div style="min-width:0"><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">${esc(r.name)}${r.email === me ? ' ★' : ''}</b><span class="sub num" style="font-size:12px">${bn ? 'বাজার' : 'Bazar'} ${f2(r.bazar)} · ${bn ? 'দিন' : 'days'} ${r.days}</span></div>
+      ${balTag(r.bal)}</div>`).join('')}
+  </div>`;
+}   // the month the app last started by itself (members' days set to 30 once per month)
 /* first day of a month: everyone's days go back to 30, once. Runs when the admin opens the app that day */
 function autoNewMonth() {
   if (!MID || !MESS_ADMIN || me !== MESS_ADMIN) return;
@@ -1410,8 +1433,9 @@ function autoCloseLastMonth() {
   if (!MID || !MESS_ADMIN || me !== MESS_ADMIN) return;
   const last = new Date(new Date().getFullYear(), new Date().getMonth(), 0);
   const key = last.getFullYear() + '-' + String(last.getMonth() + 1).padStart(2, '0');
-  if (closedMonths.includes(key) || autoClosed.includes(key)) return;
+  if (closedMonths.includes(key) || autoClosed.includes(key) || !entries.length) return;
   autoClosed = [...autoClosed, key];
+  DBm('monthly').doc(key).set(monthSnapshot(key)).catch(() => {});
   DBm('settings').doc('app').set({ closedMonths: [...closedMonths, key], autoClosed }, { merge: true }).catch(() => {});
 }
 auth.onAuthStateChanged(async user => {
@@ -1495,6 +1519,9 @@ auth.onAuthStateChanged(async user => {
       summary = d.exists ? d.data() : null; render();
     }, () => {}));
   }
+  unsubs.push(DBm('monthly').onSnapshot(s => {
+    monthlyList = s.docs.map(d => ({ id: d.id, ...d.data() })); render();
+  }, () => {}));
   unsubs.push(DBm('notes').orderBy('at', 'desc').limit(50).onSnapshot(s => {
     notes = s.docs.map(d => ({ id: d.id, ...d.data() })); render();
   }, () => {}));
@@ -1859,12 +1886,16 @@ function renderHome() {
   // mess name at the top, for admin and members alike
   if (messName) h += messTitleHtml();
   if (notice) h += `<div class="card" style="border-color:var(--p)"><h3>${lang === 'bn' ? 'ঘোষণা' : 'Notice'}</h3><div>${esc(notice)}</div></div>`;
+  {
+    const cur = new Date().toISOString().slice(0, 7);
+    const months = [...new Set([cur, ...entries.map(x => String(x.date).slice(0, 7)).filter(Boolean)])].sort().reverse();
+    const opts = isMgr ? ['all', ...months] : months;
+    h += `<div class="chips">${opts.map(m =>
+      `<button class="chip ${month === m ? 'on' : ''}" onclick="month='${m}';render()">${m === 'all' ? t('allMonths') : monthLabel(m)}</button>`).join('')}</div>`;
+  }
   if (isMgr) {
     const c = calc();
     const pend = entries.filter(x => x.status === 'submitted').length;
-    const months = [...new Set(entries.map(x => String(x.date).slice(0, 7)).filter(Boolean))].sort().reverse();
-    h += `<div class="chips">${['all', ...months].map(m =>
-      `<button class="chip ${month === m ? 'on' : ''}" onclick="month='${m}';render()">${m === 'all' ? t('allMonths') : monthLabel(m)}</button>`).join('')}</div>`;
     const sorted = c.em.slice().sort((a, b) => bazarOf(b) - bazarOf(a));
     const maxB = Math.max(1, ...sorted.map(bazarOf));
     h += `<div class="card"><h3>${t('members')}${messName ? ' · ' + esc(messName) : ''}</h3>` + sorted.map(e => {
@@ -2252,6 +2283,7 @@ async function toggleClose() {
   if (!/^\d{4}-\d{2}$/.test(m)) { toast(t('needDateAmt'), true); return; }
   if (!(await checkAdminPw())) return;   // closing or reopening a month needs the admin password
   const next = closedMonths.includes(m) ? closedMonths.filter(x => x !== m) : [...closedMonths, m];
+  if (next.includes(m)) DBm('monthly').doc(m).set(monthSnapshot(m)).catch(() => {});
   ADBm('settings').doc('app').set({ closedMonths: next }, { merge: true })
     .then(() => { toast(t('saved')); logAct((next.includes(m) ? 'Month closed · ' : 'Month reopened · ') + m); }).catch(showErr);
 }
@@ -2965,12 +2997,33 @@ function installApp() {
   deferredPrompt.prompt();
   deferredPrompt.userChoice.then(() => { deferredPrompt = null; render(); });
 }
+function prevMonthKey(k) {
+  const [y, m] = k.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+/* new month: the old month is saved and closed, everyone goes back to 30 days, and the app opens on the new month.
+   Nothing is deleted: the old month's bazar and slips stay, and can be seen with the month buttons. */
 async function newMonthReset() {
-  const ok = await sheet({ title: lang === 'bn' ? 'সবার দিন ৩০ করবে? জমা বদলাবে না।' : 'Set all members to 30 days? Deposits stay.', input: false, okText: lang === 'bn' ? 'করো' : 'Reset' });
+  const bn = lang === 'bn';
+  const ok = await sheet({
+    title: bn ? 'নতুন মাস শুরু করবে? সবার দিন ৩০ হবে, আগের মাসের হিসাব সেভ থাকবে।' : 'Start a new month? Everyone goes to 30 days. The old month is saved.',
+    input: false, okText: bn ? 'শুরু করো' : 'Start'
+  });
   if (!ok) return;
+  const cur = new Date().toISOString().slice(0, 7);
+  const prev = prevMonthKey(cur);
+  const close = closedMonths.includes(prev) ? closedMonths : [...closedMonths, prev];
+  if (!closedMonths.includes(prev)) DBm('monthly').doc(prev).set(monthSnapshot(prev)).catch(() => {});   // saved before the days change
   const b = ADB().batch();
   members.forEach(m => b.update(ADBm('members').doc(m.email), { days: 30 }));
-  b.commit().then(() => { toast(t('saved')); logAct('New month: all days set to 30'); }).catch(showErr);
+  b.set(ADBm('settings').doc('app'), { closedMonths: close, autoClosed: [...autoClosed, prev], lastNewMonth: cur }, { merge: true });
+  b.commit().then(() => {
+    month = cur;
+    toast(t('saved'));
+    logAct((bn ? 'নতুন মাস শুরু · ' : 'New month started · ') + cur);
+    render();
+  }).catch(showErr);
 }
 
 /* ---- themes: 3 built-in + 5 presets. Dark is the default and can never be removed. Admin can remove/restore the others. ---- */
