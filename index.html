@@ -3240,8 +3240,6 @@ function openMember(email) {
       ${row(bn ? 'জমা' : 'Deposit', '+ ' + f2(depOf(email)))}
       ${row(bn ? `খাওয়া (${daysOf(email)} দিন × ${f2(rate)})` : `Meals (${daysOf(email)} days × ${f2(rate)})`, '− ' + f2(daysOf(email) * rate))}
       <div class="row between" style="padding:10px 0 2px;border-top:1px solid var(--bd)"><b>${pos ? (bn ? 'ফেরত পাবে' : 'Gets back') : (bn ? 'বাকি (দিতে হবে)' : 'Due')}</b><b class="num" style="color:${tone};font-size:18px">${f2(Math.abs(bal))}</b></div>
-      ${(() => { const ap = all.filter(x => x.status === 'approved'), pe = all.length - ap.length; const sum = ap.reduce((a, x) => a + num(x.amount), 0);
-        return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 2px;font-size:13px"><span class="badge b-ok">${bn ? 'অনুমোদিত' : 'Approved'}: ${ap.length} · ${f2(sum)}</span>${pe ? `<span class="badge b-sub">${bn ? 'অপেক্ষায়' : 'Waiting'}: ${pe}</span>` : ''}</div>`; })()}
       <div class="sub" style="margin:12px 0 6px">${bn ? 'বাজার এন্ট্রি' : 'Bazar entries'} (${all.length})</div>
       <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">${boxes}</div>
       ${pickedHtml}
