@@ -428,6 +428,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 .meOut{width:100%;margin-top:14px;padding:12px;border-radius:14px;font-size:clamp(15px,4vw,16px);font-weight:800;color:var(--bad,#ff6b6b);background:color-mix(in srgb,var(--bad,#ff6b6b) 12%,transparent);border:1px solid color-mix(in srgb,var(--bad,#ff6b6b) 40%,transparent);cursor:pointer}
 .meOut:active{transform:scale(.98)}
 .pwWrap{position:relative}.pwWrap input{width:100%;padding-right:46px}.eyeBtn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;font-size:18px;cursor:pointer;padding:4px;min-height:0}
+.superChips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.superChips button{min-height:36px;padding:6px 12px;font-size:13px}
 .superMini{display:inline-flex;align-items:center;border-radius:10px;overflow:hidden;border:1px solid rgba(128,128,128,.35)}.superMini button{border:0;border-radius:0;padding:7px 9px;background:transparent}.superMini.on{background:rgba(124,92,255,.18)}.superTabs,.superChips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.superTabs button,.superChips button{flex:1 1 auto;padding:8px 10px}
 </style>
 </head>
@@ -908,14 +909,26 @@ function superCopy(txt) {
 function superRow(m, i) {
   const bn = lang === 'bn';
   const st = m.archived ? (bn ? 'আর্কাইভ' : 'Archived') : (m.active ? (bn ? 'চালু' : 'On') : (bn ? 'বন্ধ' : 'Off'));
-  const cls = m.archived ? 'b-warn' : (m.active ? 'b-ok' : '');
-  return `<div class="card sm" data-s="${esc((m.name + ' ' + m.admin + ' ' + m.id).toLowerCase())}" style="margin:10px 0">
-    <div class="row between"><b>${esc(m.name)}</b><span class="badge ${cls}">${st}</span></div>
-    <div class="sub">${esc(m.admin)}</div>
-    <div class="sub">${bn ? 'সদস্য' : 'Members'}: <b class="num">${m.count}</b> · ${bn ? 'বাজার' : 'Bazar'}: <b class="num">${f2(m.tB)}</b></div>
-    <div class="acts" style="margin-top:8px">
+  const cls = m.archived ? 'b-warn' : (m.active ? 'b-ok' : 'b-bad');
+  const frozenTag = m.adminFrozen ? `<span class="badge b-bad" style="margin-left:6px">${bn ? 'Admin ফ্রিজ' : 'Admin frozen'}</span>` : '';
+  const created = m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—';
+  return `<div class="card sm" data-s="${esc((m.name + ' ' + m.admin + ' ' + m.id).toLowerCase())}" style="margin:10px 0;padding:14px">
+    <div class="row between" style="align-items:flex-start;gap:8px">
+      <div style="min-width:0"><b style="font-size:16px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}</b>
+        <div class="sub" style="word-break:break-all;font-size:12px">${esc(m.admin)}</div></div>
+      <div style="flex:none;text-align:right"><span class="badge ${cls}">${st}</span>${frozenTag ? `<div style="margin-top:4px">${frozenTag}</div>` : ''}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:12px 0;text-align:center">
+      <div class="card" style="padding:8px 4px;margin:0"><div class="sub" style="font-size:11px">${bn ? 'সদস্য' : 'Members'}</div><b class="num">${m.count}</b></div>
+      <div class="card" style="padding:8px 4px;margin:0"><div class="sub" style="font-size:11px">${bn ? 'বাজার' : 'Bazar'}</div><b class="num">${f2(m.tB)}</b></div>
+      <div class="card" style="padding:8px 4px;margin:0"><div class="sub" style="font-size:11px">${bn ? 'তৈরি' : 'Created'}</div><b class="num" style="font-size:12px">${created}</b></div>
+    </div>
+    <div class="acts" style="flex-wrap:wrap;gap:6px">
       <button class="pri" onclick="superOpenMess('${m.id}')">${bn ? 'খোলো' : 'Open'}</button>
       ${m.code ? `<button class="ghost" onclick="superCopy('${esc(m.code)}')">${bn ? 'কোড কপি' : 'Copy code'}</button>` : ''}
+      ${m.adminFrozen
+        ? `<button class="ghost" onclick="superActId('${m.id}','adminUnfreeze')">${bn ? 'ফ্রিজ খোলো' : 'Unfreeze'}</button>`
+        : `<button class="ghost" onclick="superActId('${m.id}','adminFreeze')">${bn ? 'ফ্রিজ' : 'Freeze'}</button>`}
     </div></div>`;
 }
 /* search only hides or shows the cards already on screen, so typing keeps focus */
@@ -999,8 +1012,9 @@ function superMessesHtml() {
   const keep = m => superFilter === 'all'
     || (superFilter === 'on' && m.active && !m.archived)
     || (superFilter === 'off' && !m.active && !m.archived)
-    || (superFilter === 'archived' && m.archived);
-  const chips = [['all', bn ? 'সব' : 'All'], ['on', bn ? 'চালু' : 'On'], ['off', bn ? 'বন্ধ' : 'Off'], ['archived', bn ? 'আর্কাইভ' : 'Archived']]
+    || (superFilter === 'archived' && m.archived)
+    || (superFilter === 'frozen' && m.adminFrozen);
+  const chips = [['all', bn ? 'সব' : 'All'], ['on', bn ? 'চালু' : 'On'], ['off', bn ? 'বন্ধ' : 'Off'], ['archived', bn ? 'আর্কাইভ' : 'Archived'], ['frozen', bn ? 'ফ্রিজ' : 'Frozen']]
     .map(([k, l]) => `<button class="${superFilter === k ? 'pri' : 'ghost'}" onclick="setSuperFilter('${k}')">${l}</button>`).join('');
   const rows = allMesses.map((m, i) => keep(m) ? superRow(m, i) : '').join('');
   return `<input id="superSearchIn" value="${esc(superQ)}" oninput="superSearch(this.value)" placeholder="${bn ? 'মেস, admin বা email খোঁজো' : 'Search mess, admin or email'}">
