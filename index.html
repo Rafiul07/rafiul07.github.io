@@ -1875,6 +1875,16 @@ function messTitleHtml() {
 }
 /* once a minute: if the hour has changed, the banner takes the next colour */
 setInterval(() => { const el = document.getElementById('messNameTitle'); if (el) el.style.backgroundImage = messGrad(); }, 60000);
+/* when the calendar month changes while the app is open, switch the view to the new month (so new entries show at once) */
+let lastCalMonth = new Date().toISOString().slice(0, 7);
+function checkCalMonth() {
+  const cur = new Date().toISOString().slice(0, 7);
+  if (cur === lastCalMonth) return;
+  lastCalMonth = cur;
+  if (month !== 'all' && month !== cur) { month = cur; render(); }
+}
+setInterval(checkCalMonth, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkCalMonth(); });
 function renderHome() {
   $('qBar').classList.remove('hidden');
   let h = '';
