@@ -3105,6 +3105,39 @@ function miniRow(x, withName = false) {
 function balMore() { balLimit += 5; render(); }
 function homeMore() { homeLimit += 5; render(); }
 function memMore() { memLimit += 5; openMember(memOpen); }
+/* admin, inside a member's account: add or change the pay slip of one of their entries (for members who cannot use the app easily) */
+let slipTarget = '';
+function addSlipFor(id) {
+  if (!isMgr) return;
+  const x = entries.find(e => e.id === id);
+  if (x && closedMonths.includes(String(x.date).slice(0, 7))) { toast(lang === 'bn' ? 'এই মাস বন্ধ আছে' : 'This month is closed', true); return; }
+  slipTarget = id;
+  let pick = document.getElementById('slipPick');
+  if (!pick) {   // made once, outside the page content, so it survives redraws
+    pick = document.createElement('input');
+    pick.type = 'file'; pick.accept = 'image/*'; pick.id = 'slipPick'; pick.style.display = 'none';
+    pick.onchange = () => slipPicked(pick);
+    document.body.appendChild(pick);
+  }
+  pick.click();
+}
+async function slipPicked(input) {
+  const f = input.files && input.files[0];
+  const id = slipTarget;
+  input.value = '';
+  if (!f || !id) return;
+  try {
+    const photo = await compress(f);
+    await ADBm('slips').doc(id).set({ data: photo });
+    slipCache[id] = photo;
+    toast(lang === 'bn' ? 'স্লিপ যোগ হয়েছে' : 'Slip added');
+    if (memOpen) openMember(memOpen);
+  } catch (e) { showErr(e); }
+}
+function slipBtnHtml(x) {
+  if (!isMgr || closedMonths.includes(String(x.date).slice(0, 7))) return '';
+  return `<div style="text-align:right;margin:-4px 0 10px"><button class="ghost" style="min-height:30px;font-size:13px;padding:4px 12px" onclick="addSlipFor('${x.id}')">📎 ${lang === 'bn' ? 'স্লিপ যোগ / বদলাও' : 'Add / change slip'}</button></div>`;
+}
 function memPick(id) { memPickId = memPickId === id ? '' : id; openMember(memOpen); }
 function memMonthSet(m) { memMonth = m; memLimit = 5; openMember(memOpen); }
 function openMember(email) {
@@ -3165,7 +3198,7 @@ function openMember(email) {
     </div></details>
     <details class="sec bazDet" style="margin:0 0 14px"><summary>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></summary><div class="secBody">
       ${monthPick}
-      ${all.length ? all.slice(0, memLimit).map(miniRow).join('') + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
+      ${all.length ? all.slice(0, memLimit).map(x => miniRow(x) + slipBtnHtml(x)).join('') + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
     </div></details>
     ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
       <div class="mgrid">
