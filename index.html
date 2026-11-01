@@ -594,6 +594,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 
 <script>
 let MID = '';          // id of the mess this person belongs to (set on login, from users/{email})
+let MESS_FROZEN = false, MESS_FREEZE_NOTE = '';   // super admin froze the mess admin's write rights (messes/{MID}.adminFrozen)
 let MESS_ADMIN = '';   // admin email of that mess (from messes/{MID}.admin); the admin is also a mess member
 
 const FB_CONFIG = {
@@ -869,6 +870,7 @@ async function loadAllMesses() {
       const [mem, sum] = await Promise.all([d.ref.collection('members').get(), d.ref.collection('summary').doc('main').get()]);
       out.push({ id: d.id, name: m.name || d.id, admin: m.admin || '', code: m.inviteCode || '',
                  active: m.active !== false, archived: m.archived === true, statusNote: m.statusNote || '',
+                 adminFrozen: m.adminFrozen === true, adminFreezeNote: m.adminFreezeNote || '',
                  createdAt: m.createdAt || 0, count: mem.size, tB: sum.exists ? Number(sum.data().tB || 0) : 0,
                  memList: mem.docs.map(x => ({ email: x.id, name: x.data().name || x.id, days: x.data().days, deposit: x.data().deposit })) });
     }
@@ -952,6 +954,9 @@ function superMessTabHtml(id) {
   const acts = m.archived
     ? `<button class="pri" onclick="superActId('${m.id}','restore')">${bn ? 'আবার অ্যাক্সেস দাও' : 'Restore access'}</button>`
     : `<button class="ghost" onclick="superActId('${m.id}','toggle')">${m.active ? (bn ? 'বন্ধ করো' : 'Switch off') : (bn ? 'চালু করো' : 'Switch on')}</button>
+       ${m.adminFrozen
+          ? `<button class="pri" onclick="superActId('${m.id}','adminUnfreeze')">${bn ? 'Admin এর ফ্রিজ খোলো' : 'Unfreeze admin'}</button>`
+          : `<button class="ghost" onclick="superActId('${m.id}','adminFreeze')">${bn ? 'Admin ফ্রিজ করো' : 'Freeze admin'}</button>`}
        <button class="ghost" onclick="superActId('${m.id}','admin')">${bn ? 'Admin বদলাও' : 'Change admin'}</button>
        <button class="ghost" onclick="superActId('${m.id}','rename')">${bn ? 'নাম বদলাও' : 'Rename'}</button>
        <button class="ghost" onclick="superActId('${m.id}','reset')">${bn ? 'Admin password reset' : 'Reset admin password'}</button>
@@ -959,7 +964,7 @@ function superMessTabHtml(id) {
   return `<div class="card">
       <h3 style="margin:0 0 6px">${esc(m.name)}</h3>
       <div class="sub">${st}</div>
-      <div class="sub" style="margin-top:6px">Admin: <b>${esc(m.admin)}</b></div>
+      <div class="sub" style="margin-top:6px">Admin: <b>${esc(m.admin)}</b>${m.adminFrozen ? ` · <span style="color:var(--bad)">${bn ? 'ফ্রিজ' : 'Frozen'}${m.adminFreezeNote ? ': ' + esc(m.adminFreezeNote) : ''}</span>` : ''}</div>
       <div class="sub">${bn ? 'Invite code' : 'Invite code'}: <b>${esc(m.code || '—')}</b> ${m.code ? `<button class="ghost" onclick="superCopy('${esc(m.code)}')">${bn ? 'কপি' : 'Copy'}</button>` : ''}</div>
       <div class="sub">${bn ? 'সদস্য' : 'Members'}: <b class="num">${m.count}</b> · ${bn ? 'মোট বাজার' : 'Total bazar'}: <b class="num">${f2(m.tB)}</b> · ${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—'}</div>
       <h3 style="margin:14px 0 6px">${bn ? 'কাজ' : 'Actions'}</h3>
@@ -1080,6 +1085,21 @@ async function superAct(i, what) {
       await db.collection('users').doc(adm).set({ messId: m.id, name: adm.split('@')[0] }, { merge: true });
       await noteToMess(m.id, (bn ? 'Admin বদলানো হয়েছে: ' : 'Admin changed: ') + m.admin + ' → ' + adm);
       await logSuper(bn ? 'admin বদলানো' : 'admin changed', m, adm);
+      toast(t('saved')); return loadAllMesses();
+    }
+    if (what === 'adminFreeze') {
+      const v = await sheet({ title: bn ? 'ফ্রিজের কারণ লেখো (admin দেখবে)' : 'Reason for freezing (the admin will see it)', ph: bn ? 'যেমন: মাসিক হিসাব অসম্পূর্ণ' : 'e.g. monthly accounts incomplete' });
+      const reason = String(v || '').trim();
+      if (!reason) return;
+      await mref.update({ adminFrozen: true, adminFreezeNote: reason.slice(0, 200), adminFreezeAt: Date.now() });
+      await noteToMess(m.id, (bn ? 'Admin সাময়িক ফ্রিজ করা হয়েছে। কারণ: ' : 'Admin temporarily frozen. Reason: ') + reason.slice(0, 200));
+      await logSuper(bn ? 'admin ফ্রিজ' : 'admin frozen', m, reason.slice(0, 200));
+      toast(t('saved')); return loadAllMesses();
+    }
+    if (what === 'adminUnfreeze') {
+      await mref.update({ adminFrozen: false, adminFreezeNote: '' });
+      await noteToMess(m.id, bn ? 'Admin এর ফ্রিজ খোলা হয়েছে' : 'Admin freeze lifted');
+      await logSuper(bn ? 'admin ফ্রিজ খোলা' : 'admin unfrozen', m);
       toast(t('saved')); return loadAllMesses();
     }
     if (what === 'reset') {
@@ -1464,6 +1484,8 @@ auth.onAuthStateChanged(async user => {
       MID = link.data().messId;
       const ms = await db.collection('messes').doc(MID).get();
       MESS_ADMIN = ms.exists ? ms.data().admin : '';
+      MESS_FROZEN = ms.exists && ms.data().adminFrozen === true;
+      MESS_FREEZE_NOTE = ms.exists ? (ms.data().adminFreezeNote || '') : '';
       // switched off or archived: this person sees only the notice page
       const md = ms.exists ? ms.data() : {};
       blocked = ms.exists && (md.active === false || md.archived === true);
@@ -1887,9 +1909,17 @@ function checkCalMonth() {
 }
 setInterval(checkCalMonth, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkCalMonth(); });
+/* shown to the mess admin while the super admin has frozen their write rights */
+function frozenBanner() {
+  if (!isMgr || !MESS_FROZEN) return '';
+  const bn = lang === 'bn';
+  return `<div class="card" style="border-color:var(--bad);margin-bottom:12px"><b style="color:var(--bad)">${bn ? 'Admin ফ্রিজ করা আছে' : 'Admin is frozen'}</b>
+    <div class="sub" style="margin-top:4px">${bn ? 'Super admin এই mess এর admin এর লেখার অধিকার সাময়িক বন্ধ রেখেছে। Approve, নতুন এন্ট্রি, মাস বন্ধ/শুরু এখন করা যাবে না।' : 'The super admin has paused the admin\'s write rights. Approve, new entries and month changes are blocked for now.'}</div>
+    ${MESS_FREEZE_NOTE ? `<div class="sub" style="margin-top:4px">${bn ? 'কারণ' : 'Reason'}: ${esc(MESS_FREEZE_NOTE)}</div>` : ''}</div>`;
+}
 function renderHome() {
   $('qBar').classList.remove('hidden');
-  let h = '';
+  let h = frozenBanner();
   // a frozen member sees why they cannot add bazar entries
   const meRow = memberOf(me);
   const frozenNow = !isMgr && !!(meRow && meRow.frozen);
@@ -2786,6 +2816,7 @@ function admTabSet(v) { admTab = v; renderAdmin(); }
 function renderAdmin() {
   if (!isMgr) return;
   const isBn = lang === 'bn';
+  const fzBanner = frozenBanner();
   const sec = (title, body, open = false, cls = '') =>
     `<details class="sec ${cls}" ${open ? 'open' : ''} ontoggle="if(this.open){const d=this;setTimeout(()=>d.scrollIntoView({behavior:'smooth',block:'start'}),60)}"><summary>${title}</summary><div class="secBody">${body}</div></details>`;
   const gh = label => `<div class="gh">${label}</div>`;
@@ -2797,7 +2828,7 @@ function renderAdmin() {
 
   const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
   const tabBtn = (k, label) => `<button class="admTab ${admTab === k ? 'pri' : 'ghost'}" onclick="admTabSet('${k}')">${label}</button>`;
-  let h = `<div class="admTabs">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('members', isBn ? 'সব সদস্য' : 'All members')}${tabBtn('settings', isBn ? 'সেটিংস' : 'Settings')}</div>`;
+  let h = `${fzBanner}<div class="admTabs">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('members', isBn ? 'সব সদস্য' : 'All members')}${tabBtn('settings', isBn ? 'সেটিংস' : 'Settings')}</div>`;
   if (admTab === 'wait') h += `<div class="card"><h3>${isBn ? `অপেক্ষমাণ এন্ট্রি (${pending.length})` : `Waiting approval (${pending.length})`}</h3>`
     + (pending.length ? pending.map(x => `<div class="entry">${thumbFor(x)}<div class="grow">
         <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
