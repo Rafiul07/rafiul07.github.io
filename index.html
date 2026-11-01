@@ -1475,7 +1475,10 @@ function autoCloseLastMonth() {
   if (!MID || !MESS_ADMIN || me !== MESS_ADMIN) return;
   const last = new Date(new Date().getFullYear(), new Date().getMonth(), 0);
   const key = last.getFullYear() + '-' + String(last.getMonth() + 1).padStart(2, '0');
-  if (closedMonths.includes(key) || autoClosed.includes(key) || !entries.length) return;
+  if (!entries.length) return;
+  // the saved total of last month is needed by the super admin page: save it if it is missing, even if the month was closed before
+  DBm('monthly').doc(key).get().then(snap => { if (!snap.exists) return DBm('monthly').doc(key).set(monthSnapshot(key)); }).catch(() => {});
+  if (closedMonths.includes(key) || autoClosed.includes(key)) return;
   autoClosed = [...autoClosed, key];
   DBm('monthly').doc(key).set(monthSnapshot(key)).catch(() => {});
   DBm('settings').doc('app').set({ closedMonths: [...closedMonths, key], autoClosed }, { merge: true }).catch(() => {});
