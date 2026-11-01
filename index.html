@@ -1386,7 +1386,25 @@ async function logout() {
 let logs = [];
 let notice = '';
 let closedMonths = [];
-let autoClosed = [];   // months the app already closed by itself (so a month the admin reopens stays open)
+let autoClosed = [];
+let lastNewMonth = '';   // the month the app last started by itself (members' days set to 30 once per month)
+/* first day of a month: everyone's days go back to 30, once. Runs when the admin opens the app that day */
+function autoNewMonth() {
+  if (!MID || !MESS_ADMIN || me !== MESS_ADMIN) return;
+  const now = new Date();
+  const key = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  if (lastNewMonth === key) return;
+  const first = !lastNewMonth;   // the very first run only records the month, it does not reset anyone
+  lastNewMonth = key;
+  const ref = DBm('settings').doc('app');
+  if (first) { ref.set({ lastNewMonth: key }, { merge: true }).catch(() => {}); return; }
+  DBm('members').get().then(snap => {
+    const b = db.batch();
+    snap.forEach(d => b.update(d.ref, { days: 30 }));
+    b.set(ref, { lastNewMonth: key }, { merge: true });
+    return b.commit();
+  }).then(() => logAct('New month: all days set to 30 (automatic)')).catch(() => {});
+}   // months the app already closed by itself (so a month the admin reopens stays open)
 /* the month that just ended closes by itself, once. The admin can still close or reopen any month by hand (with the password) */
 function autoCloseLastMonth() {
   if (!MID || !MESS_ADMIN || me !== MESS_ADMIN) return;
@@ -1484,7 +1502,9 @@ auth.onAuthStateChanged(async user => {
     notice = (d.exists && d.data().notice) || '';
     closedMonths = (d.exists && d.data().closedMonths) || [];
     autoClosed = (d.exists && d.data().autoClosed) || [];
+    lastNewMonth = (d.exists && d.data().lastNewMonth) || '';
     autoCloseLastMonth();
+    autoNewMonth();
     bazarMode = (d.exists && d.data().bazarMode) || 'slip';
     updateBazarStatus();
     const th = d.exists ? d.data().theme : null;
