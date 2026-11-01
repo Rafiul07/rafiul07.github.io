@@ -1125,7 +1125,7 @@ async function superAct(i, what) {
       const amt = await sheet({ title: bn ? 'ফি কত টাকা?' : 'Fee amount', value: cur.amount || '', ph: '500' });
       if (!amt || +amt <= 0) return;
       const cyc = await sheet({ title: bn ? 'প্ল্যান: 7 দিন না 1 মাস? (7 / month)' : 'Plan: 7 days or 1 month? (7 / month)', value: cur.cycle === 'days7' ? '7' : 'month', ph: 'month' });
-      await db.collection('messes').doc(m.id).update({ 'subscription.amount': +amt, 'subscription.cycle': planFrom(cyc) });
+      await db.collection('messes').doc(m.id).update({ 'subscription.amount': +amt, 'subscription.cycle': planFrom(cyc), 'subscription.required': true });
       toast(bn ? 'ফি সেট হয়েছে' : 'Fee saved'); return loadAllMesses();
     }
     if (what === 'subCode') {
@@ -1575,7 +1575,7 @@ auth.onAuthStateChanged(async user => {
       MESS_SUB = ms.exists ? (ms.data().subscription || null) : null;
       // switched off or archived: this person sees only the notice page
       const md = ms.exists ? ms.data() : {};
-      subExpired = !!(MESS_SUB && MESS_SUB.paidUntil && MESS_SUB.paidUntil < isoToday());
+      subExpired = !!(MESS_SUB && (MESS_SUB.paidUntil ? MESS_SUB.paidUntil < isoToday() : MESS_SUB.required === true));
       blocked = ms.exists && (md.active === false || md.archived === true || subExpired);
       blockedNote = blocked ? (md.statusNote || '') : '';
     }
@@ -3650,10 +3650,11 @@ async function redeemSubCode() {
 // shown when the subscription has run out: the mess admin sees the renew box, members see a notice
 function subExpiredHtml() {
   const bn = lang === 'bn';
-  if (me === MESS_ADMIN) return `<div class="card"><b style="color:var(--bad)">${bn ? 'সাবস্ক্রিপশনের মেয়াদ শেষ, তাই mess বন্ধ আছে' : 'Subscription expired, the mess is paused'}</b>
+  const unpaid = !(MESS_SUB && MESS_SUB.paidUntil);
+  if (me === MESS_ADMIN) return `<div class="card"><b style="color:var(--bad)">${unpaid ? (bn ? 'সাবস্ক্রিপশন চালু করা হয়নি, কোড দিয়ে চালু করো' : 'Not activated yet, activate with a code') : (bn ? 'সাবস্ক্রিপশনের মেয়াদ শেষ, তাই mess বন্ধ আছে' : 'Subscription expired, the mess is paused')}</b>
     <div style="margin-top:10px">${subSettingsHtml()}</div>
     <button class="ghost" style="width:100%;margin-top:14px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`;
-  return `<div class="card" style="text-align:center;padding:24px"><div class="sub">${bn ? 'এই mess এর সাবস্ক্রিপশনের মেয়াদ শেষ হয়ে গেছে।' : 'This mess subscription has expired.'}</div>
+  return `<div class="card" style="text-align:center;padding:24px"><div class="sub">${unpaid ? (bn ? 'এই mess এখনো চালু হয়নি।' : 'This mess is not activated yet.') : (bn ? 'এই mess এর সাবস্ক্রিপশনের মেয়াদ শেষ হয়ে গেছে।' : 'This mess subscription has expired.')}</div>
     <div class="sub" style="margin-top:10px">${bn ? 'অ্যাডমিনের সাথে যোগাযোগ করো।' : 'Please contact the admin.'}</div>
     <button class="ghost" style="width:100%;margin-top:14px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`;
 }
