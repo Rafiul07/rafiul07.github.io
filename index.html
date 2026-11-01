@@ -600,7 +600,9 @@ let MID = '';          // id of the mess this person belongs to (set on login, f
 let MESS_FROZEN = false, MESS_FREEZE_NOTE = '';
 let MESS_SUB = null;   // this mess's subscription (messes/{MID}.subscription), shown to the mess admin
 // আপনার পেমেন্ট লিংক/নম্বর এখানে বসাও (CHANGE_ME থাকলে সেটা দেখানো হবে না)
-const PAY_LINKS = { paypal: 'https://paypal.me/CHANGE_ME', wise: 'https://wise.com/pay/me/CHANGE_ME', bkash: 'CHANGE_ME' };   // super admin froze the mess admin's write rights (messes/{MID}.adminFrozen)
+const PAY_LINKS = { paypal: 'https://paypal.me/CHANGE_ME', wise: 'https://wise.com/pay/me/CHANGE_ME', bkash: 'CHANGE_ME' };
+const SUB_REMIND_DAYS = 7;        // মেয়াদ শেষ হওয়ার কত দিন আগে থেকে সতর্ক করবে
+const SUB_DEFAULT_CYCLE = 'month'; // ডিফল্ট মেয়াদ: এক মাস (year লিখলে এক বছর)   // super admin froze the mess admin's write rights (messes/{MID}.adminFrozen)
 let MESS_ADMIN = '';   // admin email of that mess (from messes/{MID}.admin); the admin is also a mess member
 
 const FB_CONFIG = {
@@ -862,7 +864,8 @@ function signupName() {
 const APP_VERSION = 'v2.0.0 (multi-mess) · 2026-10-31';   // bump on every upload
 const SUPER_EMAIL = 'rafiul.fr@yahoo.com';   // super admin: sees the list of all messes (name, admin, member count)
 let allMesses = null;   // super admin: loaded list (null = not loaded yet)
-let blocked = false;    // this person's mess is switched off or archived by the super admin
+let blocked = false;    // this person's mess is switched off, archived, or its subscription expired
+let subExpired = false; // the reason is an expired subscription (the mess admin can renew with a code)
 let blockedNote = '';   // notice the super admin left on the mess (shown on the switched-off page)
 let superLogs = [];     // super admin: latest actions, read-only, newest first
 let superOpen = new Set(); // super admin: mess rows whose member list is open
@@ -1121,14 +1124,14 @@ async function superAct(i, what) {
       const cur = m.sub || {};
       const amt = await sheet({ title: bn ? 'ফি কত টাকা?' : 'Fee amount', value: cur.amount || '', ph: '500' });
       if (!amt || +amt <= 0) return;
-      const cyc = await sheet({ title: bn ? 'মাসিক না বার্ষিক? (month / year)' : 'Cycle (month / year)', value: cur.cycle || 'month', ph: 'month' });
-      await db.collection('messes').doc(m.id).update({ 'subscription.amount': +amt, 'subscription.cycle': String(cyc || '').trim().toLowerCase() === 'year' ? 'year' : 'month' });
+      const cyc = await sheet({ title: bn ? 'প্ল্যান: 7 দিন না 1 মাস? (7 / month)' : 'Plan: 7 days or 1 month? (7 / month)', value: cur.cycle === 'days7' ? '7' : 'month', ph: 'month' });
+      await db.collection('messes').doc(m.id).update({ 'subscription.amount': +amt, 'subscription.cycle': planFrom(cyc) });
       toast(bn ? 'ফি সেট হয়েছে' : 'Fee saved'); return loadAllMesses();
     }
     if (what === 'subCode') {
       const cur = m.sub || {};
       if (!cur.amount) return toast(bn ? 'আগে ফি সেট করো' : 'Set the fee first', true);
-      const cyc = cur.cycle || 'month';
+      const cyc = cur.cycle || SUB_DEFAULT_CYCLE;
       const today = isoToday();
       const from = (cur.paidUntil && cur.paidUntil > today) ? cur.paidUntil : today;
       const until = addPeriod(from, cyc);
@@ -1250,6 +1253,7 @@ function renderBlocked() {
   $('nav').innerHTML = '';
   $('qBar').classList.add('hidden'); $('bazarStatus').classList.add('hidden');
   $('roleTag').innerText = bn ? 'বন্ধ' : 'Off';
+  if (subExpired) { $('hContent').innerHTML = subExpiredHtml(); return; }
   $('hContent').innerHTML = `<div class="card" style="text-align:center;padding:24px"><div class="sub">${bn ? 'এই mess এখন বন্ধ আছে।' : 'This mess is switched off right now.'}</div>${blockedNote ? `<div style="margin-top:10px">${esc(blockedNote)}</div>` : ''}<div class="sub" style="margin-top:10px">${bn ? 'আরও তথ্যের জন্য super admin এর সাথে যোগাযোগ করো।' : 'Contact the super admin for details.'}</div>
     <button class="ghost" style="width:100%;margin-top:14px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`;
 }
@@ -1554,7 +1558,7 @@ auth.onAuthStateChanged(async user => {
     me = ''; return;
   }
   me = user.email.toLowerCase();
-  MID = ''; MESS_ADMIN = ''; isMgr = false; blocked = false; blockedNote = '';
+  MID = ''; MESS_ADMIN = ''; isMgr = false; blocked = false; blockedNote = ''; subExpired = false;
   $('login').classList.add('hidden');
   $('app').classList.remove('hidden');
   // super admin: only the all-messes page, no mess data is read for this account
@@ -1571,7 +1575,8 @@ auth.onAuthStateChanged(async user => {
       MESS_SUB = ms.exists ? (ms.data().subscription || null) : null;
       // switched off or archived: this person sees only the notice page
       const md = ms.exists ? ms.data() : {};
-      blocked = ms.exists && (md.active === false || md.archived === true);
+      subExpired = !!(MESS_SUB && MESS_SUB.paidUntil && MESS_SUB.paidUntil < isoToday());
+      blocked = ms.exists && (md.active === false || md.archived === true || subExpired);
       blockedNote = blocked ? (md.statusNote || '') : '';
     }
   } catch (e) { showErr(e); }
@@ -3526,10 +3531,18 @@ function isoToday() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+// plans: 'days7' = 7 days, 'month' = 1 month
+function planFrom(text) {
+  const t = String(text || '').trim().toLowerCase();
+  return (/^7|day|দিন|week/.test(t)) ? 'days7' : 'month';
+}
+function planLabel(p, bn) {
+  return p === 'days7' ? (bn ? '7 দিন' : '7 days') : (bn ? '1 মাস' : '1 month');
+}
 function addPeriod(ymd, cycle) {
   const [y, mo, da] = ymd.split('-').map(Number);
   const d = new Date(y, mo - 1, da);
-  if (cycle === 'year') d.setFullYear(d.getFullYear() + 1); else d.setMonth(d.getMonth() + 1);
+  if (cycle === 'days7') d.setDate(d.getDate() + 7); else d.setMonth(d.getMonth() + 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 // super admin: fee, status, payment history and buttons for one mess
@@ -3545,7 +3558,7 @@ function superSubHtml(m) {
     || `<div class="sub">${bn ? 'কোনো পেমেন্ট নেই' : 'No payments yet'}</div>`;
   return `<details style="margin-top:10px"><summary><b>${bn ? 'সাবস্ক্রিপশন' : 'Subscription'}</b> ${badge}</summary>
     <div style="margin-top:6px">
-      <div class="sub">${bn ? 'ফি' : 'Fee'}: <b class="num">${s.amount ? f2(s.amount) : '—'}</b> / ${s.cycle === 'year' ? (bn ? 'বছর' : 'year') : (bn ? 'মাস' : 'month')}</div>
+      <div class="sub">${bn ? 'ফি' : 'Fee'}: <b class="num">${s.amount ? f2(s.amount) : '—'}</b> / ${planLabel(s.cycle, bn)}</div>
       <div class="sub">${bn ? 'মেয়াদ শেষ' : 'Paid until'}: <b>${s.paidUntil || '—'}</b></div>
       <div class="sub">${bn ? 'শেষ পেমেন্ট' : 'Last payment'}: ${s.lastPaid || '—'}</div>
       <div style="margin-top:6px">${hist}</div>
@@ -3590,8 +3603,12 @@ function subSettingsHtml() {
   if (real(PAY_LINKS.paypal)) btns.push(`<a class="pri" href="${PAY_LINKS.paypal}" target="_blank" rel="noopener">PayPal</a>`);
   if (real(PAY_LINKS.wise)) btns.push(`<a class="pri" href="${PAY_LINKS.wise}" target="_blank" rel="noopener">Wise</a>`);
   const bk = real(PAY_LINKS.bkash) ? `<div class="sub" style="margin-top:6px">bKash / Nagad: <b>${esc(PAY_LINKS.bkash)}</b></div>` : '';
+  const left = s.paidUntil ? Math.round((new Date(s.paidUntil) - new Date(isoToday())) / 86400000) : null;
+  const warn = left === null ? '' : left < 0 ? `<div class="sub" style="color:var(--bad);margin-top:6px"><b>${bn ? 'মেয়াদ পেরিয়ে গেছে, এখনই নবায়ন করুন' : 'Expired, please renew now'}</b></div>`
+    : left <= SUB_REMIND_DAYS ? `<div class="sub" style="color:var(--accent);margin-top:6px"><b>${bn ? `মেয়াদ শেষ হতে আর ${left} দিন বাকি` : `${left} days left to renew`}</b></div>` : '';
   return `<div class="sub">${bn ? 'স্ট্যাটাস' : 'Status'}: <b>${status}</b></div>
-    <div class="sub">${bn ? 'ফি' : 'Fee'}: <b>${s.amount ? f2(s.amount) : '—'}</b> / ${s.cycle === 'year' ? (bn ? 'বছর' : 'year') : (bn ? 'মাস' : 'month')}</div>
+    ${warn}
+    <div class="sub">${bn ? 'ফি' : 'Fee'}: <b>${s.amount ? f2(s.amount) : '—'}</b> / ${planLabel(s.cycle, bn)}</div>
     ${bk}
     <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px">${btns.join('')}</div>
     <div style="margin-top:12px"><div class="sub">${bn ? 'সুপার অ্যাডমিনের দেওয়া কোড' : 'Code from super admin'}</div>
@@ -3624,10 +3641,21 @@ async function redeemSubCode() {
     await b.commit();
     MESS_SUB = { ...(MESS_SUB || {}), paidUntil: c.paidUntil, cycle: c.cycle || 'month', amount, lastPaid: today, lastCode: code };
     toast(bn ? 'সাবস্ক্রিপশন সক্রিয় হয়েছে' : 'Subscription activated');
-    renderSettings();
+    setTimeout(() => location.reload(), 900);
   } catch (e) {
     toast(bn ? 'সক্রিয় করা যায়নি, কোড বা অনুমতি দেখো' : 'Could not activate, check the code', true);
   }
+}
+
+// shown when the subscription has run out: the mess admin sees the renew box, members see a notice
+function subExpiredHtml() {
+  const bn = lang === 'bn';
+  if (me === MESS_ADMIN) return `<div class="card"><b style="color:var(--bad)">${bn ? 'সাবস্ক্রিপশনের মেয়াদ শেষ, তাই mess বন্ধ আছে' : 'Subscription expired, the mess is paused'}</b>
+    <div style="margin-top:10px">${subSettingsHtml()}</div>
+    <button class="ghost" style="width:100%;margin-top:14px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`;
+  return `<div class="card" style="text-align:center;padding:24px"><div class="sub">${bn ? 'এই mess এর সাবস্ক্রিপশনের মেয়াদ শেষ হয়ে গেছে।' : 'This mess subscription has expired.'}</div>
+    <div class="sub" style="margin-top:10px">${bn ? 'অ্যাডমিনের সাথে যোগাযোগ করো।' : 'Please contact the admin.'}</div>
+    <button class="ghost" style="width:100%;margin-top:14px" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`;
 }
 
 /* ================= INIT ================= */
