@@ -489,6 +489,7 @@ details.sCard>summary::-webkit-details-marker{display:none}
     <div id="signupFields" class="hidden">
       <div class="lbl" id="lblPass2"></div><div class="pwWrap"><input id="sPass2" type="password" autocomplete="new-password" style="font-size:16px"><button type="button" class="eyeBtn" onclick="togglePw(this)" aria-label="show password">👁</button></div>
       <div class="lbl" id="lblName"></div><input id="sName" type="text" autocomplete="name" style="font-size:16px">
+      <div class="lbl" id="lblCode">Mess invite code (থাকলে লেখো, না থাকলে ফাঁকা রাখো)</div><input id="sCode" type="text" autocomplete="off" placeholder="Invite code" style="font-size:16px;text-transform:uppercase">
       <button class="pri" id="signupSubmit" onclick="signup()" style="width:100%;margin-top:16px"></button>
       <button class="ghost" id="signupBack" onclick="signupCancel()" style="width:100%;margin-top:8px"></button>
     </div>
@@ -873,6 +874,22 @@ async function signup() {
   try {
     const cred = await auth.createUserWithEmailAndPassword(e, p);
     try { localStorage.setItem('mh_signup_name', nm); } catch (x) {}   // used when the request is sent after verification
+    // a valid mess invite code from the admin: join that mess now, no email verification needed
+    const sc = (($('sCode') && $('sCode').value) || '').trim().toUpperCase();
+    if (sc) {
+      try {
+        const c = await db.collection('codes').doc(sc).get();
+        if (c.exists) {
+          const mid = c.data().messId;
+          await db.collection('users').doc(e).set({ messId: mid, name: nm, code: sc });
+          await db.collection('messes').doc(mid).collection('members').doc(e)
+            .set({ email: e, name: nm, days: 30, deposit: 0, joined: new Date().toISOString().slice(0, 7) });
+          toast(bn ? 'যোগ দেওয়া হয়েছে' : 'You have joined');
+          setTimeout(() => location.reload(), 600);
+          return;
+        }
+      } catch (x) { /* code not usable: continue with the normal verification flow */ }
+    }
     await cred.user.sendEmailVerification();
   } catch (err) {
     msg(bn ? 'অ্যাকাউন্ট খোলা গেলো না (ইমেইল আগে থেকেই থাকতে পারে)' : 'Could not create the account (the email may already exist)');
