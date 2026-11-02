@@ -3033,6 +3033,50 @@ function meCardHtml() {
       <button class="meOut" onclick="logout()">⎋ ${t('logout')}</button>
     </div>`;
 }
+/* ---- backup: the mess admin downloads all of this mess's data as one file, encrypted with a password ---- */
+function backupB64(buf) {
+  const u = new Uint8Array(buf); let s = '';
+  for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+async function encryptBackup(text, pw) {
+  const enc = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text));
+  return { app: 'mess-hisab-pro', v: 1, kdf: 'PBKDF2-SHA256-200000', salt: backupB64(salt), iv: backupB64(iv), data: backupB64(ct) };
+}
+async function makeBackup() {
+  const bn = lang === 'bn';
+  if (me !== MESS_ADMIN) return toast(bn ? 'শুধু mess admin ব্যাকআপ নিতে পারবে' : 'Only the mess admin can make a backup', true);
+  const p1 = String((await sheet({ title: bn ? 'ব্যাকআপের password দাও (ভুললে ফাইল খোলা যাবে না)' : 'Password for the backup (you need it to open the file)', type: 'password', raw: true })) || '');
+  if (!p1) return;
+  if (p1.length < 6) return toast(bn ? 'কমপক্ষে ৬ অক্ষর' : 'At least 6 characters', true);
+  const p2 = String((await sheet({ title: bn ? 'password আবার লেখো' : 'Type the password again', type: 'password', raw: true })) || '');
+  if (p1 !== p2) return toast(bn ? 'দুটো password মিলছে না' : 'Passwords do not match', true);
+  toast(bn ? 'ব্যাকআপ তৈরি হচ্ছে…' : 'Making backup…');
+  try {
+    const all = async c => (await DBm(c).get()).docs.map(d => ({ id: d.id, data: d.data() }));
+    const sum = await DBm('summary').doc('main').get();
+    const set = await DBm('settings').doc('app').get();
+    const payload = {
+      app: 'mess-hisab-pro', v: 1, mid: MID, at: new Date().toISOString(),
+      entries: await all('entries'), slips: await all('slips'), members: await all('members'),
+      notes: await all('notes'), monthly: await all('monthly'), logs: await all('logs'),
+      summary: sum.exists ? sum.data() : null, settings: set.exists ? set.data() : null
+    };
+    const box = await encryptBackup(JSON.stringify(payload), p1);
+    const url = URL.createObjectURL(new Blob([JSON.stringify(box)], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `mess-backup-${isoToday()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    logAct('Backup downloaded');
+    toast(bn ? 'ব্যাকআপ download হয়েছে' : 'Backup downloaded');
+  } catch (e) { showErr(e); }
+}
 function settingsHtml(skipMe = false) {
   const nm = nameOf(me);
   const isBn = lang === 'bn';
@@ -3068,6 +3112,7 @@ function settingsHtml(skipMe = false) {
       <button class="item" onclick="resetPw()"><span>${t('resetPw')}</span><span class="sub">›</span></button>
       `);
   if (me === MESS_ADMIN) h += sec(isBn ? 'সাবস্ক্রিপশন' : 'Subscription', subSettingsHtml(), true);
+  if (me === MESS_ADMIN) h += sec(isBn ? 'ব্যাকআপ' : 'Backup', `<div class="sub" style="margin-bottom:8px">${isBn ? 'সব ডেটা একটা password দিয়ে এনক্রিপ্ট করা ফাইলে নামবে। password ভুললে ফাইল খোলা যাবে না।' : 'All data is saved in one file encrypted with a password you choose. If you forget the password the file cannot be opened.'}</div><button class="pri" style="width:100%" onclick="makeBackup()">${isBn ? 'ব্যাকআপ নাও' : 'Make backup'}</button>`);
 
   return h;
 }
