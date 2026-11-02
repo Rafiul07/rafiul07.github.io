@@ -3112,7 +3112,6 @@ function settingsHtml(skipMe = false) {
       <button class="item" onclick="resetPw()"><span>${t('resetPw')}</span><span class="sub">›</span></button>
       `);
   if (me === MESS_ADMIN) h += sec(isBn ? 'সাবস্ক্রিপশন' : 'Subscription', subSettingsHtml(), true);
-  if (me === MESS_ADMIN) h += sec(isBn ? 'ব্যাকআপ' : 'Backup', `<div class="sub" style="margin-bottom:8px">${isBn ? 'সব ডেটা একটা password দিয়ে এনক্রিপ্ট করা ফাইলে নামবে। password ভুললে ফাইল খোলা যাবে না।' : 'All data is saved in one file encrypted with a password you choose. If you forget the password the file cannot be opened.'}</div><button class="pri" style="width:100%" onclick="makeBackup()">${isBn ? 'ব্যাকআপ নাও' : 'Make backup'}</button>`);
 
   return h;
 }
@@ -3187,7 +3186,7 @@ function renderAdmin() {
       <div class="sub" style="margin-bottom:8px">${bazarOn() ? (isBn ? 'এখন চালু: সদস্যরা বাজার যোগ করতে পারবে।' : 'On: members can add bazar.') : (isBn ? 'এখন বন্ধ: সদস্যরা বাজার যোগ করতে পারবে না।' : 'Off: members cannot add bazar.')}</div>
       <button class="${bazarOn() ? 'bad' : 'pri'}" style="width:100%" onclick="toggleBazarMode()">${bazarOn() ? (isBn ? 'বন্ধ করো' : 'Turn off') : (isBn ? 'চালু করো' : 'Turn on')}</button>`, false);
   h += sec(isBn ? 'ডেটা ও ব্যাকআপ' : 'Data & backup', `
-      <button class="item" onclick="backupJSON()"><span>${isBn ? 'ব্যাকআপ ডাউনলোড (JSON)' : 'Download backup (JSON)'}</span><span class="sub">›</span></button>
+      <button class="item" onclick="makeBackup()"><span>${isBn ? 'ব্যাকআপ নাও (এনক্রিপ্ট করা)' : 'Make backup (encrypted)'}</span><span class="sub">›</span></button>
       <button class="item" onclick="$('restoreFile').click()"><span>${isBn ? 'ব্যাকআপ থেকে ফিরিয়ে আনো' : 'Restore from backup'}</span><span class="sub">›</span></button>
       <button class="item" onclick="migrateSlips()"><span>${isBn ? 'পুরোনো ছবি slips-এ সরাও (একবার)' : 'Move old photos to slips (run once)'}</span><span class="sub">›</span></button>
       <input type="file" id="restoreFile" accept="application/json,.json" class="hidden" onchange="restoreJSON(this.files[0])">`, false);
@@ -3334,12 +3333,31 @@ async function backupJSON() {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   } catch (e) { showErr(e); }
 }
+async function decryptBackup(box, pw) {
+  const dec = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: dec(box.salt), iterations: 200000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: dec(box.iv) }, key, dec(box.data));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
 async function restoreJSON(file) {
   if (!file) return;
   const ok = await sheet({ title: lang === 'bn' ? 'ব্যাকআপ থেকে ফিরিয়ে আনবে? একই ID-র ডেটা বদলে যাবে।' : 'Restore backup? Matching records will be overwritten.', input: false, okText: lang === 'bn' ? 'ফিরিয়ে আনো' : 'Restore' });
-  if (!ok) { $('restoreFile').value = ''; return; }
+  if (!ok) { { const rf = $('restoreFile'); if (rf) rf.value = ''; }; return; }
   try {
-    const d = JSON.parse(await file.text());
+    const raw = JSON.parse(await file.text());
+    let d = raw;
+    if (raw && raw.salt && raw.iv && raw.data) {   // encrypted backup: ask for its password
+      const pw = String((await sheet({ title: lang === 'bn' ? 'ব্যাকআপের password দাও' : 'Backup password', type: 'password', raw: true })) || '');
+      if (!pw) { { const rf = $('restoreFile'); if (rf) rf.value = ''; }; return; }
+      try { d = await decryptBackup(raw, pw); }
+      catch (e) { { const rf = $('restoreFile'); if (rf) rf.value = ''; }; return toast(lang === 'bn' ? 'password ভুল, অথবা ফাইল নষ্ট' : 'Wrong password, or the file is damaged', true); }
+      d = {
+        members: (d.members || []).map(x => ({ email: x.id, ...x.data })),
+        entries: (d.entries || []).map(x => ({ id: x.id, ...x.data })),
+        slips: (d.slips || []).map(x => ({ id: x.id, data: x.data.data }))
+      };
+    }
     const small = [], slipOps = [];
     (d.members || []).forEach(m => small.push({ ref: ADBm('members').doc(m.email), data: (({ email, ...r }) => r)(m) }));
     (d.entries || []).forEach(x => {
@@ -3362,7 +3380,7 @@ async function restoreJSON(file) {
     clearSlipCache();
     toast(t('saved')); logAct('Backup restored');
   } catch (e) { showErr(e); }
-  $('restoreFile').value = '';
+  { const rf = $('restoreFile'); if (rf) rf.value = ''; };
 }
 /* One-time: move pay-slip photos from entries.photo into slips/{id} */
 async function migrateSlips() {
