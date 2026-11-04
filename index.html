@@ -2212,11 +2212,6 @@ function renderHome() {
             <div class="sub">${isBn ? 'মেসের মোট বাজার' : 'Total mess bazar'}</div>
             <div class="totalAmt num">৳ ${f2(calc().tB)}</div>
           </div>
-          <div class="totalTile">
-            <div class="sub">${isBn ? 'প্রতিদিনের খরচ' : 'Cost per day'}</div>
-            <div class="totalAmt num">৳ ${f2(r)}</div>
-            <div class="sub" style="font-size:12px">${isBn ? 'মোট দিন: ' : 'Days: '}${dy}</div>
-          </div>
         </div>
         <div class="totalGrid">
           <div class="totalTile">
@@ -2235,8 +2230,9 @@ function renderHome() {
               <div class="totalAmt num">+ ${f2(depOf(me))}</div>
             </div>
             <div class="totalTile">
-              <div class="sub">${isBn ? `তোমার খাওয়ার খরচ (${dy} দিন × ${f2(r)})` : `Your meal cost (${dy} days × ${f2(r)})`}</div>
-              <div class="totalAmt num">− ${f2(share)}</div>
+              <div class="sub">${isBn ? 'প্রতিদিনের খরচ' : 'Cost per day'}</div>
+              <div class="totalAmt num">৳ ${f2(r)}</div>
+              <div class="sub" style="font-size:12px">${isBn ? 'মোট দিন: ' : 'Days: '}${dy}</div>
             </div>
             <div class="totalTile" style="grid-column:1 / -1">
               <div class="sub">${isBn ? 'শেষ হিসাব' : 'Final'}</div>
