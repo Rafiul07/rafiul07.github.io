@@ -430,6 +430,16 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 .pwWrap{position:relative}.pwWrap input{width:100%;padding-right:46px}.eyeBtn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;font-size:18px;cursor:pointer;padding:4px;min-height:0}
 .superChips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.superChips button{min-height:36px;padding:6px 12px;font-size:13px}
 .superMini{display:inline-flex;align-items:center;border-radius:10px;overflow:hidden;border:1px solid rgba(128,128,128,.35)}.superMini button{border:0;border-radius:0;padding:7px 9px;background:transparent}.superMini.on{background:rgba(124,92,255,.18)}.superTabs,.superChips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.superTabs button,.superChips button{flex:1 1 auto;padding:8px 10px}
+/* member home: hero balance card */
+.hHero{border-radius:18px;padding:18px;margin:0 0 12px;text-align:center;border:1px solid var(--bd);background:var(--card2)}
+.hHero.pos{background:linear-gradient(135deg,rgba(34,197,94,.18),rgba(34,211,238,.10));border-color:rgba(34,197,94,.35)}
+.hHero.neg{background:linear-gradient(135deg,rgba(248,113,113,.18),rgba(168,85,247,.08));border-color:rgba(248,113,113,.35)}
+.hHeroLbl{font-size:14px;font-weight:700;color:var(--sub)}
+.hHeroAmt{font-size:34px;font-weight:900;margin:4px 0 2px;letter-spacing:-.5px}
+.card .hHeroAmt{font-size:34px;font-weight:900}
+.hHero.pos .hHeroAmt{color:#22c55e}.hHero.neg .hHeroAmt{color:var(--bad)}
+.hHeroSub{font-size:12.5px;color:var(--sub)}
+.hCard{box-shadow:none}
 /* super admin: modern layout */
 .sHero{background:linear-gradient(135deg,rgba(168,85,247,.28),rgba(34,211,238,.14)),var(--card);border:1px solid var(--bd);border-radius:22px;padding:18px;margin:4px 0 12px}
 body.light .sHero{background:linear-gradient(135deg,rgba(168,85,247,.13),rgba(34,211,238,.09)),var(--card)}
@@ -2191,17 +2201,20 @@ function renderHome() {
     const msg = bal == null ? '' : bal >= 0 ? (isBn ? 'তুমি পাবে' : 'You get back') : (isBn ? 'তোমাকে দিতে হবে' : 'You need to pay');
     if (bal == null) h += `<div class="card"><div class="sub">${t('noRate')}</div></div>`;
     if (bal != null) {
-      h += `<div class="card"><h3>${isBn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
-        <div style="font-size:15px;margin:2px 0 12px">${bal >= 0 ? (isBn ? `আপনি পাবেন <b class="num" style="color:#22c55e">৳ ${f2(bal)}</b>` : `You get back <b class="num" style="color:#22c55e">৳ ${f2(bal)}</b>`) : (isBn ? `আপনাকে দিতে হবে <b class="num" style="color:var(--bad)">৳ ${f2(Math.abs(bal))}</b>` : `You need to pay <b class="num" style="color:var(--bad)">৳ ${f2(Math.abs(bal))}</b>`)}</div>
+      h += `<div class="card hCard"><h3>${isBn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
+        <div class="hHero ${bal >= 0 ? 'pos' : 'neg'}">
+          <div class="hHeroLbl">${bal >= 0 ? (isBn ? 'আপনি পাবেন' : 'You get back') : (isBn ? 'আপনাকে দিতে হবে' : 'You need to pay')}</div>
+          <div class="hHeroAmt num">৳ ${f2(Math.abs(bal))}</div>
+        </div>
         <div class="totalGrid">
           <div class="totalTile">
             <div class="sub">${isBn ? 'মেসের মোট বাজার' : 'Total mess bazar'}</div>
             <div class="totalAmt num">৳ ${f2(calc().tB)}</div>
           </div>
           <div class="totalTile">
-            <div class="sub">${msg}</div>
-            <div class="totalAmt num" style="color:${tone}">৳ ${f2(Math.abs(bal))}</div>
-            <div class="sub" style="font-size:12px">${isBn ? 'প্রতিদিনের খরচ: ' : 'Cost per day: '}${f2(r)}</div>
+            <div class="sub">${isBn ? 'প্রতিদিনের খরচ' : 'Cost per day'}</div>
+            <div class="totalAmt num">৳ ${f2(r)}</div>
+            <div class="sub" style="font-size:12px">${isBn ? 'মোট দিন: ' : 'Days: '}${dy}</div>
           </div>
         </div>
         <div class="totalGrid">
