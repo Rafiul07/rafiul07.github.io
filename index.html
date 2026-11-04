@@ -530,6 +530,7 @@ details.sCard>summary::-webkit-details-marker{display:none}
     <section id="pgHome">
       <div id="bazarStatus" class="hidden" style="margin-bottom:10px;padding:8px 12px;border-radius:12px;font-weight:700;font-size:14px"></div>
       <div class="card" id="qBar" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div id="messHead" style="grid-column:1/-1"></div>
         <button id="addBtn1" class="pri" style="width:100%;white-space:nowrap" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
         <button id="notesOpenBtn" onclick="openNotesPop()" style="width:100%;min-height:52px;border:0;border-radius:14px;color:#fff;font-weight:800;background:linear-gradient(135deg,#f97316,#ec4899);box-shadow:0 8px 20px rgba(236,72,153,.28)"></button>
       </div>
@@ -2164,7 +2165,7 @@ function renderHome() {
   if (monthLocked) h += `<div class="card" style="border-color:var(--bad)"><h3>${lang === 'bn' ? 'এই মাস বন্ধ' : 'This month is closed'}</h3><div class="sub">${lang === 'bn' ? 'এই মাসের বাজার আর যোগ, বদলানো বা মোছা যাবে না। হিসাব দেখা যাবে।' : 'No bazar can be added, changed or removed for this month. You can still see the numbers.'}</div></div>`;
   if (frozenNow) h += `<div class="card" style="border-color:var(--bad)"><h3>${lang === 'bn' ? 'অ্যাকাউন্ট ফ্রিজ করা আছে' : 'Account frozen'}</h3><div class="sub">${lang === 'bn' ? 'এখন নতুন বাজার যোগ বা বদলাতে পারবে না। বিস্তারিত জানতে admin এর সাথে কথা বলো।' : 'You cannot add or change bazar entries right now. Talk to the admin for details.'}</div></div>`;
   // mess name at the top, for admin and members alike
-  if (messName) h += messTitleHtml();
+  $('messHead').innerHTML = messName ? messTitleHtml() : '';   // mess name sits inside the top header card, with the buttons
   if (notice) h += `<div class="card" style="border-color:var(--p)"><h3>${lang === 'bn' ? 'ঘোষণা' : 'Notice'}</h3><div>${esc(notice)}</div></div>`;
   h += `<div id="inboxBox">${inboxHtml()}</div>`;
   if (!inboxLoaded && MID) { inboxLoaded = true; loadInbox(); }
