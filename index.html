@@ -310,6 +310,10 @@ details.sec .secBody{margin-top:12px}
 #hContent .totalTile .sub{font-size:clamp(13px,3.6vw,14px);font-weight:600}
 #hContent .totalTile .totalAmt{font-size:clamp(20px,6.2vw,28px);font-weight:900;margin-top:6px;letter-spacing:-.3px}
 #hContent .totalTile:last-child{background:linear-gradient(135deg,rgba(34,211,238,.18),rgba(168,85,247,.10))}
+#hContent .totalGrid.tri{grid-template-columns:repeat(3,1fr);gap:8px}
+#hContent .totalGrid.tri .totalTile{padding:10px 6px;border-radius:14px}
+#hContent .totalGrid.tri .totalTile .sub{font-size:11.5px;line-height:1.25}
+#hContent .totalGrid.tri .totalTile .totalAmt{font-size:clamp(14px,4.3vw,19px);margin-top:4px}
 #hContent .row.between{padding:10px 2px !important;border-bottom:1px dashed var(--bd)}
 #hContent .row.between:last-child{border-bottom:0}
 #hContent .row.between span{font-size:clamp(14.5px,3.9vw,16px)}
@@ -2207,19 +2211,17 @@ function renderHome() {
           <div class="hHeroLbl">${bal >= 0 ? (isBn ? 'আপনি পাবেন' : 'You get back') : (isBn ? 'আপনাকে দিতে হবে' : 'You need to pay')}</div>
           <div class="hHeroAmt num">৳ ${f2(Math.abs(bal))}</div>
         </div>
-        <div class="totalGrid">
+        <div class="totalGrid tri">
           <div class="totalTile">
-            <div class="sub">${isBn ? 'মেসের মোট বাজার' : 'Total mess bazar'}</div>
+            <div class="sub">${isBn ? 'মেসের মোট বাজার' : 'Mess bazar'}</div>
             <div class="totalAmt num">৳ ${f2(calc().tB)}</div>
           </div>
-        </div>
-        <div class="totalGrid">
           <div class="totalTile">
             <div class="sub">${isBn ? 'প্রতিজনের ভাগ' : 'Per person'}</div>
             <div class="totalAmt num">৳ ${f2(allEmails().length ? calc().tB / allEmails().length : 0)}</div>
           </div>
           <div class="totalTile">
-            <div class="sub">${isBn ? 'তুমি বাজার দিয়েছ' : 'Your paid bazar'}</div>
+            <div class="sub">${isBn ? 'তুমি বাজার দিয়েছ' : 'Your bazar'}</div>
             <div class="totalAmt num">৳ ${f2(bazarOf(me))}</div>
           </div>
         </div>
