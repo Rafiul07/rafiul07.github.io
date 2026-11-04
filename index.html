@@ -2254,7 +2254,8 @@ function renderHome() {
     const byM = {};
     mineM.forEach(x => { const mm = String(x.date).slice(0, 7); byM[mm] = byM[mm] || { sum: 0, n: 0 }; byM[mm].sum += num(x.amount); byM[mm].n++; });
     const mk = Object.keys(byM).sort().reverse();
-    if (mk.length) h += `<div class="card"><h3>${isBn ? 'আমার মাসভিত্তিক বাজার' : 'My bazar by month'}</h3>` + mk.map(mm =>
+    let moreH = '';
+    if (mk.length) moreH += `<div style="margin-bottom:12px"><h3>${isBn ? 'আমার মাসভিত্তিক বাজার' : 'My bazar by month'}</h3>` + mk.map(mm =>
       `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${monthLabel(mm)} <span class="sub">(${byM[mm].n})</span></span><b class="num">${f2(byM[mm].sum)}</b></div>`).join('') + `</div>`;
     // bazar / days / deposit already sit in the hero card above, so no separate tiles
     if (!isMgr) {
@@ -2263,9 +2264,10 @@ function renderHome() {
       const more = all.length > homeLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="homeMore()">${lang === 'bn' ? 'আরও দেখাও' : 'Show more'} (${all.length - homeLimit})</button>` : '';
       h += `<details class="sec" style="margin:0 0 14px"><summary>${t('recent')} <span class="sub">(${all.length})</span></summary><div class="secBody">` + (all.length ? shown.map(x => miniRow(x, true)).join('') + more : `<div class="empty">${t('noEntries')}</div>`) + `</div></details>`;
     }
-    h += `<div class="card"><h3>${t('statusCount')}</h3>` + ['submitted', 'approved'].map(s =>
+    moreH += `<div><h3>${t('statusCount')}</h3>` + ['submitted', 'approved'].map(s =>
       `<div class="row between" style="padding:6px 0"><span class="badge ${STATUS_CLS[s]}">${t(s)}</span><b class="num">${mineM.filter(x => x.status === s).length}</b></div>`
     ).join('') + `</div>`;
+    if (moreH) h += `<details class="sec" style="margin:0 0 14px"><summary>${isBn ? 'আরও তথ্য' : 'More details'}</summary><div class="secBody">${moreH}</div></details>`;
     const r2 = currentRate();
     if (r2 != null && !isMgr) {   // admin already sees everyone in the members card above
       // a member: own card always; "সব সদস্য" opens a separate card below with the others
