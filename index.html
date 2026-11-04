@@ -1779,6 +1779,7 @@ document.addEventListener('touchend', () => {
 
 /* Notes popup: the notes card is moved into the popup and back to the Home page on close */
 function openNotesPop() {
+  markNotesSeen();
   if (!me) return;
   $('notesBody').appendChild($('notesCard'));
   $('notesCard').classList.remove('hidden');
@@ -1895,19 +1896,23 @@ function renderNotes() {
   $('notesTitle').innerText = isBn ? 'সবার নোট' : 'Notes for everyone';
   $('noteTxt').placeholder = isBn ? 'যেমন: বাজার লাগবে: চিনি, মাংস' : 'e.g. Need sugar, meat';
   $('notePost').innerText = isBn ? 'নোট দাও' : 'Post note';
-  if ($('notesOpenBtn')) $('notesOpenBtn').innerText = (isBn ? 'সবার নোট' : 'Notes') + ' (' + notes.length + ')';
+  if ($('notesOpenBtn')) { const nw = notes.filter(n => (n.at || 0) > notesSeenAt()).length; $('notesOpenBtn').innerText = (isBn ? 'সবার নোট' : 'Notes') + ' (' + notes.length + ')' + (nw ? ' · ' + (isBn ? 'নতুন ' : 'new ') + nw : ''); }
 
   const colors = ['#8b5cf6', '#ec4899', '#10b981', '#3b82f6', '#f97316', '#06b6d4', '#eab308'];
   const colorOf = id => { let h = 0; for (const c of String(id || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return colors[h % colors.length]; };
-  box.innerHTML = notes.length ? notes.map((n) => {
+  const isAdm = isMgr || (!!MESS_ADMIN && me === MESS_ADMIN);
+  const seen = notesSeenAt();
+  const sorted = [...notes].sort((a, b) => (!!b.pinned - !!a.pinned) || ((b.at || 0) - (a.at || 0)));
+  box.innerHTML = sorted.length ? sorted.map((n) => {
     const when = n.at ? new Date(n.at).toLocaleString(isBn ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
     // the mess admin can remove any note, without unlocking the control panel
     const canDel = n.by === me || isMgr || (!!MESS_ADMIN && me === MESS_ADMIN);
     const c = colorOf(n.id);
+    const isNew = (n.at || 0) > seen;
     return `<div class="noteItem">
-      <div class="row between"><span class="noteBy" style="color:${c}">${esc(nameOf(n.by))}</span><span class="noteWhen num">${esc(when)}</span></div>
+      <div class="row between"><span class="noteBy" style="color:${c}">${n.pinned ? '📌 ' : ''}${esc(nameOf(n.by))}${isNew ? ` <span class="badge b-p">${isBn ? 'নতুন' : 'new'}</span>` : ''}</span><span class="noteWhen num">${esc(when)}</span></div>
       <div class="noteTxt" style="color:${c}">${esc(n.text)}</div>
-      ${canDel ? `<button class="ghost noteDel" onclick="delNote('${esc(n.id)}')">${t('del')}</button>` : ''}
+      <div class="row" style="gap:6px">${canDel ? `<button class="ghost noteDel" onclick="delNote('${esc(n.id)}')">${t('del')}</button>` : ''}${isAdm ? `<button class="ghost noteDel" onclick="togglePin('${esc(n.id)}', ${!n.pinned})">${n.pinned ? (isBn ? 'পিন খোলো' : 'Unpin') : (isBn ? 'পিন করো' : 'Pin')}</button>` : ''}</div>
     </div>`;
   }).join('') :`<div class="sub" style="padding:8px 0">${isBn ? 'এখনো কোনো নোট নেই' : 'No notes yet'}</div>`;
 }
@@ -1994,6 +1999,18 @@ async function postNote() {
     el.value = '';
     toast(t('saved'));
   } catch (e) { showErr(e); }
+}
+/* per-device: when the notes list was last opened; notes newer than this get a 'new' mark */
+function notesSeenAt() {
+  try { return Number(localStorage.getItem('mh_notes_seen_' + MID)) || 0; } catch (x) { return 0; }
+}
+function markNotesSeen() {
+  const newest = notes.reduce((m, n) => Math.max(m, n.at || 0), 0);
+  try { localStorage.setItem('mh_notes_seen_' + MID, String(Math.max(newest, Date.now()))); } catch (x) {}
+}
+async function togglePin(id, v) {
+  try { await ADBm('notes').doc(id).update({ pinned: !!v }); }
+  catch (e) { showErr(e); }
 }
 async function delNote(id) {
   const ok = await sheet({ title: lang === 'bn' ? 'এই নোট মুছবে?' : 'Delete this note?', input: false, okText: t('del') });
