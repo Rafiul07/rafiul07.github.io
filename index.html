@@ -2196,7 +2196,7 @@ function renderHome() {
       const b = balOf(e, c.rate), pos = b >= 0;
       return `<div class="mrow" onclick="openMember('${esc(e)}')">
         <div class="row between" style="flex-wrap:nowrap;align-items:center">
-          <div class="row" style="gap:10px;flex-wrap:nowrap;min-width:0">${av(e)}<div style="min-width:0"><b>${esc(nameOf(e))}</b><div class="sub num">${t('bazar')} ${f2(bazarOf(e))} · ${t('days')} ${daysOf(e)}</div></div></div>
+          <div class="row" style="gap:10px;flex-wrap:nowrap;min-width:0">${av(e)}<div style="min-width:0"><b>${esc(nameOf(e))}</b><div class="sub num">${t('days')} ${daysOf(e)} · ${t('deposit')} ${f2(depOf(e))}</div></div></div>
           <div style="text-align:right;flex-shrink:0;white-space:nowrap;display:flex;align-items:center;gap:8px"><button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(e)}')">ⓘ</button><span class="num" style="font-weight:800;font-size:15px;color:${pos ? '#22c55e' : 'var(--bad)'}">${pos ? '+' : '−'} ${f2(Math.abs(b))}</span> <span class="sub" style="font-size:11px">${pos ? (lang === 'bn' ? 'পাবে' : 'you get') : (lang === 'bn' ? 'দিতে হবে' : 'you pay')}</span></div>
         </div>
       </div>`;
@@ -3301,6 +3301,11 @@ async function changePassword() {
   }
 }
 async function resetAll() {
+  // closed months: the rules block deleting their entries, so a reset would stop halfway. Refuse until they are reopened.
+  if (closedMonths.length) {
+    toast(lang === 'bn' ? 'বন্ধ মাস আছে, তাই এখন reset করা যাবে না। আগে ব্যাকআপ নাও।' : 'Closed months exist, so reset is blocked. Take a backup first.', true);
+    return;
+  }
   const sure = await sheet({ title: t('resetWarn'), input: false, okText: t('resetAll') });
   if (!sure) return;
   const pw = await sheet({ title: t('enterAdminPw'), type: 'password', raw: true });
