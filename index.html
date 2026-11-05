@@ -2093,12 +2093,22 @@ function pushSummary(c) {
 /* the mess name banner: its colour changes every hour (the palette cycles through the day) */
 const MESS_GRADS = [['#7c5cff', '#22d3ee'], ['#f97316', '#ec4899'], ['#10b981', '#84cc16'], ['#f43f5e', '#facc15'], ['#6366f1', '#ec4899'], ['#0ea5e9', '#22c55e']];
 function messGrad() {
-  const [a, b] = MESS_GRADS[Math.floor(Date.now() / 3600000) % MESS_GRADS.length];
+  let pick = null; try { pick = localStorage.getItem('mh_mess_grad'); } catch (x) {}
+  const [a, b] = pick !== null && MESS_GRADS[+pick] ? MESS_GRADS[+pick] : MESS_GRADS[Math.floor(Date.now() / 3600000) % MESS_GRADS.length];
   return `linear-gradient(90deg, ${a}, ${b})`;
+}
+/* this phone's colour choice for the mess name (localStorage only, no database change) */
+function setMessGrad(i) { try { localStorage.setItem('mh_mess_grad', String(i)); } catch (x) {} render(); }
+/* quick light / dark switch on the home header: admin saves it for everyone, a member only on this phone */
+function quickTheme() {
+  const v = document.body.classList.contains('light') ? 'dark' : 'light';
+  if (isMgr) { setThemeMode(v); return; }
+  theme = v; try { localStorage.setItem('mh_theme', v); } catch (x) {} applyTheme(); render();
 }
 function messTitleHtml() {
   const bn = lang === 'bn';
   return `<div style="text-align:center;margin:6px 0 14px">
+    <div style="display:flex;justify-content:flex-end"><button onclick="quickTheme()" aria-label="theme" title="theme" style="min-height:34px;width:34px;padding:0;border-radius:50%;font-size:16px;flex:none">${document.body.classList.contains('light') ? '🌙' : '☀️'}</button></div>
     <div class="sub" style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.7">${bn ? 'আমাদের মেস' : 'Our mess'}</div>
     <div id="messNameTitle" style="font-size:clamp(24px,7vw,34px);font-weight:900;letter-spacing:.5px;line-height:1.2;margin-top:4px;padding:2px 6px;background-image:${messGrad()};-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;filter:drop-shadow(0 4px 14px rgba(124,92,255,.25))">${esc(messName)}</div>
   </div>`;
@@ -3188,7 +3198,14 @@ function renderAdmin() {
       <div class="acts" style="margin-top:8px"><button class="pri" style="flex:1" onclick="copyInvite()">${isBn ? 'কোড কপি' : 'Copy code'}</button><button class="ghost" style="flex:1" onclick="copyInviteLink()">${isBn ? 'লিংক কপি' : 'Copy link'}</button><button class="ghost" style="flex:1" onclick="newInviteCode()">${isBn ? 'নতুন code' : 'New code'}</button></div>`, false);
   h += sec(isBn ? 'Mess এর নাম' : 'Mess name', `
       <input id="mName" value="${esc(messName)}">
+      <div class="lbl" style="margin-top:12px">${isBn ? 'নামের রঙ (এই ফোনে)' : 'Name colour (this phone)'}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${MESS_GRADS.map((g, i) => `<button onclick="setMessGrad(${i})" style="width:34px;height:34px;min-height:0;padding:0;border-radius:50%;background:linear-gradient(135deg,${g[0]},${g[1]})"></button>`).join('')}</div>
       <button class="pri" style="width:100%;margin-top:8px" onclick="saveMessName()">${isBn ? 'নাম সেভ করো' : 'Save name'}</button>`, false);
+  h += sec(isBn ? 'মেসের তথ্য' : 'Mess info', `
+      <div class="row between" style="padding:6px 0"><span class="sub">${isBn ? 'অ্যাডমিন' : 'Admin'}</span><b style="word-break:break-all;text-align:right">${esc(MESS_ADMIN || '—')}</b></div>
+      <div class="row between" style="padding:6px 0"><span class="sub">${isBn ? 'সদস্য' : 'Members'}</span><b class="num">${members.length}</b></div>
+      <div class="row between" style="padding:6px 0"><span class="sub">${isBn ? 'বাজারের এন্ট্রি' : 'Bazar entries'}</span><b class="num">${entries.length}</b></div>
+      <div class="row between" style="padding:6px 0"><span class="sub">${isBn ? 'বন্ধ মাস' : 'Closed months'}</span><b class="num">${closedMonths.length}</b></div>`, false);
   h += gh(isBn ? 'মেস' : 'Mess');
   h += sec(t('management'), `
       <div class="lbl" style="margin-top:14px">${isBn ? 'ঘোষণা' : 'Notice'}</div>
