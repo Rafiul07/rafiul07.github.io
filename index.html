@@ -447,7 +447,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 .hHeroLbl{font-size:14px;font-weight:700;color:var(--sub)}
 .hHeroAmt{font-size:34px;font-weight:900;margin:4px 0 2px;letter-spacing:-.5px}
 .card .hHeroAmt{font-size:34px;font-weight:900}
-.hHero.pos .hHeroAmt{color:#22c55e}.hHero.neg .hHeroAmt{color:var(--bad)}
+.hHero.pos .hHeroAmt{color:var(--pos)}.hHero.neg .hHeroAmt{color:var(--bad)}
 .hHeroSub{font-size:12.5px;color:var(--sub)}
 .hCard{box-shadow:none}
 /* super admin: modern layout */
@@ -487,6 +487,14 @@ details.sCard>summary::-webkit-details-marker{display:none}
 .sGrid button{min-height:44px;font-size:13.5px;border-radius:12px;margin:0}
 .sGrid .wide{grid-column:1/-1}
 .sGroup{font-size:12px;color:var(--sub);font-weight:700;letter-spacing:.3px;margin:14px 0 0;text-transform:uppercase}
+/* design pass: floating add button, positive colour token, page fade-in, small phones */
+:root{--pos:#22c55e}
+.fab{position:fixed;right:18px;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:50;width:58px;height:58px;min-height:0;padding:0;border-radius:50%;font-size:30px;font-weight:800;line-height:1;background:linear-gradient(135deg,var(--p),var(--s));color:#0a0a12;box-shadow:0 10px 26px rgba(168,85,247,.45)}
+.fab:active{transform:scale(.94)}
+.fab.hidden{display:none!important}
+@keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#hContent.pop{animation:pageIn .35s ease both}
+@media (max-width:380px){#hContent .totalTile .totalAmt{font-size:clamp(13px,4vw,17px)} #hContent .row b.num{font-size:.92em}}
 </style>
 </head>
 <body>
@@ -534,6 +542,7 @@ details.sCard>summary::-webkit-details-marker{display:none}
       <span class="role" id="roleTag"></span>
     </header>
     <nav class="nav" id="nav"></nav>
+  <button id="fabAdd" class="fab hidden" aria-label="add" onclick="openEntryPop()">+</button>
   </div>
 
   <main class="wrap">
@@ -1875,6 +1884,8 @@ function go(p, fromHistory = false) {
   if (!fromHistory && p !== page) history.pushState({ page: p }, '');
   page = p;
   Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== p));
+  if ($('fabAdd')) $('fabAdd').classList.toggle('hidden', p !== 'home');
+  const hc = $('hContent'); if (hc) { hc.classList.remove('pop'); void hc.offsetWidth; hc.classList.add('pop'); }
   render();
   window.scrollTo(0, 0);
   // iPhone keeps the page offset after the password keyboard closes; scroll to the top again once it settles
@@ -2091,7 +2102,7 @@ function pushSummary(c) {
 
 /* ================= HOME ================= */
 /* the mess name banner: its colour changes every hour (the palette cycles through the day) */
-const MESS_GRADS = [['#7c5cff', '#22d3ee'], ['#f97316', '#ec4899'], ['#10b981', '#84cc16'], ['#f43f5e', '#facc15'], ['#6366f1', '#ec4899'], ['#0ea5e9', '#22c55e']];
+const MESS_GRADS = [['#7c5cff', '#22d3ee'], ['#f97316', '#ec4899'], ['#10b981', '#84cc16'], ['#f43f5e', '#facc15'], ['#6366f1', '#ec4899'], ['#0ea5e9', 'var(--pos)']];
 function messGrad() {
   let pick = null; try { pick = localStorage.getItem('mh_mess_grad'); } catch (x) {}
   const [a, b] = pick !== null && MESS_GRADS[+pick] ? MESS_GRADS[+pick] : MESS_GRADS[Math.floor(Date.now() / 3600000) % MESS_GRADS.length];
@@ -2182,6 +2193,7 @@ function renderHome() {
   const monthLocked = closedMonths.includes(month);   // a closed month: no bazar can be added, changed or removed
   const addOk = !frozenNow && !monthLocked && (isMgr || bazarOn());
   ['addBtn1', 'addBtn2'].forEach(id => { const b = $(id); if (b) b.style.display = addOk ? '' : 'none'; });
+  if ($('fabAdd')) $('fabAdd').style.display = addOk ? '' : 'none';
   if (monthLocked) h += `<div class="card" style="border-color:var(--bad)"><h3>${lang === 'bn' ? 'এই মাস বন্ধ' : 'This month is closed'}</h3><div class="sub">${lang === 'bn' ? 'এই মাসের বাজার আর যোগ, বদলানো বা মোছা যাবে না। হিসাব দেখা যাবে।' : 'No bazar can be added, changed or removed for this month. You can still see the numbers.'}</div></div>`;
   if (frozenNow) h += `<div class="card" style="border-color:var(--bad)"><h3>${lang === 'bn' ? 'অ্যাকাউন্ট ফ্রিজ করা আছে' : 'Account frozen'}</h3><div class="sub">${lang === 'bn' ? 'এখন নতুন বাজার যোগ বা বদলাতে পারবে না। বিস্তারিত জানতে admin এর সাথে কথা বলো।' : 'You cannot add or change bazar entries right now. Talk to the admin for details.'}</div></div>`;
   // mess name at the top, for admin and members alike
@@ -2207,7 +2219,7 @@ function renderHome() {
       return `<div class="mrow" onclick="openMember('${esc(e)}')">
         <div class="row between" style="flex-wrap:nowrap;align-items:center">
           <div class="row" style="gap:10px;flex-wrap:nowrap;min-width:0">${av(e)}<div style="min-width:0"><b>${esc(nameOf(e))}</b><div class="sub num">${t('days')} ${daysOf(e)} · ${t('deposit')} ${f2(depOf(e))}</div></div></div>
-          <div style="text-align:right;flex-shrink:0;white-space:nowrap;display:flex;align-items:center;gap:8px"><button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(e)}')">ⓘ</button><span class="num" style="font-weight:800;font-size:15px;color:${pos ? '#22c55e' : 'var(--bad)'}">${pos ? '+' : '−'} ${f2(Math.abs(b))}</span> <span class="sub" style="font-size:11px">${pos ? (lang === 'bn' ? 'পাবে' : 'you get') : (lang === 'bn' ? 'দিতে হবে' : 'you pay')}</span></div>
+          <div style="text-align:right;flex-shrink:0;white-space:nowrap;display:flex;align-items:center;gap:8px"><button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(e)}')">ⓘ</button><span class="num" style="font-weight:800;font-size:15px;color:${pos ? 'var(--pos)' : 'var(--bad)'}">${pos ? '+' : '−'} ${f2(Math.abs(b))}</span> <span class="sub" style="font-size:11px">${pos ? (lang === 'bn' ? 'পাবে' : 'you get') : (lang === 'bn' ? 'দিতে হবে' : 'you pay')}</span></div>
         </div>
       </div>`;
     }).join('') + `</div>`;
@@ -2218,7 +2230,7 @@ function renderHome() {
     const bal = r == null ? null : balOf(me, r);
     const isBn = lang === 'bn';
     const dy = daysOf(me), share = r == null ? 0 : r * dy;
-    const tone = bal == null ? 'inherit' : bal >= 0 ? '#22c55e' : 'var(--bad)';
+    const tone = bal == null ? 'inherit' : bal >= 0 ? 'var(--pos)' : 'var(--bad)';
     const msg = bal == null ? '' : bal >= 0 ? (isBn ? 'তুমি পাবে' : 'You get back') : (isBn ? 'তোমাকে দিতে হবে' : 'You need to pay');
     if (bal == null) h += `<div class="card"><div class="sub">${t('noRate')}</div></div>`;
     if (bal != null) {
@@ -2421,7 +2433,7 @@ function memberSummary(email) {
         if (rate == null) return '';
         const b = balOf(email, rate), pos = b >= 0;
         const lbl = pos ? (bn ? 'পাবে' : 'You get') : (bn ? 'দিতে হবে' : 'You pay');
-        return `<div class="row between" style="padding:8px 0;font-size:17px"><b>${lbl}</b><b class="num" style="color:${pos ? '#22c55e' : 'var(--bad)'}">${pos ? '+' : '−'} ${f2(Math.abs(b))}</b></div>`;
+        return `<div class="row between" style="padding:8px 0;font-size:17px"><b>${lbl}</b><b class="num" style="color:${pos ? 'var(--pos)' : 'var(--bad)'}">${pos ? '+' : '−'} ${f2(Math.abs(b))}</b></div>`;
       })();
   const items = list.length
     ? `<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">` + list.map(x => `<div class="num" style="min-width:0;text-align:center;padding:10px 2px;border-radius:12px;font-weight:800;font-size:clamp(11px,3.2vw,14px);overflow-wrap:anywhere;background:color-mix(in srgb,var(--p) 14%,var(--card2));border:1px solid color-mix(in srgb,var(--p) 40%,var(--bd))">${f2(x.amount)}</div>`).join('') + `</div>`
@@ -3685,7 +3697,7 @@ function openMember(email) {
   const perHead = cc.em.length ? cc.tB / cc.em.length : 0;
   const bn = lang === 'bn';
   const pos = bal != null && bal >= 0;
-  const tone = bal == null ? 'var(--sub)' : pos ? '#22c55e' : 'var(--bad)';
+  const tone = bal == null ? 'var(--sub)' : pos ? 'var(--pos)' : 'var(--bad)';
   const row = (label, val, extra = '') => `<div class="row between" style="padding:7px 0;${extra}"><span class="sub">${label}</span><b class="num">${val}</b></div>`;
   $('memTitle').innerText = bn ? 'সদস্যের হিসাব' : 'Member account';
   $('memBack').innerText = '← ' + t('back');
