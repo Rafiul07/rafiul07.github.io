@@ -1883,6 +1883,7 @@ function go(p, fromHistory = false) {
   if (p === 'entries' && !isMgr) p = 'home';   // members have no Entries tab
   if (!fromHistory && p !== page) history.pushState({ page: p }, '');
   page = p;
+  try { if (p !== 'admin') localStorage.setItem('mh_last_page', p); } catch (e) {}
   Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== p));
   if ($('fabAdd')) $('fabAdd').classList.toggle('hidden', p !== 'home');
   const hc = $('hContent'); if (hc) { hc.classList.remove('pop'); void hc.offsetWidth; hc.classList.add('pop'); }
@@ -2184,7 +2185,16 @@ async function toggleInbox() {
   }
   if (box) box.innerHTML = inboxHtml();
 }
+/* remember the last open tab on this phone; the admin tab is never restored (it needs its password) */
+let restoredPage = false;
+// read once when the app loads, before startup code can overwrite it
+const savedPage = (() => { try { return localStorage.getItem('mh_last_page') || ''; } catch (e) { return ''; } })();
 function renderHome() {
+  if (!restoredPage) {
+    restoredPage = true;
+    const lp = savedPage;
+    if (lp && lp !== 'home' && lp !== 'admin' && PAGES[lp]) { go(lp); return; }
+  }
   $('qBar').classList.remove('hidden');
   let h = frozenBanner();
   // a frozen member sees why they cannot add bazar entries
@@ -3020,6 +3030,55 @@ async function addMember() {
 }
 
 /* ================= SETTINGS ================= */
+/* photo gallery of one member's bazar slips (admin only, opened from the member account) */
+async function memberGallery(email) {
+  const bn = lang === 'bn';
+  const list = entries.filter(x => x.memberEmail === email).sort(byNewest);
+  const srcs = await Promise.all(list.map(x => getSlip(x.id).catch(() => null)));
+  const pics = list.map((x, i) => ({ x, s: srcs[i] })).filter(o => o.s);
+  const old = document.getElementById('memGal'); if (old) old.remove();
+  const box = document.createElement('div');
+  box.id = 'memGal';
+  box.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px';
+  box.innerHTML = `<div class="card" style="width:100%;max-width:560px;max-height:90vh;overflow:auto">
+    <div class="row between" style="margin-bottom:8px"><h3 style="margin:0">${bn ? 'ছবির গ্যালারি' : 'Photo gallery'} · ${esc(nameOf(email))}</h3><button class="ghost" onclick="document.getElementById('memGal').remove()">✕</button></div>
+    ${pics.length ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${pics.map(o => `<button onclick="openImg(this.dataset.src)" data-src="${o.s}" style="padding:0;min-height:0;border-radius:10px;overflow:hidden;background:none"><img src="${o.s}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block"><div class="sub" style="font-size:11px;text-align:left;padding:2px 4px">${fmtDate(o.x.date)}</div></button>`).join('')}</div>` : `<div class="sub">${bn ? 'কোনো ছবি নেই' : 'No photos'}</div>`}
+  </div>`;
+  document.body.appendChild(box);
+}
+/* share the month report as a picture (phone share sheet, or a download on a computer) */
+async function shareMonthImage() {
+  const R = lastReport; if (!R) return;
+  const bn = lang === "bn";
+  const W = 720, rowH = 44, top = 170, H = top + R.rows.length * rowH + 120;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const g = cv.getContext("2d");
+  const grd = g.createLinearGradient(0, 0, W, 0); grd.addColorStop(0, "#7c5cff"); grd.addColorStop(1, "#22d3ee");
+  g.fillStyle = "#0a0a12"; g.fillRect(0, 0, W, H);
+  g.fillStyle = grd; g.fillRect(0, 0, W, 8);
+  g.fillStyle = "#ffffff"; g.font = "800 40px sans-serif"; g.fillText(messName || "Mess", 40, 70);
+  g.fillStyle = "#8b8ba7"; g.font = "400 24px sans-serif"; g.fillText((bn ? "মাসের সারাংশ · " : "Month report · ") + monthLabel(R.m), 40, 110);
+  g.font = "700 22px sans-serif";
+  g.fillText(bn ? "নাম" : "Name", 40, 160); g.fillText(bn ? "বাজার" : "Bazar", 340, 160); g.fillText(bn ? "খাওয়া" : "Meals", 480, 160); g.fillText(bn ? "হিসাব" : "Balance", 600, 160);
+  R.rows.forEach((r, i) => {
+    const y = top + i * rowH;
+    g.fillStyle = "#ffffff"; g.font = "600 24px sans-serif"; g.fillText(String(r.n).slice(0, 14), 40, y);
+    g.font = "400 24px sans-serif"; g.fillText(f2(r.b), 340, y); g.fillText(f2(r.share), 480, y);
+    g.fillStyle = r.bal >= 0 ? "#34d399" : "#f87171";
+    g.fillText((r.bal >= 0 ? "+" : "−") + f2(Math.abs(r.bal)), 600, y);
+  });
+  g.fillStyle = "#8b8ba7"; g.font = "400 22px sans-serif";
+  g.fillText((bn ? "মোট বাজার: " : "Total bazar: ") + f2(R.c.tB), 40, top + R.rows.length * rowH + 40);
+  const blob = await new Promise(res => cv.toBlob(res, "image/png"));
+  const file = new File([blob], "mess-" + R.m + ".png", { type: "image/png" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: messName || "Mess" }); return; }
+    catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
+}
+/* the last month report on screen, used by the image share */
+let lastReport = null;
 /* month-end report: one table for the chosen month (approved entries only) */
 async function monthReport() {
   const bn = lang === 'bn';
@@ -3036,6 +3095,7 @@ async function monthReport() {
     return { n: nameOf(e), b, d, share, dep, bal: b + dep - share };
   }).sort((a, b) => a.n.localeCompare(b.n));
   const closed = closedMonths.includes(m);
+  lastReport = { m, rows, c };
   const body = rows.length ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
       <tr style="text-align:right;color:var(--mut,#888)"><th style="text-align:left;padding:6px 4px">${bn ? 'নাম' : 'Name'}</th><th>${bn ? 'বাজার' : 'Bazar'}</th><th>${bn ? 'দিন' : 'Days'}</th><th>${bn ? 'খাওয়া' : 'Meals'}</th><th>${bn ? 'জমা' : 'Deposit'}</th><th>${bn ? 'হিসাব' : 'Balance'}</th></tr>
       ${rows.map(r => `<tr style="text-align:right;border-top:1px solid var(--bd,#ddd)"><td style="text-align:left;padding:6px 4px"><b>${esc(r.n)}</b></td><td>${f2(r.b)}</td><td>${r.d}</td><td>${f2(r.share)}</td><td>${f2(r.dep)}</td><td style="font-weight:800;color:${r.bal >= 0 ? '#15803d' : '#b91c1c'}">${r.bal >= 0 ? '+' : '−'} ${f2(Math.abs(r.bal))}</td></tr>`).join('')}
@@ -3048,6 +3108,7 @@ async function monthReport() {
   box.innerHTML = `<div class="card" style="width:100%;max-width:560px;max-height:90vh;overflow:auto">
     <div class="row between" style="margin-bottom:8px"><h3 style="margin:0">${bn ? 'মাসের সারাংশ' : 'Month report'} · ${esc(monthLabel(m))}</h3><span class="badge ${closed ? 'b-bad' : 'b-ok'}">${closed ? (bn ? 'বন্ধ' : 'Closed') : (bn ? 'খোলা' : 'Open')}</span></div>
     ${body}
+    <button class="pri" style="width:100%;margin-top:10px" onclick="shareMonthImage()">${bn ? 'ছবি হিসেবে শেয়ার' : 'Share as image'}</button>
     <div class="sub" style="margin-top:8px">${bn ? 'দিন হলো বর্তমান সদস্য-দিন। অতীতের দিন বদলালে এই হিসাবও বদলাবে।' : 'Days are the current member days. If days change later, this report changes too.'}</div>
     <button class="ghost" style="width:100%;margin-top:12px" onclick="document.getElementById('monthRep').remove()">${bn ? 'বন্ধ করো' : 'Close'}</button>
   </div>`;
@@ -3723,6 +3784,7 @@ function openMember(email) {
     </div></details>
     <details class="sec bazDet" style="margin:0 0 14px"><summary>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></summary><div class="secBody">
       ${monthPick}
+      <button class="ghost" style="width:100%;margin-bottom:10px" onclick="memberGallery('${esc(email)}')">${bn ? 'ছবির গ্যালারি' : 'Photo gallery'}</button>
       ${all.length ? all.slice(0, memLimit).map(x => miniRow(x)).join('') + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
     </div></details>
     ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
