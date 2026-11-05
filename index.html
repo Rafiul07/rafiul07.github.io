@@ -750,7 +750,6 @@ function toggleAllView() {
 let lastSum = '';
 let lastStatus = {}, deferredPrompt = null;
 let notes = [];
-let payments = [];   // what members paid the mess, per month (messes/{mid}/payments, forMonth = YYYY-MM)
 let inviteCode = '';    // this mess's invite code (admin sees it in the control panel)
 let messName = '';      // this mess's name (admin can change it in the control panel)
 function saveMessName() {
@@ -856,59 +855,6 @@ function calc(list = approvedScoped()) {
 /* Rate: manager computes it live; members read the manager's published summary */
 function currentRate() { const c = calc(); return c.tD > 0 ? c.rate : null; } // null until someone has days
 function balOf(e, rate) { return bazarOf(e) + depOf(e) - num(rate) * daysOf(e); }
-/* payments: money a member paid the mess for one month. Plus = the mess owes them, minus = they still owe */
-function paidFor(e, M) { return payments.filter(p => p.email === e && p.forMonth === M).reduce((a, p) => a + num(p.amount), 0); }
-function paidInView(e) { return payments.filter(p => p.email === e && (month === 'all' || p.forMonth === month)).reduce((a, p) => a + num(p.amount), 0); }
-/* what is still left after payments */
-function remainOf(e, rate) { return balOf(e, rate) + paidInView(e); }
-/* one month on its own: meal cost minus own bazar. Plus = the member must pay this month */
-function monthNet(e, M) {
-  const em = members.filter(m => m.email !== MESS_ADMIN).map(m => m.email);
-  const ok = entries.filter(x => x.status === 'approved' && String(x.date).slice(0, 7) === M && em.includes(x.memberEmail));
-  const tB = ok.reduce((a, x) => a + num(x.amount), 0);
-  const tD = em.reduce((a, x) => a + daysOf(x), 0);
-  const rate = tD > 0 ? tB / tD : 0;
-  const mine = ok.filter(x => x.memberEmail === e).reduce((a, x) => a + num(x.amount), 0);
-  return rate * daysOf(e) - mine;
-}
-function payCellHtml(e, M) {
-  const net = monthNet(e, M), paid = paidFor(e, M);
-  let txt, col;
-  if (net <= 0.005) { txt = '—'; col = 'var(--sub)'; }
-  else if (paid >= net - 0.005) { txt = '✓ ' + f2(paid); col = '#22c55e'; }
-  else if (paid > 0) { txt = f2(paid) + ' / ' + f2(net); col = 'var(--warn)'; }
-  else { txt = (lang === 'bn' ? 'বাকি ' : 'due ') + f2(net); col = 'var(--bad)'; }
-  return `<td onclick="payCell('${esc(e)}','${M}')" class="num" style="padding:8px 6px;text-align:center;white-space:nowrap;color:${col};font-weight:700;cursor:pointer;border-top:1px solid var(--bd)">${txt}</td>`;
-}
-function monthGridHtml() {
-  const bn = lang === 'bn';
-  const em = members.filter(m => m.email !== MESS_ADMIN).map(m => m.email);
-  const months = [...new Set(entries.filter(x => x.status === 'approved').map(x => String(x.date).slice(0, 7)).filter(Boolean))].sort().reverse().slice(0, 12);
-  if (!em.length || !months.length) return '';
-  const head = months.map(M => `<th style="padding:6px 8px;white-space:nowrap;font-size:12px">${monthLabel(M)}</th>`).join('');
-  const rows = em.map(e => `<tr><td style="padding:8px 6px;white-space:nowrap;position:sticky;left:0;background:var(--card);font-weight:700">${esc(nameOf(e))}</td>${months.map(M => payCellHtml(e, M)).join('')}</tr>`).join('');
-  return `<details class="sec" style="margin:0 0 14px"><summary>${bn ? 'মাসভিত্তিক পেমেন্ট' : 'Monthly payments'}</summary><div class="secBody" style="overflow-x:auto"><table style="border-collapse:collapse;font-size:13px"><tr><th style="position:sticky;left:0;background:var(--card)"></th>${head}</tr>${rows}</table><div class="sub" style="margin-top:8px;font-size:12px">${bn ? 'ঘর চাপলে টাকা যোগ হবে' : 'Tap a cell to add a payment'}</div></div></details>`;
-}
-async function payCell(e, M) {
-  if (!isMgr) return;
-  if (closedMonths.includes(M)) { toast(lang === 'bn' ? 'এই মাস বন্ধ, পেমেন্ট যোগ করা যাবে না' : 'This month is closed, payments cannot be added', true); return; }
-  const v = await sheet({ title: (lang === 'bn' ? nameOf(e) + ' · ' + monthLabel(M) + ' এর জন্য কত দিল?' : nameOf(e) + ' · ' + monthLabel(M) + ': amount paid?'), type: 'text', value: '', ph: '0', okText: lang === 'bn' ? 'যোগ করো' : 'Add' });
-  const amt = num(v);
-  if (!(amt > 0)) return;
-  try {
-    await DBm('payments').add({ email: e, forMonth: M, amount: amt, date: today(), by: me, at: Date.now() });
-    logAct('Payment · ' + nameOf(e) + ' · ' + M + ' · ' + f2(amt));
-    toast(t('saved'));
-  } catch (er) { showErr(er); }
-}
-async function delPayment(id) {
-  if (!isMgr) return;
-  const pay = payments.find(x => x.id === id);
-  if (pay && closedMonths.includes(pay.forMonth)) { toast(lang === 'bn' ? 'এই মাস বন্ধ, পেমেন্ট মোছা যাবে না' : 'This month is closed, payments cannot be deleted', true); return; }
-  const ok = await sheet({ title: lang === 'bn' ? 'এই পেমেন্টটা মুছবে?' : 'Delete this payment?', input: false, okText: lang === 'bn' ? 'মুছো' : 'Delete' });
-  if (!ok) return;
-  DBm('payments').doc(id).delete().then(() => { toast(t('deleted')); logAct('Payment deleted'); }).catch(showErr);
-}
 function balTag(b) {
   const pos = b >= 0;
   return `<span class="badge ${pos ? 'b-ok' : 'b-bad'}">${pos ? '↑' : '↓'} ${pos ? t('refund') : t('due')}: ${Math.round(Math.abs(b))}</span>`;
@@ -1703,7 +1649,7 @@ auth.onAuthStateChanged(async user => {
   adminUnlocked = false; adminDb = null; adminUnsubs.forEach(u => u()); adminUnsubs = []; adminLogsOn = false;
   if (adminSess) { adminSess.delete().catch(() => {}); adminSess = null; }
   unsubs.forEach(u => u()); unsubs = [];
-  members = []; entries = []; payments = []; summary = null; lastSum = ''; lastStatus = {};
+  members = []; entries = []; summary = null; lastSum = ''; lastStatus = {};
   clearSlipCache();
   loaded = { members: false, entries: false };
   if (!user) {
@@ -1791,9 +1737,6 @@ auth.onAuthStateChanged(async user => {
   }, () => {}));
   unsubs.push(DBm('notes').orderBy('at', 'desc').limit(50).onSnapshot(s => {
     notes = s.docs.map(d => ({ id: d.id, ...d.data() })); render();
-  }, () => {}));
-  unsubs.push(DBm('payments').onSnapshot(s => {
-    payments = s.docs.map(d => ({ id: d.id, ...d.data() })); render();
   }, () => {}));
   unsubs.push(DBm('settings').doc('app').onSnapshot(d => {
     notice = (d.exists && d.data().notice) || '';
@@ -2250,7 +2193,7 @@ function renderHome() {
     const maxB = Math.max(1, ...sorted.map(bazarOf));
     h += `<div class="card"><h3>${t('members')}${messName ? ' · ' + esc(messName) : ''}</h3>` + sorted.map(e => {
       const pct = Math.round(bazarOf(e) / maxB * 100);
-      const b = remainOf(e, c.rate), pos = b >= 0;
+      const b = balOf(e, c.rate), pos = b >= 0;
       return `<div class="mrow" onclick="openMember('${esc(e)}')">
         <div class="row between" style="flex-wrap:nowrap;align-items:center">
           <div class="row" style="gap:10px;flex-wrap:nowrap;min-width:0">${av(e)}<div style="min-width:0"><b>${esc(nameOf(e))}</b><div class="sub num">${t('days')} ${daysOf(e)} · ${t('deposit')} ${f2(depOf(e))}</div></div></div>
@@ -2262,7 +2205,7 @@ function renderHome() {
   }
   {
     const r = currentRate();
-    const bal = r == null ? null : remainOf(me, r);
+    const bal = r == null ? null : balOf(me, r);
     const isBn = lang === 'bn';
     const dy = daysOf(me), share = r == null ? 0 : r * dy;
     const tone = bal == null ? 'inherit' : bal >= 0 ? '#22c55e' : 'var(--bad)';
@@ -2304,7 +2247,6 @@ function renderHome() {
               <div class="totalAmt num" style="color:${tone}">${bal >= 0 ? '+' : '−'} ৳ ${f2(Math.abs(bal))}</div>
             </div>
           </div>
-          ${payments.some(p => p.email === me) ? `<div style="margin-top:10px">${payments.filter(p => p.email === me).slice().sort((a, b) => String(b.forMonth).localeCompare(String(a.forMonth))).map(p => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--bd);font-size:13px"><span class="sub">${monthLabel(p.forMonth)} · ${fmtDate(p.date)}</span><b class="num">${f2(p.amount)}</b></div>`).join('')}</div>` : ''}
         </div></details>
       </div>`;
     }
@@ -2331,7 +2273,6 @@ function renderHome() {
       `<div class="row between" style="padding:6px 0"><span class="badge ${STATUS_CLS[s]}">${t(s)}</span><b class="num">${mineM.filter(x => x.status === s).length}</b></div>`
     ).join('') + `</div>`;
     if (moreH) h += `<details class="sec" style="margin:0 0 14px"><summary>${isBn ? 'আরও তথ্য' : 'More details'}</summary><div class="secBody">${moreH}</div></details>`;
-    if (isMgr) h += monthGridHtml();
     const r2 = currentRate();
     if (r2 != null && !isMgr) {   // admin already sees everyone in the members card above
       // a member: own card always; "সব সদস্য" opens a separate card below with the others
@@ -2353,10 +2294,7 @@ function renderHome() {
       }
     }
   }
-  // a live update redraws the home: keep the sections the person had open
-  const openKeys = [...$('hContent').querySelectorAll('details[open] > summary')].map(s => s.innerText.trim());
   $('hContent').innerHTML = h;
-  if (openKeys.length) $('hContent').querySelectorAll('details > summary').forEach(s => { if (openKeys.includes(s.innerText.trim())) s.parentElement.open = true; });
 }
 
 function recentList(list, n, withName) {
@@ -2680,7 +2618,7 @@ async function checkSuperPw() {
 /* deletes everything of one mess in batches (only allowed by the rules when the mess is archived) */
 async function deleteMessAll(m) {
   const mref = db.collection('messes').doc(m.id);
-  for (const col of ['entries', 'slips', 'notes', 'members', 'summary', 'settings', 'requests', 'logs', 'monthly', 'payments']) {
+  for (const col of ['entries', 'slips', 'notes', 'members', 'summary', 'settings', 'requests', 'logs', 'monthly']) {
     let snap;
     do {
       snap = await mref.collection(col).limit(400).get();
@@ -3164,7 +3102,7 @@ async function makeBackup() {
     const payload = {
       app: 'mess-hisab-pro', v: 1, mid: MID, at: new Date().toISOString(),
       entries: await all('entries'), slips: await all('slips'), members: await all('members'),
-      notes: await all('notes'), monthly: await all('monthly'), logs: await all('logs'), payments: await all('payments'),
+      notes: await all('notes'), monthly: await all('monthly'), logs: await all('logs'),
       summary: sum.exists ? sum.data() : null, settings: set.exists ? set.data() : null
     };
     const box = await encryptBackup(JSON.stringify(payload), p1);
@@ -3460,8 +3398,7 @@ async function restoreJSON(file) {
       d = {
         members: (d.members || []).map(x => ({ email: x.id, ...x.data })),
         entries: (d.entries || []).map(x => ({ id: x.id, ...x.data })),
-        slips: (d.slips || []).map(x => ({ id: x.id, data: x.data.data })),
-        payments: d.payments || []
+        slips: (d.slips || []).map(x => ({ id: x.id, data: x.data.data }))
       };
     }
     const small = [], slipOps = [];
@@ -3472,7 +3409,6 @@ async function restoreJSON(file) {
       if (photo) slipOps.push({ ref: ADBm('slips').doc(id), data: { data: photo } });
     });
     (d.slips || []).forEach(s => slipOps.push({ ref: ADBm('slips').doc(s.id), data: { data: s.data } }));
-    (d.payments || []).forEach(p => small.push({ ref: ADBm('payments').doc(p.id), data: p.data }));
     for (let i = 0; i < small.length; i += 400) {
       const batch = ADB().batch();
       small.slice(i, i + 400).forEach(o => batch.set(o.ref, o.data, { merge: true }));
@@ -3734,10 +3670,6 @@ function openMember(email) {
   const pos = bal != null && bal >= 0;
   const tone = bal == null ? 'var(--sub)' : pos ? '#22c55e' : 'var(--bad)';
   const row = (label, val, extra = '') => `<div class="row between" style="padding:7px 0;${extra}"><span class="sub">${label}</span><b class="num">${val}</b></div>`;
-  const payList = payments.filter(p => p.email === email).slice().sort((a, b) => String(b.forMonth).localeCompare(String(a.forMonth)) || (b.at || 0) - (a.at || 0));
-  const payHtml = `<details class="sec payDet" style="margin:0 0 14px"><summary>${bn ? 'পেমেন্ট' : 'Payments'} <span class="sub">(${payList.length})</span></summary><div class="secBody">
-      ${payList.map(p => `<div class="row between" style="padding:7px 0;border-top:1px solid var(--bd);font-size:14px;gap:8px"><span class="sub" style="min-width:0">${monthLabel(p.forMonth)} · ${fmtDate(p.date)}</span><span class="num" style="white-space:nowrap"><b>${f2(p.amount)}</b>${isMgr ? ` <button class="ghost" style="min-height:26px;padding:2px 8px;font-size:12px" onclick="delPayment('${p.id}')">${bn ? 'মুছো' : 'Delete'}</button>` : ''}</span></div>`).join('') || `<div class="sub">${bn ? 'এখনও কোনো পেমেন্ট নেই' : 'No payments yet'}</div>`}
-    </div></details>`;
   $('memTitle').innerText = bn ? 'সদস্যের হিসাব' : 'Member account';
   $('memBack').innerText = '← ' + t('back');
   $('memBody').dataset.email = email;
@@ -3764,7 +3696,6 @@ function openMember(email) {
       ${monthPick}
       ${all.length ? all.slice(0, memLimit).map(x => miniRow(x)).join('') + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
     </div></details>
-    ${payHtml}
     ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
       <div class="mgrid">
         <label class="mf"><span>${t('nameLbl')}</span><input id="mdName" type="text" data-orig="${esc(nameOf(email))}" value="${esc(nameOf(email))}"></label>
