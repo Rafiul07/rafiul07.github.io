@@ -2121,10 +2121,13 @@ function quickTheme() {
 }
 function messTitleHtml() {
   const bn = lang === 'bn';
+  // shorter names stay big, long names get smaller so the hero card does not grow
+  const nl = [...String(messName || '')].length;
+  const tfs = nl > 14 ? 18 : nl > 8 ? 22 : 26;
   return `<div style="text-align:center;margin:6px 0 14px">
     <div style="display:flex;justify-content:flex-end"><button onclick="quickTheme()" aria-label="theme" title="theme" style="min-height:34px;width:34px;padding:0;border-radius:50%;font-size:16px;flex:none">${document.body.classList.contains('light') ? '🌙' : '☀️'}</button></div>
     <div class="sub" style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.7">${bn ? 'আমাদের মেস' : 'Our mess'}</div>
-    <div id="messNameTitle" style="font-size:clamp(24px,7vw,34px);font-weight:900;letter-spacing:.5px;line-height:1.2;margin-top:4px;padding:2px 6px;background-image:${messGrad()};-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;filter:drop-shadow(0 4px 14px rgba(124,92,255,.25))">${esc(messName)}</div>
+    <div id="messNameTitle" style="font-size:${tfs}px;font-weight:900;letter-spacing:.5px;line-height:1.2;margin-top:4px;padding:2px 6px;background-image:${messGrad()};-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;filter:drop-shadow(0 4px 14px rgba(124,92,255,.25))">${esc(messName)}</div>
   </div>`;
 }
 /* once a minute: if the hour has changed, the banner takes the next colour */
