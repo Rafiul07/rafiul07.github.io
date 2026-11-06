@@ -492,6 +492,8 @@ details.sCard>summary::-webkit-details-marker{display:none}
 .fab{position:fixed;right:18px;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:50;width:58px;height:58px;min-height:0;padding:0;border-radius:50%;font-size:30px;font-weight:800;line-height:1;background:linear-gradient(135deg,var(--p),var(--s));color:#0a0a12;box-shadow:0 10px 26px rgba(168,85,247,.45)}
 .fab:active{transform:scale(.94)}
 .fab.hidden{display:none!important}
+.fab{transition:opacity .2s ease,transform .2s ease}
+.fab.scrollHide{opacity:0;transform:translateY(14px);pointer-events:none}
 @keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 #hContent.pop{animation:pageIn .35s ease both}
 @media (max-width:380px){#hContent .totalTile .totalAmt{font-size:clamp(13px,4vw,17px)} #hContent .row b.num{font-size:.92em}}
@@ -2185,6 +2187,17 @@ async function toggleInbox() {
   }
   if (box) box.innerHTML = inboxHtml();
 }
+/* the + button hides while the page is scrolling and comes back when scrolling stops */
+(() => {
+  let fabT = null;
+  window.addEventListener('scroll', () => {
+    const f = document.getElementById('fabAdd');
+    if (!f) return;
+    f.classList.add('scrollHide');
+    clearTimeout(fabT);
+    fabT = setTimeout(() => f.classList.remove('scrollHide'), 400);
+  }, { passive: true });
+})();
 /* remember the last open tab on this phone; the admin tab is never restored (it needs its password) */
 let restoredPage = false;
 // read once when the app loads, before startup code can overwrite it
@@ -2296,6 +2309,7 @@ function renderHome() {
       `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${monthLabel(mm)} <span class="sub">(${byM[mm].n})</span></span><b class="num">${f2(byM[mm].sum)}</b></div>`).join('') + `</div>`;
     // bazar / days / deposit already sit in the hero card above, so no separate tiles
     if (!isMgr) {
+      h += `<button class="ghost" style="width:100%;margin-bottom:14px" onclick="memberGallery(me)">${lang === 'bn' ? 'আমার ছবির গ্যালারি' : 'My photo gallery'}</button>`;
       const all = mineM.slice().sort(byNewest);
       const shown = all.slice(0, homeLimit);
       const more = all.length > homeLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="homeMore()">${lang === 'bn' ? 'আরও দেখাও' : 'Show more'} (${all.length - homeLimit})</button>` : '';
