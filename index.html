@@ -517,7 +517,7 @@ details.sCard>summary::-webkit-details-marker{display:none}
     <div id="signupFields" class="hidden">
       <div class="lbl" id="lblPass2"></div><div class="pwWrap"><input id="sPass2" type="password" autocomplete="new-password" style="font-size:16px"><button type="button" class="eyeBtn" onclick="togglePw(this)" aria-label="show password">👁</button></div>
       <div class="lbl" id="lblName"></div><input id="sName" type="text" autocomplete="name" style="font-size:16px">
-      <div class="lbl" id="lblCode">Mess invite code (থাকলে লেখো, না থাকলে ফাঁকা রাখো)</div><input id="sCode" type="text" autocomplete="off" placeholder="Invite code" style="font-size:16px;text-transform:uppercase">
+      <div class="lbl" id="lblCode"></div><input id="sCode" type="text" autocomplete="off" placeholder="Invite code" style="font-size:16px;text-transform:uppercase">
       <button class="pri" id="signupSubmit" onclick="signup()" style="width:100%;margin-top:16px"></button>
       <button class="ghost" id="signupBack" onclick="signupCancel()" style="width:100%;margin-top:8px"></button>
     </div>
@@ -525,7 +525,7 @@ details.sCard>summary::-webkit-details-marker{display:none}
     <button class="ghost" id="signupBtn" onclick="signupStart()" style="width:100%;margin-top:10px"></button>
     <button class="ghost" id="forgotBtn" onclick="forgot()" style="width:100%;margin-top:6px;font-size:14px"></button>
     <div id="lMsg" class="sub" style="color:var(--bad);margin-top:10px;min-height:16px"></div>
-    <a href="#" class="ghost" onclick="contactAdmin(event)" style="display:block;text-align:center;margin-top:14px;text-decoration:none;font-size:14px">📧 যোগাযোগ করুন</a>
+    <a href="#" id="contactLink" class="ghost" onclick="contactAdmin(event)" style="display:block;text-align:center;margin-top:14px;text-decoration:none;font-size:14px"></a>
     <a href="https://www.facebook.com/share/1DyixNzAE5/" target="_blank" rel="noopener" class="ghost" style="display:block;text-align:center;margin-top:10px;text-decoration:none;font-size:14px">💬 Messenger / Facebook</a>
   </div>
 </div>
@@ -3586,6 +3586,8 @@ function applyLang() {
   setT('lblName', lang === 'bn' ? 'পুরো নাম' : 'Full name');
   setT('signupSubmit', lang === 'bn' ? 'অ্যাকাউন্ট খুলুন' : 'Create account');
   setT('signupBack', lang === 'bn' ? 'লগইনে ফিরে যাও' : 'Back to login');
+  setT('lblCode', lang === 'bn' ? 'মেসের invite code (থাকলে লেখো, না থাকলে ফাঁকা রাখো)' : 'Mess invite code (leave blank if none)');
+  setT('contactLink', lang === 'bn' ? '📧 যোগাযোগ করুন' : '📧 Contact us');
   document.querySelectorAll('#loginLang button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
   render();
 }
