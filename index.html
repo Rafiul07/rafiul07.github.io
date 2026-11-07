@@ -3057,7 +3057,7 @@ async function memberGallery(email) {
   const list = entries.filter(x => x.memberEmail === email).sort(byNewest);
   const curM = today().slice(0, 7);
   const months = [...new Set(list.map(x => String(x.date).slice(0, 7)))];
-  if (!galMonth || !months.includes(galMonth)) galMonth = months.includes(curM) ? curM : (months[0] || curM);
+  galMonth = month;   // follows the month picked on the home page
   const idx = list.map((x, i) => i).filter(i => String(list[i].date).slice(0, 7) === galMonth);
   const srcs = await Promise.all(idx.map(i => getSlip(list[i].id).catch(() => null)));
   const row = (x, k) => `<div style="display:flex;gap:10px;align-items:flex-start;border-top:1px solid var(--bd);padding:10px 0">
@@ -3075,7 +3075,7 @@ async function memberGallery(email) {
   box.style.cssText = 'position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px';
   box.innerHTML = `<div class="card" style="width:100%;max-width:560px;max-height:90vh;overflow:auto;padding-top:18px">
     <div class="row between" style="margin-bottom:8px"><h3 style="margin:0">${bn ? 'আমার এন্ট্রি ও ছবি' : 'My entries & photos'} · ${esc(nameOf(email))}</h3><button class="ghost" onclick="closeGallery()">✕</button></div>
-    ${months.length ? `<div class="chips">${chips}</div>` : ''}
+    <div class="sub" style="margin-bottom:6px">${esc(monthLabel(galMonth))}</div>
     ${idx.length ? idx.map((i, k) => row(list[i], k)).join('') : `<div class="sub">${bn ? 'কোনো এন্ট্রি নেই' : 'No entries'}</div>`}
   </div>`;
   document.body.appendChild(box);
