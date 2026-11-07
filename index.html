@@ -3390,8 +3390,8 @@ function renderAdmin() {
       </div></div>`).join('') : `<div class="empty">${isBn ? 'কোনো অপেক্ষমাণ এন্ট্রি নেই' : 'Nothing waiting for approval'}</div>`)
     + `</div>`;
   if (admTab === 'settings') {
-  h += monthChecklistHtml();
   h += meCardHtml();
+  h += monthChecklistHtml();
   h += sec(isBn ? 'সদস্য যোগ করার কোড' : 'Invite code', `
       <div class="sub" style="margin-bottom:6px">${isBn ? 'নতুন সদস্য এই কোড দিয়ে সরাসরি যোগ দিতে পারবে।' : 'New members join directly with this code.'}</div>
       <div class="num" style="font-size:24px;font-weight:800;letter-spacing:3px;margin:8px 0">${esc(inviteCode || '—')}</div>
