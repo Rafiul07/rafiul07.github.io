@@ -2276,7 +2276,7 @@ function renderHome() {
     const msg = bal == null ? '' : bal >= 0 ? (isBn ? 'তুমি পাবে' : 'You get back') : (isBn ? 'তোমাকে দিতে হবে' : 'You need to pay');
     if (bal == null) h += `<div class="card"><div class="sub">${t('noRate')}</div></div>`;
     if (bal != null) {
-      h += `<div class="card hCard"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0 0 14px 0">${isBn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3><span id="bazarStatus" class="hidden" style="display:inline-block;padding:3px 8px;border-radius:999px;font-weight:700;font-size:11px;line-height:1.4;white-space:nowrap"></span></div>
+      h += `<div class="card hCard"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px"><h3 style="margin:0;padding-left:4px;font-size:clamp(13px,3.8vw,15px);font-weight:800;color:var(--tx)">${isBn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3><span id="bazarStatus" class="hidden" style="display:inline-block;padding:3px 8px;border-radius:999px;font-weight:700;font-size:11px;line-height:1.4;white-space:nowrap"></span></div>
         <div class="hHero ${bal >= 0 ? 'pos' : 'neg'}">
           <div class="hHeroLbl">${bal >= 0 ? (isBn ? 'আপনি পাবেন' : 'You get back') : (isBn ? 'আপনাকে দিতে হবে' : 'You need to pay')}</div>
           <div class="hHeroAmt num">৳ ${f2(Math.abs(bal))}</div>
