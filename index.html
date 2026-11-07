@@ -3203,7 +3203,7 @@ async function monthReport() {
   const closed = closedMonths.includes(m);
   lastReport = { m, rows, c };
   const body = rows.length ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
-      <tr style="text-align:right;color:var(--mut,#888)"><th style="text-align:left;padding:6px 4px">${bn ? 'নাম' : 'Name'}</th><th>${bn ? 'বাজার' : 'Bazar'}</th><th>${bn ? 'দিন' : 'Days'}</th><th>${bn ? 'খাওয়া' : 'Meals'}</th><th>${bn ? 'জমা' : 'Deposit'}</th><th>${bn ? 'হিসাব' : 'Balance'}</th></tr>
+      <tr style="text-align:right;color:var(--mut,#888)"><th style="text-align:left;padding:6px 4px">${bn ? 'নাম' : 'Name'}</th><th>${bn ? 'বাজার' : 'Bazar'}</th><th>${bn ? 'দিন' : 'Days'}</th><th>${bn ? 'জনপ্রতি' : 'Per person'}</th><th>${bn ? 'জমা' : 'Deposit'}</th><th>${bn ? 'হিসাব' : 'Balance'}</th></tr>
       ${rows.map(r => `<tr style="text-align:right;border-top:1px solid var(--bd,#ddd)"><td style="text-align:left;padding:6px 4px"><b>${esc(r.n)}</b></td><td>${f2(r.b)}</td><td>${r.d}</td><td>${f2(r.share)}</td><td>${f2(r.dep)}</td><td style="font-weight:800;color:${r.bal >= 0 ? '#15803d' : '#b91c1c'}">${r.bal >= 0 ? '+' : '−'} ${f2(Math.abs(r.bal))}</td></tr>`).join('')}
       <tr style="text-align:right;border-top:2px solid var(--bd,#ddd);font-weight:800"><td style="text-align:left;padding:6px 4px">${bn ? 'মোট' : 'Total'}</td><td>${f2(c.tB)}</td><td>${c.tD}</td><td colspan="3">${bn ? 'দৈনিক খরচ' : 'Day rate'}: ${f2(rate)}</td></tr>
     </table></div>` : `<div class="sub">${bn ? 'এই মাসে অনুমোদিত কোনো এন্ট্রি নেই।' : 'No approved entries this month.'}</div>`;
