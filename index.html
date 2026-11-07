@@ -552,10 +552,7 @@ details.sCard>summary::-webkit-details-marker{display:none}
   <div class="stickyTop">
     <header class="top">
       <span class="brand">MESS HISAB PRO</span>
-      <span style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-        <span id="bazarStatus" class="hidden" style="display:inline-block;padding:3px 8px;border-radius:999px;font-weight:700;font-size:11px;line-height:1.4;white-space:nowrap"></span>
-        <span class="role" id="roleTag"></span>
-      </span>
+      <span class="role" id="roleTag"></span>
     </header>
     <nav class="nav" id="nav"></nav>
   <button id="fabAdd" class="fab hidden" aria-label="add" onclick="openEntryPop()">+</button>
@@ -2279,7 +2276,7 @@ function renderHome() {
     const msg = bal == null ? '' : bal >= 0 ? (isBn ? 'তুমি পাবে' : 'You get back') : (isBn ? 'তোমাকে দিতে হবে' : 'You need to pay');
     if (bal == null) h += `<div class="card"><div class="sub">${t('noRate')}</div></div>`;
     if (bal != null) {
-      h += `<div class="card hCard"><h3>${isBn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3>
+      h += `<div class="card hCard"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0 0 14px 0">${isBn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</h3><span id="bazarStatus" class="hidden" style="display:inline-block;padding:3px 8px;border-radius:999px;font-weight:700;font-size:11px;line-height:1.4;white-space:nowrap"></span></div>
         <div class="hHero ${bal >= 0 ? 'pos' : 'neg'}">
           <div class="hHeroLbl">${bal >= 0 ? (isBn ? 'আপনি পাবেন' : 'You get back') : (isBn ? 'আপনাকে দিতে হবে' : 'You need to pay')}</div>
           <div class="hHeroAmt num">৳ ${f2(Math.abs(bal))}</div>
@@ -2373,6 +2370,7 @@ function renderHome() {
   }
   $('hContent').innerHTML = h;
   $('hContent').classList.toggle('memberHome', !isMgr);
+  updateBazarStatus();
 /* member home: shrink the whole page a little so every section fits the screen height (never enlarged) */
 function fitHome() {
   const hc = $('hContent'); if (!hc) return;
