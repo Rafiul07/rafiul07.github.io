@@ -1656,6 +1656,11 @@ function autoCloseLastMonth() {
   DBm('monthly').doc(key).set(monthSnapshot(key)).catch(() => {});
   DBm('settings').doc('app').set({ closedMonths: [...closedMonths, key], autoClosed }, { merge: true }).catch(() => {});
 }
+// read a document from this phone's saved copy first, so a refresh shows the mess at once; the server copy is the fallback
+async function getFast(ref) {
+  try { const c = await ref.get({ source: 'cache' }); if (c.exists) return c; } catch (e) {}
+  return ref.get();
+}
 auth.onAuthStateChanged(async user => {
   adminUnlocked = false; adminDb = null; adminUnsubs.forEach(u => u()); adminUnsubs = []; adminLogsOn = false;
   if (adminSess) { adminSess.delete().catch(() => {}); adminSess = null; }
@@ -1677,10 +1682,10 @@ auth.onAuthStateChanged(async user => {
   if (me === SUPER_EMAIL) { loaded = { members: true, entries: true }; loadAllMesses(); return; }
   // which mess is this person in? users/{email} is written when the mess is created or a join request is approved
   try {
-    const link = await db.collection('users').doc(me).get();
+    const link = await getFast(db.collection('users').doc(me));
     if (link.exists && link.data().messId) {
       MID = link.data().messId;
-      const ms = await db.collection('messes').doc(MID).get();
+      const ms = await getFast(db.collection('messes').doc(MID));
       MESS_ADMIN = ms.exists ? ms.data().admin : '';
       MESS_FROZEN = ms.exists && ms.data().adminFrozen === true;
       MESS_FREEZE_NOTE = ms.exists ? (ms.data().adminFreezeNote || '') : '';
