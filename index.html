@@ -3165,13 +3165,13 @@ async function shareMonthImage() {
   g.fillStyle = "#ffffff"; g.font = "800 40px sans-serif"; g.fillText(messName || "Mess", 40, 70);
   g.fillStyle = "#8b8ba7"; g.font = "400 24px sans-serif"; g.fillText((bn ? "মাসের সারাংশ · " : "Month report · ") + monthLabel(R.m), 40, 110);
   g.font = "700 22px sans-serif";
-  g.fillText(bn ? "নাম" : "Name", 40, 160); g.fillText(bn ? "বাজার" : "Bazar", 340, 160); g.fillText(bn ? "খাওয়া" : "Meals", 480, 160); g.fillText(bn ? "হিসাব" : "Balance", 600, 160);
+  g.fillText(bn ? "নাম" : "Name", 40, 160); g.fillText(bn ? "বাজার" : "Bazar", 340, 160); g.fillText(bn ? "জনপ্রতি" : "Per person", 480, 160); g.fillText(bn ? "হিসাব" : "Balance", 630, 160);
   R.rows.forEach((r, i) => {
     const y = top + i * rowH;
     g.fillStyle = "#ffffff"; g.font = "600 24px sans-serif"; g.fillText(String(r.n).slice(0, 14), 40, y);
     g.font = "400 24px sans-serif"; g.fillText(f2(r.b), 340, y); g.fillText(f2(r.share), 480, y);
     g.fillStyle = r.bal >= 0 ? "#34d399" : "#f87171";
-    g.fillText((r.bal >= 0 ? "+" : "−") + f2(Math.abs(r.bal)), 600, y);
+    g.fillText((r.bal >= 0 ? "+" : "−") + f2(Math.abs(r.bal)), 630, y);
   });
   g.fillStyle = "#8b8ba7"; g.font = "400 22px sans-serif";
   g.fillText((bn ? "মোট বাজার: " : "Total bazar: ") + f2(R.c.tB), 40, top + R.rows.length * rowH + 40);
