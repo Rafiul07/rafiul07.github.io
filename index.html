@@ -425,7 +425,8 @@ body.th-france::before{background:linear-gradient(90deg,rgba(0,35,149,.30) 0 33.
 input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 
 /* ---- admin tab bar: 3 equal columns, same height, no broken wrapping ---- */
-.admTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.admTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
+.admTabs .admTab{font-size:12.5px;padding:8px 4px;min-height:42px}
 .admTab{min-height:56px;padding:8px 6px;font-size:clamp(13px,3.7vw,15px);font-weight:800;line-height:1.25;white-space:normal;text-align:center;display:flex;align-items:center;justify-content:center;border-radius:16px;word-break:keep-all;overflow-wrap:anywhere}
 .admTab.pri{box-shadow:0 8px 20px -10px var(--p)}
 
@@ -1800,7 +1801,7 @@ const ICON = {
   settings: '<path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
   admin: '<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/>'
 };
-const PAGES = { home: 'pgHome', entries: 'pgEntries', settings: 'pgSettings', admin: 'pgAdmin' };
+const PAGES = { home: 'pgHome', settings: 'pgSettings', admin: 'pgAdmin' };   // admin's Entries live inside the Control panel
 
 function renderNav() {
   // inside the control panel the menu collapses to one "back to member" button
@@ -1809,7 +1810,7 @@ function renderNav() {
     $('nav').innerHTML = `<button class="on" onclick="go('home')" style="flex-direction:row;justify-content:center;gap:8px;min-height:54px;font-size:15px;font-weight:800;color:var(--s)"><svg viewBox="0 0 24 24">${ICON.home}</svg>${lang === 'bn' ? '← সদস্য হিসাবে ফিরে যাও' : '← Back to member'}</button>`;
     return;
   }
-  const keys = isMgr ? ['home', 'entries'] : ['home'];   // members add entries from the Home popup button
+  const keys = ['home'];   // members add entries from the Home popup button; admin's Entries are in the Control panel
   if (!isMgr) keys.push('settings');   // admin's settings live inside the control panel
   keys.push('admin');
   $('nav').style.gridTemplateColumns = `repeat(${keys.length},1fr)`;
@@ -1905,7 +1906,10 @@ window.addEventListener('popstate', () => {
 });
 function go(p, fromHistory = false) {
   if (p === 'admin' && !isMgr) { unlockAdmin(); return; }
-  if (p === 'entries' && !isMgr) p = 'home';   // members have no Entries tab
+  if (p === 'entries') {   // members have no Entries; the admin's Entries tab is inside the Control panel
+    if (!isMgr) p = 'home';
+    else { admTab = 'entries'; p = 'admin'; }
+  }
   if (!fromHistory && p !== page) history.pushState({ page: p }, '');
   page = p;
   try { if (p !== 'admin') localStorage.setItem('mh_last_page', p); } catch (e) {}
@@ -1939,7 +1943,6 @@ function render() {
   if (isMgr && loaded.entries && entries.some(x => x.photo)) autoMigrate();
   if (memOpen) openMember(memOpen);
   if (page === 'home') renderHome();
-  if (page === 'entries') renderEntries();
   if (page === 'admin' && isMgr) renderAdmin();
   if (page === 'settings') renderSettings();
   renderNav();
@@ -3355,7 +3358,8 @@ function renderAdmin() {
 
   const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
   const tabBtn = (k, label) => `<button class="admTab ${admTab === k ? 'pri' : 'ghost'}" onclick="admTabSet('${k}')">${label}</button>`;
-  let h = `${fzBanner}<div class="admTabs">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('members', isBn ? 'সব সদস্য' : 'All members')}${tabBtn('settings', isBn ? 'সেটিংস' : 'Settings')}</div>`;
+  let h = `${fzBanner}<div class="admTabs">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('entries', isBn ? 'এন্ট্রি' : 'Entries')}${tabBtn('members', isBn ? 'সব সদস্য' : 'All members')}${tabBtn('settings', isBn ? 'সেটিংস' : 'Settings')}</div>`;
+  if (admTab === 'entries') h += `<div id="entriesHost"></div>`;
   if (admTab === 'wait') h += `<div class="card"><h3>${isBn ? `অপেক্ষমাণ এন্ট্রি (${pending.length})` : `Waiting approval (${pending.length})`}</h3>`
     + (pending.length ? pending.map(x => `<div class="entry">${thumbFor(x)}<div class="grow">
         <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
@@ -3427,7 +3431,14 @@ function renderAdmin() {
   h += sec(t('dangerZone'),`<button class="bad" style="width:100%" onclick="resetAll()">${t('resetData')}</button>`, false, 'danger');
 
   }
+  // the Entries section is moved out before the redraw (so it is not wiped) and put back inside the Control panel only on the Entries tab
+  const pe = $('pgEntries');
+  if (pe) { document.querySelector('main.wrap').appendChild(pe); pe.classList.add('hidden'); }
   $('pgAdmin').innerHTML = h;
+  if (admTab === 'entries' && pe && $('entriesHost')) {
+    $('entriesHost').appendChild(pe); pe.classList.remove('hidden');
+    renderEntries();
+  }
   Object.entries(typed).forEach(([i, v]) => { const el = $(i); if (el) el.value = v; });
   if (admTab === 'members') { renderMembers(); applyMemKeep(memKeep); }
   if (keep) { const el = $(keep.id); if (el) { el.value = keep.v; el.focus(); try { el.setSelectionRange(keep.pos, keep.pos); } catch (e) {} } }
