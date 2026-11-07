@@ -2350,9 +2350,9 @@ function fitHome() {
   const hc = $('hContent'); if (!hc) return;
   hc.style.zoom = '';
   if (isMgr || page !== 'home' || !me) return;
-  const room = innerHeight - hc.getBoundingClientRect().top - 110;   // space left for the bottom bar and the + button
+  const room = innerHeight - hc.getBoundingClientRect().top - 24;   // small gap at the bottom
   const need = hc.scrollHeight;
-  if (room > 0 && need > room) hc.style.zoom = Math.max(0.6, room / need).toFixed(3);
+  if (room > 0 && need > room) hc.style.zoom = Math.max(0.7, room / need).toFixed(3);   // never smaller than 70%
 }
 window.addEventListener('resize', () => fitHome());
 }
@@ -3061,18 +3061,21 @@ async function addMember() {
 /* photo gallery of one member's bazar slips (admin only, opened from the member account) */
 let galOpenEmail = '';
 let galMonth = '';
-/* one month at a time: month buttons on top, like the home page; the current month opens first */
+let galPage = 1, galPageKey = '';
+const GAL_PER_PAGE = 6;
+/* the month picked on the home page, 6 entries per page; page buttons under the list */
 async function memberGallery(email) {
   const bn = lang === 'bn';
   galOpenEmail = email;
+  galMonth = month;
+  if (galPageKey !== galMonth) { galPage = 1; galPageKey = galMonth; }
   const list = entries.filter(x => x.memberEmail === email).sort(byNewest);
-  const curM = today().slice(0, 7);
-  const months = [...new Set(list.map(x => String(x.date).slice(0, 7)))];
-  galMonth = month;   // follows the month picked on the home page
   const idx = list.map((x, i) => i).filter(i => String(list[i].date).slice(0, 7) === galMonth);
-  // a slip that was not found earlier is asked again; older entries may keep their photo on the entry itself
-  const srcs = (await Promise.all(idx.map(i => { const id = list[i].id; if (slipCache[id] === null) delete slipCache[id]; return getSlip(id).catch(() => null); })))
-    .map((s, k) => s || list[idx[k]].photo || null);
+  const pages = Math.max(1, Math.ceil(idx.length / GAL_PER_PAGE));
+  if (galPage > pages) galPage = pages;
+  const show = idx.slice((galPage - 1) * GAL_PER_PAGE, galPage * GAL_PER_PAGE);
+  const srcs = (await Promise.all(show.map(i => { const id = list[i].id; if (slipCache[id] === null) delete slipCache[id]; return getSlip(id).catch(() => null); })))
+    .map((s, k) => s || list[show[k]].photo || null);
   const row = (x, k) => `<div style="display:flex;gap:10px;align-items:flex-start;border-top:1px solid var(--bd);padding:10px 0">
       ${srcs[k] ? `<button onclick="openImg(this.dataset.src)" data-src="${srcs[k]}" style="padding:0;min-height:0;width:68px;height:68px;flex:none;border-radius:10px;overflow:hidden;background:none"><img src="${srcs[k]}" style="width:100%;height:100%;object-fit:cover;display:block"></button>` : `<div class="sub" style="width:68px;height:68px;flex:none;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:11px">${bn ? 'ছবি নেই' : 'No photo'}</div>`}
       <div style="flex:1;min-width:0">
@@ -3081,19 +3084,19 @@ async function memberGallery(email) {
         <div class="acts">${actsOf(x)}</div>
       </div>
     </div>`;
-  const chips = months.map(m => `<button class="chip ${m === galMonth ? 'on' : ''}" onclick="galPick('${m}')">${monthLabel(m)}</button>`).join('');
+  const pager = pages > 1 ? `<div class="row between" style="margin-top:12px;gap:8px"><button class="ghost" ${galPage <= 1 ? 'disabled' : ''} onclick="galGo(${galPage - 1})">‹ ${bn ? 'আগে' : 'Prev'}</button><span class="sub num">${galPage} / ${pages}</span><button class="ghost" ${galPage >= pages ? 'disabled' : ''} onclick="galGo(${galPage + 1})">${bn ? 'পরে' : 'Next'} ›</button></div>` : '';
   const old = document.getElementById('memGal'); if (old) old.remove();
   const box = document.createElement('div');
   box.id = 'memGal';
   box.style.cssText = 'position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px';
   box.innerHTML = `<div class="card" style="width:100%;max-width:560px;max-height:90vh;overflow:auto;padding-top:18px">
     <div class="row between" style="margin-bottom:8px"><h3 style="margin:0">${bn ? 'আমার এন্ট্রি ও ছবি' : 'My entries & photos'} · ${esc(nameOf(email))}</h3><button class="ghost" onclick="closeGallery()">✕</button></div>
-    <div class="sub" style="margin-bottom:6px">${esc(monthLabel(galMonth))}</div>
-    ${idx.length ? idx.map((i, k) => row(list[i], k)).join('') : `<div class="sub">${bn ? 'কোনো এন্ট্রি নেই' : 'No entries'}</div>`}
+    <div class="sub" style="margin-bottom:6px">${esc(monthLabel(galMonth))} · ${idx.length}</div>
+    ${idx.length ? show.map((i, k) => row(list[i], k)).join('') + pager : `<div class="sub">${bn ? 'কোনো এন্ট্রি নেই' : 'No entries'}</div>`}
   </div>`;
   document.body.appendChild(box);
 }
-function galPick(m) { galMonth = m; if (galOpenEmail) memberGallery(galOpenEmail); }
+function galGo(n) { galPage = n; if (galOpenEmail) memberGallery(galOpenEmail); }
 function closeGallery() { galOpenEmail = ''; const g = document.getElementById('memGal'); if (g) g.remove(); }
 /* share the month report as a picture (phone share sheet, or a download on a computer) */
 async function shareMonthImage() {
