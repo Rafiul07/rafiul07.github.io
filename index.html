@@ -3212,10 +3212,26 @@ async function monthReport() {
   }).sort((a, b) => a.n.localeCompare(b.n));
   const closed = closedMonths.includes(m);
   lastReport = { m, rows, c };
-  const body = rows.length ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
-      <tr style="text-align:right;color:var(--mut,#888)"><th style="text-align:left;padding:6px 4px">${bn ? 'নাম' : 'Name'}</th><th>${bn ? 'বাজার' : 'Bazar'}</th><th>${bn ? 'দিন' : 'Days'}</th><th>${bn ? 'জনপ্রতি' : 'Per person'}</th><th>${bn ? 'জমা' : 'Deposit'}</th><th>${bn ? 'হিসাব' : 'Balance'}</th></tr>
-      ${rows.map(r => `<tr style="text-align:right;border-top:1px solid var(--bd,#ddd)"><td style="text-align:left;padding:6px 4px"><b>${esc(r.n)}</b></td><td>${f2(r.b)}</td><td>${r.d}</td><td>${f2(r.share)}</td><td>${f2(r.dep)}</td><td style="font-weight:800;color:${r.bal >= 0 ? '#15803d' : '#b91c1c'}">${r.bal >= 0 ? '+' : '−'} ${f2(Math.abs(r.bal))}</td></tr>`).join('')}
-      <tr style="text-align:right;border-top:2px solid var(--bd,#ddd);font-weight:800"><td style="text-align:left;padding:6px 4px">${bn ? 'মোট' : 'Total'}</td><td>${f2(c.tB)}</td><td>${c.tD}</td><td colspan="3">${bn ? 'দৈনিক খরচ' : 'Day rate'}: ${f2(rate)}</td></tr>
+  const fn = n => esc(String(n || '').trim().split(/\s+/)[0] || '');   // first name only, so the numbers have room
+  const th = t => `<th style="padding:6px 2px;font-weight:700;font-size:12px;color:var(--sub);white-space:nowrap">${t}</th>`;
+  const td = (x, extra = '') => `<td style="padding:8px 2px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;${extra}">${x}</td>`;
+  const body = rows.length ? `<div style="overflow-x:auto;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+      <thead><tr>
+        <th style="text-align:left;padding:6px 2px;font-weight:700;font-size:12px;color:var(--sub)">${bn ? 'নাম' : 'Name'}</th>
+        ${th(bn ? 'বাজার' : 'Bazar')}${th(bn ? 'দিন' : 'Days')}${th(bn ? 'জনপ্রতি' : 'Per person')}${th(bn ? 'জমা' : 'Deposit')}${th(bn ? 'হিসাব' : 'Balance')}
+      </tr></thead>
+      <tbody>
+      ${rows.map(r => `<tr style="border-top:1px solid var(--bd,#ddd)">
+        <td style="padding:8px 2px;font-weight:700;white-space:nowrap">${fn(r.n)}</td>
+        ${td(f2(r.b))}${td(r.d)}${td(f2(r.share))}${td(f2(r.dep))}
+        ${td(`${r.bal >= 0 ? '+' : '−'} ${f2(Math.abs(r.bal))}`, `font-weight:800;color:${r.bal >= 0 ? '#15803d' : '#b91c1c'}`)}
+      </tr>`).join('')}
+      </tbody>
+      <tfoot><tr style="border-top:2px solid var(--bd,#ddd);font-weight:800">
+        <td style="padding:8px 4px">${bn ? 'মোট' : 'Total'}</td>
+        ${td(f2(c.tB))}${td(c.tD)}
+        <td colspan="3" style="padding:8px 2px;text-align:right;font-weight:600;color:var(--sub)">${bn ? 'দৈনিক খরচ' : 'Day rate'}: ${f2(rate)}</td>
+      </tr></tfoot>
     </table></div>` : `<div class="sub">${bn ? 'এই মাসে অনুমোদিত কোনো এন্ট্রি নেই।' : 'No approved entries this month.'}</div>`;
   const old = document.getElementById('monthRep'); if (old) old.remove();
   const box = document.createElement('div');
