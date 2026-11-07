@@ -114,6 +114,9 @@ body.light .card{box-shadow:0 1px 2px rgba(20,20,40,.06),0 6px 18px rgba(20,20,4
 .thumb{width:56px;height:56px;border-radius:12px}
 button{min-height:42px}
 .acts button{min-height:36px;padding:8px 12px;font-size:12.5px}
+.entry .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.entry .acts button{flex:1 1 0;min-width:96px;min-height:44px;font-size:14px;font-weight:800;border-radius:12px;padding:10px 8px;white-space:nowrap}
+.entry .acts .sub{flex-basis:100%}
 .seg button{min-height:42px}
 .item{min-height:52px}
 .nav{padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
@@ -2552,7 +2555,7 @@ function actsOf(x) {
   const delBtn = noDel ? '' : `<button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
   const mgrEdit = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button>${delBtn}`;
   const ownEdit = mgrEdit;
-  const approveBtn = isMgr && !locked ? `<button class="pri" onclick="approve('${x.id}')">✓ ${t('approve')}</button>` : '';
+  const approveBtn = isMgr && !locked ? `<button class="ok" onclick="approve('${x.id}')">✓ ${t('approve')}</button>` : '';
   let acts = '';
   if (isClosed(x)) {
     acts = `<span class="sub">🔒 ${lang === 'bn' ? 'মাস বন্ধ' : 'Month closed'}</span>`;
