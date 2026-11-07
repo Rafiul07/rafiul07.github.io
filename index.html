@@ -2313,7 +2313,13 @@ function renderHome() {
       `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${monthLabel(mm)} <span class="sub">(${byM[mm].n})</span></span><b class="num">${f2(byM[mm].sum)}</b></div>`).join('') + `</div>`;
     // bazar / days / deposit already sit in the hero card above, so no separate tiles
     if (!isMgr) {
-      h += `<button class="ghost" style="width:100%;margin-bottom:14px" onclick="memberGallery(me)">${lang === 'bn' ? 'আমার এন্ট্রি ও ছবি' : 'My entries & photos'}</button>`;
+      // entries and photos: a card showing this month's count and how many still wait
+      const gMonth = mineM.filter(x => String(x.date).slice(0, 7) === month);
+      const gWait = gMonth.filter(x => x.status !== 'approved').length;
+      h += `<button onclick="memberGallery(me)" style="width:100%;margin-bottom:14px;display:flex;align-items:center;gap:12px;text-align:left;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,rgba(168,85,247,.16),rgba(34,211,238,.10));border:1px solid var(--p);box-shadow:0 8px 22px rgba(124,92,255,.18)">
+        <span style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;background:linear-gradient(135deg,var(--p),var(--s));flex:none">🧾</span>
+        <span style="flex:1;min-width:0"><b style="display:block;font-size:16px">${lang === 'bn' ? 'আমার এন্ট্রি ও ছবি' : 'My entries & photos'}</b><span class="sub" style="font-size:12px">${gMonth.length} ${lang === 'bn' ? 'টি এন্ট্রি' : (gMonth.length === 1 ? 'entry' : 'entries')}${gWait ? ` · ${gWait} ${lang === 'bn' ? 'টি অপেক্ষমাণ' : 'waiting'}` : ''}</span></span>
+        <span style="font-size:24px;opacity:.7">›</span></button>`;
       const all = mineM.slice().sort(byNewest);
       const shown = all.slice(0, homeLimit);
       const more = all.length > homeLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="homeMore()">${lang === 'bn' ? 'আরও দেখাও' : 'Show more'} (${all.length - homeLimit})</button>` : '';
