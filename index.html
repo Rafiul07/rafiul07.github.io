@@ -756,7 +756,8 @@ let filt = { m: 'all', s: 'all' };
 let month = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); })(), memOpen = null, imgRot = 0, imgZ = 1;
 let allView = false;
 let balLimit = 5;   // "সব সদস্য" list on the member home: rows shown (5 at a time)
-let memLimit = 5;   // admin member popup: entries shown so far (5 at a time)
+let memPage = 1;   // admin member popup: current page
+const MEM_PER = 6; // admin member popup: entries per page
 let memMonth = '';
 let memListOpen = false;
 let memPickId = '';   // admin member popup: entry picked from the amount boxes   // control panel: All members section open or closed (kept across redraws)
@@ -3825,7 +3826,14 @@ function openAllPopup() {
 function allGo(n) { allPage = n; openAllPopup(); }
 function closeAllPopup() { allView = false; allPage = 1; const b = document.getElementById('allPop'); if (b) b.remove(); render(); }
 function homeMore() { homeLimit += 5; render(); }
-function memMore() { memLimit += 5; openMember(memOpen); }
+function memGo(n) { memPage = n; openMember(memOpen); }
+function pagedMem(all, bn) {
+  const pages = Math.max(1, Math.ceil(all.length / MEM_PER));
+  if (memPage > pages) memPage = pages;
+  const s = (memPage - 1) * MEM_PER;
+  const nav = pages > 1 ? `<div class="row between" style="margin-top:10px;gap:8px"><button class="ghost" style="flex:1;min-height:40px" ${memPage <= 1 ? 'disabled' : ''} onclick="memGo(${memPage - 1})">← ${bn ? 'আগের' : 'Prev'}</button><span class="sub">${memPage} / ${pages}</span><button class="ghost" style="flex:1;min-height:40px" ${memPage >= pages ? 'disabled' : ''} onclick="memGo(${memPage + 1})">${bn ? 'পরের' : 'Next'} →</button></div>` : '';
+  return all.slice(s, s + MEM_PER).map(x => miniRow(x)).join('') + nav;
+}
 /* redraw the open member account (admin only) when entries change, so approvals, edits and new entries show at once */
 function refreshMemberPopup() {
   const box = $('memBox');
@@ -3833,12 +3841,12 @@ function refreshMemberPopup() {
   openMember(memOpen);
 }
 function memPick(id) { memPickId = memPickId === id ? '' : id; openMember(memOpen); }
-function memMonthSet(m) { memMonth = m; memLimit = 5; openMember(memOpen); }
+function memMonthSet(m) { memMonth = m; memPage = 1; openMember(memOpen); }
 function openMember(email) {
   // keep days/deposit the admin is typing when this modal is redrawn by a live update
   const oldD = $('mdDays'), oldP = $('mdDep');
   const sameM = $('memBody').dataset.email === email;
-  if (!sameM) memLimit = 5;
+  if (!sameM) memPage = 1;
   const keepD = sameM && oldD && oldD.value !== oldD.dataset.orig ? oldD.value : null;
   const keepP = sameM && oldP && oldP.value !== oldP.dataset.orig ? oldP.value : null;
   const oldN = $('mdName');
@@ -3893,7 +3901,7 @@ function openMember(email) {
     <details class="sec bazDet" style="margin:0 0 14px"><summary>${bn ? 'বাজার ও পে-স্লিপ' : 'Bazar & pay slips'} <span class="sub">(${all.length})</span></summary><div class="secBody">
       ${monthPick}
       <button class="ghost" style="width:100%;margin-bottom:10px" onclick="memberGallery('${esc(email)}')">${bn ? 'ছবির গ্যালারি' : 'Photo gallery'}</button>
-      ${all.length ? all.slice(0, memLimit).map(x => miniRow(x)).join('') + (all.length > memLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="memMore()">${bn ? 'আরও দেখাও' : 'Show more'} (${all.length - memLimit})</button>` : '') : `<div class="empty">${t('noEntries')}</div>`}
+      ${all.length ? pagedMem(all, bn) :`<div class="empty">${t('noEntries')}</div>`}
     </div></details>
     ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
       <div class="mgrid">
