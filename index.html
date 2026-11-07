@@ -427,6 +427,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 /* ---- admin tab bar: 3 equal columns, same height, no broken wrapping ---- */
 .admTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
 .admTabs .admTab{font-size:12.5px;padding:8px 4px;min-height:42px}
+#entriesHost .card{animation:none;opacity:1}   /* moving the Entries cards restarts their fade-in; keep them visible */
 .admTab{min-height:56px;padding:8px 6px;font-size:clamp(13px,3.7vw,15px);font-weight:800;line-height:1.25;white-space:normal;text-align:center;display:flex;align-items:center;justify-content:center;border-radius:16px;word-break:keep-all;overflow-wrap:anywhere}
 .admTab.pri{box-shadow:0 8px 20px -10px var(--p)}
 
@@ -1998,6 +1999,8 @@ async function unlockAdmin() {
   adminUnlocked = true;
   isMgr = true;
   startAdminListeners();
+  // open the waiting list when something needs approval, otherwise the Entries list
+  admTab = entries.some(x => x.status === 'submitted') ? 'wait' : 'entries';
   go('admin');
 }
 /* admin-only live data (activity log) comes through the admin session */
@@ -2829,7 +2832,7 @@ async function approve(id) {
 async function delEntry(id) {
   const target = entries.find(e => e.id === id);
   if (!isMgr && target && target.addedByAdmin === true) { toast(lang === 'bn' ? 'অ্যাডমি যোগ করা এন্ট্রি মুছা যাবে না' : 'Admin-added entries cannot be deleted', true); return; }
-  const ok = await sheet({ title: t('confirmDel'), input: false, okText: t('del') });
+  const ok = await sheet({ title: `${t('confirmDel')} · ${target ? nameOf(target.memberEmail) : ''} · ${target ? f2(target.amount) : ''}`, input: false, okText: t('del') });
   if (!ok) return;
   // the admin deletes the entry together with its pay slip: the admin password is needed
   if (isMgr && !(await checkAdminPw())) return;
@@ -3343,6 +3346,20 @@ function settingsHtml(skipMe = false) {
 /* ===== Admin panel: all admin-only tools live here ===== */
 let admTab = 'wait';   // control panel tab: wait | members | settings
 function admTabSet(v) { admTab = v; renderAdmin(); }
+/* month-end steps for the admin; each step opens the place where it is done */
+function monthChecklistHtml() {
+  const bn = lang === 'bn';
+  const pendN = entries.filter(x => x.status === 'submitted').length;
+  const closed = closedMonths.includes(month);
+  const row = (done, label, action) => `<button class="item" style="margin:0 0 6px" onclick="${action}"><span>${done ? '✅' : '⬜'} ${label}</span><span class="sub">›</span></button>`;
+  return `<details class="sec" open style="margin:0 0 12px"><summary>${bn ? 'মাস শেষের চেকলিস্ট' : 'Month-end checklist'}</summary><div class="secBody">
+      <div class="sub" style="margin-bottom:8px">${bn ? 'বেছে নেওয়া মাস' : 'Selected month'}: ${monthLabel(month)}</div>
+      ${row(pendN === 0, bn ? `অপেক্ষমাণ শূন্য করো (${pendN})` : `Clear waiting (${pendN})`, "admTabSet('wait')")}
+      ${row(false, bn ? 'রিপোর্ট নাও' : 'Get the report', 'monthReport()')}
+      ${row(closed, bn ? 'মাস বন্ধ করো' : 'Close the month', 'toggleClose()')}
+      ${row(false, bn ? 'নতুন মাস শুরু করো' : 'Start a new month', 'newMonthReset()')}
+    </div></details>`;
+}
 function renderAdmin() {
   if (!isMgr) return;
   const isBn = lang === 'bn';
@@ -3358,8 +3375,16 @@ function renderAdmin() {
 
   const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
   const tabBtn = (k, label) => `<button class="admTab ${admTab === k ? 'pri' : 'ghost'}" onclick="admTabSet('${k}')">${label}</button>`;
-  let h = `${fzBanner}<div class="admTabs">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('entries', isBn ? 'এন্ট্রি' : 'Entries')}${tabBtn('members', isBn ? 'সব সদস্য' : 'All members')}${tabBtn('settings', isBn ? 'সেটিংস' : 'Settings')}</div>`;
-  if (admTab === 'entries') h += `<div id="entriesHost"></div>`;
+  let h = `${fzBanner}<div class="admTabs">${tabBtn('wait', isBn ? `অপেক্ষমাণ (${pending.length})` : `Waiting (${pending.length})`)}${tabBtn('entries', isBn ? 'এন্ট্রি' : 'Entries')}${tabBtn('members', isBn ? 'সদস্য' : 'Members')}${tabBtn('settings', isBn ? 'সেটিংস' : 'Settings')}</div>`;
+  // one line under the tabs: what this tab is for
+  const TAB_HINT = {
+    wait: isBn ? 'সদস্যদের জমা দেওয়া, অনুমোদনের অপেক্ষায় থাকা এন্ট্রি' : 'Member entries waiting for approval',
+    entries: isBn ? 'সব এন্ট্রি খোঁজো, ফিল্টার করো, অনুমোদন বা সম্পাদনা করো' : 'Search, filter, approve or edit all entries',
+    members: isBn ? 'সদস্য যোগ, খোঁজা ও সদস্যের হিসাব দেখা' : 'Add members, search and open member accounts',
+    settings: isBn ? 'মেসের নাম, বাজার যোগ, মাস বন্ধ ও রিপোর্ট' : 'Mess name, bazar entry, month close and reports'
+  };
+  h += `<div class="sub" style="text-align:center;margin:-4px 0 10px">${TAB_HINT[admTab] || ''}</div>`;
+  if (admTab === 'entries') h += `<button class="ghost" style="width:100%;margin-bottom:10px" onclick="monthReport()">📊 ${isBn ? 'মাসের রিপোর্ট' : 'Month report'}</button><div id="entriesHost"></div>`;
   if (admTab === 'wait') h += `<div class="card"><h3>${isBn ? `অপেক্ষমাণ এন্ট্রি (${pending.length})` : `Waiting approval (${pending.length})`}</h3>`
     + (pending.length ? pending.map(x => `<div class="entry">${thumbFor(x)}<div class="grow">
         <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
@@ -3368,6 +3393,7 @@ function renderAdmin() {
       </div></div>`).join('') : `<div class="empty">${isBn ? 'কোনো অপেক্ষমাণ এন্ট্রি নেই' : 'Nothing waiting for approval'}</div>`)
     + `</div>`;
   if (admTab === 'settings') {
+  h += monthChecklistHtml();
   h += meCardHtml();
   h += sec(isBn ? 'সদস্য যোগ করার কোড' : 'Invite code', `
       <div class="sub" style="margin-bottom:6px">${isBn ? 'নতুন সদস্য এই কোড দিয়ে সরাসরি যোগ দিতে পারবে।' : 'New members join directly with this code.'}</div>
@@ -3418,6 +3444,8 @@ function renderAdmin() {
       <div class="sub" style="margin-bottom:8px">${bazarOn() ? (isBn ? 'এখন চালু: সদস্যরা বাজার যোগ করতে পারবে।' : 'On: members can add bazar.') : (isBn ? 'এখন বন্ধ: সদস্যরা বাজার যোগ করতে পারবে না।' : 'Off: members cannot add bazar.')}</div>
       <button class="${bazarOn() ? 'bad' : 'pri'}" style="width:100%" onclick="toggleBazarMode()">${bazarOn() ? (isBn ? 'বন্ধ করো' : 'Turn off') : (isBn ? 'চালু করো' : 'Turn on')}</button>
       <div class="row" style="margin-top:12px;justify-content:space-between;align-items:center;gap:8px"><span class="sub">${isBn ? 'সদস্যের স্ক্রিনে "বাজার যোগ: চালু/বন্ধ" ব্যাজ' : 'Members see "Bazar entry" badge'}</span><button class="${showBadge ? 'ghost' : 'pri'}" style="min-height:38px;padding:6px 12px;font-size:13px" onclick="toggleBadgeShow()">${showBadge ? (isBn ? 'লুকাও' : 'Hide') : (isBn ? 'দেখাও' : 'Show')}</button></div>`, false);
+  // rarely used tools sit in one folded section
+  h += `<details class="sec" style="margin:0 0 12px"><summary>${isBn ? 'আরও অপশন (ব্যাকআপ, কার্যক্রম লগ)' : 'More options (backup, activity log)'}</summary><div class="secBody">`;
   h += sec(isBn ? 'ডেটা ও ব্যাকআপ' : 'Data & backup', `
       <button class="item" onclick="makeBackup()"><span>${isBn ? 'ব্যাকআপ নাও (এনক্রিপ্ট করা)' : 'Make backup (encrypted)'}</span><span class="sub">›</span></button>
       <button class="item" onclick="$('restoreFile').click()"><span>${isBn ? 'ব্যাকআপ থেকে ফিরিয়ে আনো' : 'Restore from backup'}</span><span class="sub">›</span></button>
@@ -3426,6 +3454,7 @@ function renderAdmin() {
 
   h += sec(isBn ? 'কার্যক্রম (সর্বশেষ ৩০)' : 'Activity (last 30)',
     logs.length ? logs.map(l => `<div class="sub" style="padding:4px 0">${new Date(l.at).toLocaleString()} · ${esc(l.text)}</div>`).join('') : `<div class="empty">${t('noEntries')}</div>`);
+  h += `</div></details>`;
 
   h += settingsHtml(true);   // personal settings: preferences, notifications, account, logout
   h += sec(t('dangerZone'),`<button class="bad" style="width:100%" onclick="resetAll()">${t('resetData')}</button>`, false, 'danger');
