@@ -2229,6 +2229,8 @@ let restoredPage = false;
 // read once when the app loads, before startup code can overwrite it
 const savedPage = (() => { try { return localStorage.getItem('mh_last_page') || ''; } catch (e) { return ''; } })();
 function renderHome() {
+  // the Home tab always uses the member layout, also for the admin; admin tools live in Entries and Control panel
+  const memberLayout = true;
   if (galOpenEmail && document.getElementById('memGal')) memberGallery(galOpenEmail);   // keep an open gallery in step with new data
   if (!restoredPage) {
     restoredPage = true;
@@ -2258,7 +2260,7 @@ function renderHome() {
     h += `<div class="chips">${opts.map(m =>
       `<button class="chip ${month === m ? 'on' : ''}" onclick="month='${m}';render()">${m === 'all' ? t('allMonths') : monthLabel(m)}</button>`).join('')}</div>`;
   }
-  if (isMgr) {
+  if (!memberLayout && isMgr) {
     const c = calc();
     const pend = entries.filter(x => x.status === 'submitted').length;
     const sorted = c.em.slice().sort((a, b) => bazarOf(b) - bazarOf(a));
@@ -2335,7 +2337,7 @@ function renderHome() {
     if (mk.length) moreH += `<div style="margin-bottom:12px"><h3>${isBn ? 'আমার মাসভিত্তিক বাজার' : 'My bazar by month'}</h3>` + mk.map(mm =>
       `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${monthLabel(mm)} <span class="sub">(${byM[mm].n})</span></span><b class="num">${f2(byM[mm].sum)}</b></div>`).join('') + `</div>`;
     // bazar / days / deposit already sit in the hero card above, so no separate tiles
-    if (!isMgr) {
+    if (memberLayout || !isMgr) {
       // entries and photos: a card showing this month's count and how many still wait
       const gMonth = mineM.filter(x => String(x.date).slice(0, 7) === month);
       const gWait = gMonth.filter(x => x.status !== 'approved').length;
@@ -2350,9 +2352,9 @@ function renderHome() {
     moreH += `<div><h3>${t('statusCount')}</h3>` + ['submitted', 'approved'].map(s =>
       `<div class="row between" style="padding:6px 0"><span class="badge ${STATUS_CLS[s]}">${t(s)}</span><b class="num">${mineM.filter(x => x.status === s).length}</b></div>`
     ).join('') + `</div>`;
-    if (moreH && isMgr) h += `<details class="sec" style="margin:0 0 14px"><summary>${isBn ? 'আরও তথ্য' : 'More details'}</summary><div class="secBody">${moreH}</div></details>`;
+    if (moreH && !memberLayout && isMgr) h +=`<details class="sec" style="margin:0 0 14px"><summary>${isBn ? 'আরও তথ্য' : 'More details'}</summary><div class="secBody">${moreH}</div></details>`;
     const r2 = currentRate();
-    if (r2 != null && !isMgr) {   // admin already sees everyone in the members card above
+    if (r2 != null && (memberLayout || !isMgr)) {   // admin already sees everyone in the members card above (old admin layout)
       // a member: own card always; "সব সদস্য" opens a separate card below with the others
       const bnL = lang === 'bn';
       const rowHtml = e => `<div onclick="memberSummary('${esc(e)}')" style="padding:12px 4px;border-bottom:1px solid var(--bd);cursor:pointer">
@@ -2377,7 +2379,7 @@ function renderHome() {
     }
   }
   $('hContent').innerHTML = h;
-  $('hContent').classList.toggle('memberHome', !isMgr);
+  $('hContent').classList.toggle('memberHome', memberLayout || !isMgr);
   updateBazarStatus();
 /* member home: shrink the whole page a little so every section fits the screen height (never enlarged) */
 function fitHome() {
