@@ -2394,15 +2394,6 @@ function renderHome() {
   $('hContent').innerHTML = (isMgr ? adminSummaryHtml() : '') + h;
   $('hContent').classList.toggle('memberHome', memberLayout || !isMgr);
   updateBazarStatus();
-/* member home: shrink the whole page a little so every section fits the screen height (never enlarged) */
-function fitHome() {
-  const hc = $('hContent'); if (!hc) return;
-  hc.style.zoom = '';
-  if (isMgr || page !== 'home' || !me) return;
-  const room = innerHeight - hc.getBoundingClientRect().top - 24;   // small gap at the bottom
-  const need = hc.scrollHeight;
-  if (room > 0 && need > room) hc.style.zoom = Math.max(0.7, room / need).toFixed(3);   // never smaller than 70%
-}
 }
 
 function recentList(list, n, withName) {
@@ -3405,7 +3396,7 @@ function renderAdmin() {
       <div class="sub" style="margin-bottom:6px">${isBn ? 'নতুন সদস্য এই কোড দিয়ে সরাসরি যোগ দিতে পারবে।' : 'New members join directly with this code.'}</div>
       <div class="num" style="font-size:24px;font-weight:800;letter-spacing:3px;margin:8px 0">${esc(inviteCode || '—')}</div>
       <div class="acts" style="margin-top:8px"><button class="pri" style="flex:1" onclick="copyInvite()">${isBn ? 'কোড কপি' : 'Copy code'}</button><button class="ghost" style="flex:1" onclick="copyInviteLink()">${isBn ? 'লিংক কপি' : 'Copy link'}</button><button class="ghost" style="flex:1" onclick="newInviteCode()">${isBn ? 'নতুন code' : 'New code'}</button></div>`, false);
-  h += sec(isBn ? 'Mess এর নাম' : 'Mess name', `
+  h += sec(isBn ? 'মেসের নাম' : 'Mess name', `
       <input id="mName" value="${esc(messName)}">
       <div class="lbl" style="margin-top:12px">${isBn ? 'নামের রঙ (এই ফোনে)' : 'Name colour (this phone)'}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${MESS_GRADS.map((g, i) => `<button onclick="setMessGrad(${i})" style="width:34px;height:34px;min-height:0;padding:0;border-radius:50%;background:linear-gradient(135deg,${g[0]},${g[1]})"></button>`).join('')}</div>
@@ -3415,7 +3406,7 @@ function renderAdmin() {
       <div class="row between" style="padding:6px 0"><span class="sub">${isBn ? 'সদস্য' : 'Members'}</span><b class="num">${members.length}</b></div>
       <div class="row between" style="padding:6px 0"><span class="sub">${isBn ? 'বাজারের এন্ট্রি' : 'Bazar entries'}</span><b class="num">${entries.length}</b></div>
       <div class="row between" style="padding:6px 0"><span class="sub">${isBn ? 'বন্ধ মাস' : 'Closed months'}</span><b class="num">${closedMonths.length}</b></div>`, false);
-  h += gh(isBn ? 'মেস' : 'Mess');
+  h += gh(lang === 'bn' ? 'মেস' : 'Mess');
   h += sec(t('management'), `
       <div class="lbl" style="margin-top:14px">${isBn ? 'ঘোষণা' : 'Notice'}</div>
       <textarea id="noticeTxt" rows="2" style="width:100%">${esc(notice)}</textarea>
@@ -3591,8 +3582,8 @@ function updateBazarStatus() {
   el.style.background = on ? 'rgba(34,197,94,.14)' : 'rgba(239,68,68,.12)';
   el.style.color = on ? '#15803d' : '#b91c1c';
   el.innerText = on
-    ? (bn ? '● বাজার যোগ: চালু (active)' : '● Bazar entry: active')
-    : (bn ? '● বাজার যোগ: বন্ধ (inactive)' : '● Bazar entry: inactive');
+    ? (bn ? '● বাজার যোগ: চালু' : '● Bazar entry: active')
+    : (bn ? '● বাজার যোগ: বন্ধ' : '● Bazar entry: inactive');
 }
 function toggleBazarMode() {
   const next = bazarOn() ? 'admin' : 'slip';
