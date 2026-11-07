@@ -3335,7 +3335,7 @@ function settingsHtml(skipMe = false) {
       <button class="item" onclick="changePassword()"><span>${t('changePw')}</span><span class="sub">›</span></button>
       <button class="item" onclick="resetPw()"><span>${t('resetPw')}</span><span class="sub">›</span></button>
       `);
-  if (me === MESS_ADMIN) h += sec(isBn ? 'সাবস্ক্রিপশন' : 'Subscription', subSettingsHtml(), true);
+  if (me === MESS_ADMIN) h += sec(isBn ? 'সাবস্ক্রিপশন' : 'Subscription', subSettingsHtml(), false);
 
   return h;
 }
@@ -3349,7 +3349,7 @@ function monthChecklistHtml() {
   const pendN = entries.filter(x => x.status === 'submitted').length;
   const closed = closedMonths.includes(month);
   const row = (done, label, action) => `<button class="item" style="margin:0 0 6px" onclick="${action}"><span>${done ? '✅' : '⬜'} ${label}</span><span class="sub">›</span></button>`;
-  return `<details class="sec" open style="margin:0 0 12px"><summary>${bn ? 'মাস শেষের চেকলিস্ট' : 'Month-end checklist'}</summary><div class="secBody">
+  return `<details class="sec" style="margin:0 0 12px"><summary>${bn ? 'মাস শেষের চেকলিস্ট' : 'Month-end checklist'}</summary><div class="secBody">
       <div class="sub" style="margin-bottom:8px">${bn ? 'বেছে নেওয়া মাস' : 'Selected month'}: ${monthLabel(month)}</div>
       ${row(pendN === 0, bn ? `অপেক্ষমাণ শূন্য করো (${pendN})` : `Clear waiting (${pendN})`, "admTabSet('wait')")}
       ${row(false, bn ? 'রিপোর্ট নাও' : 'Get the report', 'monthReport()')}
@@ -4064,7 +4064,7 @@ function superSubHtml(m) {
   const hist = (s.history || []).slice(-5).reverse().map(h =>
     `<div class="sub">${esc(h.date)} · ${f2(h.amount || 0)} · ${esc(h.method || '')}${h.ref ? ' · ' + esc(h.ref) : ''}</div>`).join('')
     || `<div class="sub">${bn ? 'কোনো পেমেন্ট নেই' : 'No payments yet'}</div>`;
-  return `<details open style="margin-top:0"><summary><b>${bn ? 'সাবস্ক্রিপশন' : 'Subscription'}</b> ${badge}</summary>
+  return `<details style="margin-top:0"><summary><b>${bn ? 'সাবস্ক্রিপশন' : 'Subscription'}</b> ${badge}</summary>
     <div style="margin-top:6px">
       <div class="sub">${bn ? 'ফি' : 'Fee'}: <b class="num">${s.amount ? f2(s.amount) : '—'}</b> / ${planLabel(s.cycle, bn)}</div>
       <div class="sub">${bn ? 'মেয়াদ শেষ' : 'Paid until'}: <b>${s.paidUntil || '—'}</b></div>
