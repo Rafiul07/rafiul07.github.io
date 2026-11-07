@@ -346,6 +346,8 @@ body{font-size:clamp(15px,4vw,17px);line-height:1.5}
 input,textarea,select{font-size:clamp(16px,4.2vw,17px)}
 button{min-height:46px}
 .chip{min-height:38px}
+#pgEntries .thumb{width:46px;height:46px;border-radius:12px}
+#pgEntries .entry{padding:10px 0;gap:10px}
 .nav{background:linear-gradient(180deg,var(--card),var(--card2));border-top:1.5px solid color-mix(in srgb,var(--p) 35%,var(--bd))}
 .nav button{font-size:clamp(11.5px,3.3vw,13px);font-weight:700;min-height:48px;gap:2px;padding:2px 0}
 .nav button.on{color:var(--p)}
@@ -594,8 +596,11 @@ details.sCard>summary::-webkit-details-marker{display:none}
       </div>
       <button id="addBtn2" class="pri" style="width:100%;margin-bottom:14px;white-space:nowrap" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
       <div class="card" id="filterBox">
-        <input id="qSearch" data-ph="search" oninput="render()" style="margin-top:0">
-        <div class="row" id="filterSel" style="margin-top:8px"></div>
+        <div class="row" style="gap:8px;flex-wrap:nowrap;align-items:flex-start">
+          <input id="qSearch" data-ph="search" oninput="entryPage=1;render()" style="margin-top:0;flex:1 1 55%;min-width:0">
+          <div id="filterSel" style="flex:1 1 45%;min-width:0"></div>
+        </div>
+        <div id="chipRow" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div>
       </div>
       <div class="card">
         <h3 id="listTitle"></h3>
@@ -753,6 +758,8 @@ let me = '', isMgr = false, page = 'home', editId = '';
 let members = [], entries = [], summary = null, unsubs = [];
 let loaded = { members: false, entries: false };
 let filt = { m: 'all', s: 'all' };
+let entryPage = 1, entryKey = '';   // Entries tab: current page, and the filter state it belongs to
+function entryGo(n) { entryPage = n; render(); }
 let month = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); })(), memOpen = null, imgRot = 0, imgZ = 1;
 let allView = false;
 let balLimit = 5;   // "সব সদস্য" list on the member home: rows shown (5 at a time)
@@ -2410,33 +2417,46 @@ function renderEntries() {
   }
   $('filterBox').classList.remove('hidden');
   const q = $('qSearch').value.trim().toLowerCase();
+  const bnE = lang === 'bn';
   $('filterSel').innerHTML = isMgr ? `
-      <select class="grow" style="margin-top:0" onchange="filt.m=this.value;render()">
-        ${isMgr ? `<option value="all">${t('allMembers')}</option>` : ''}
-        ${(isMgr ? allEmails() : [me]).map(e => `<option value="${esc(e)}" ${filt.m === e || (!isMgr && filt.m !== e) ? 'selected' : ''}>${esc(nameOf(e))}</option>`).join('')}
-      </select>
-      <select class="grow" style="margin-top:0" onchange="filt.s=this.value;render()">
-        <option value="all">${t('allStatus')}</option>
-        ${['submitted', 'approved'].map(s => `<option value="${s}" ${filt.s === s ? 'selected' : ''}>${t(s)}</option>`).join('')}
+      <select style="margin-top:0;width:100%" onchange="filt.m=this.value;entryPage=1;render()">
+        <option value="all">${t('allMembers')}</option>
+        ${allEmails().map(e => `<option value="${esc(e)}" ${filt.m === e ? 'selected' : ''}>${esc(nameOf(e))}</option>`).join('')}
       </select>` : '';
+  $('chipRow').innerHTML = [['all', bnE ? 'সব' : 'All'], ['submitted', bnE ? 'অপেক্ষমাণ' : 'Waiting'], ['approved', bnE ? 'অনুমোদিত' : 'Approved'], ['locked', bnE ? 'লক' : 'Locked']]
+    .map(([v, l]) => `<button class="chip ${filt.s === v ? 'on' : ''}" onclick="filt.s='${v}';entryPage=1;render()">${l}</button>`).join('');
   const list = entries.filter(x => {
     if (isMgr) {
       if (!isMgr && x.memberEmail !== me) return false;
       if (filt.m !== 'all' && x.memberEmail !== filt.m) return false;
-      if (filt.s !== 'all' && x.status !== filt.s) return false;
       if (month !== 'all' && String(x.date).slice(0, 7) !== month) return false;
     }
+    if (filt.s === 'locked') { if (!closedMonths.includes(String(x.date).slice(0, 7))) return false; }
+    else if (filt.s !== 'all' && x.status !== filt.s) return false;
     if (q && !((String(x.note || '') + ' ' + nameOf(x.memberEmail)).toLowerCase().includes(q))) return false;
     return true;
   }).sort(byNewest);
   $('listTitle').innerText = t('listTitle');
-  let gh = ''; let lm = '';
-  list.forEach(x => {
-    const mm = String(x.date).slice(0, 7);
-    if (!isMgr && mm !== lm) { lm = mm; gh += `<div class="sub" style="margin:14px 0 4px;font-weight:700">${monthLabel(mm)}</div>`; }
+  // a new search or filter starts again from page 1
+  const fkey = JSON.stringify([filt, q, month]);
+  if (fkey !== entryKey) { entryKey = fkey; entryPage = 1; }
+  // waiting entries first, then newest; 6 per page
+  const per = 6;
+  const sorted = list.slice().sort((a, b) => ((a.status === 'approved') - (b.status === 'approved')) || byNewest(a, b));
+  const pages = Math.max(1, Math.ceil(sorted.length / per));
+  if (entryPage > pages) entryPage = pages;
+  const pageRows = sorted.slice((entryPage - 1) * per, entryPage * per);
+  // summary for the filtered list
+  const sum = list.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  const nWait = list.filter(x => x.status !== 'approved').length;
+  const summary = list.length ? `<div class="row between" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;padding:8px 10px;border-radius:12px;background:var(--card2)"><span class="sub">${list.length} ${bnE ? 'টি এন্ট্রি' : 'entries'}</span><b class="num">৳${f2(sum)}</b><span class="sub"><span style="color:var(--pos);font-weight:700">${list.length - nWait} ${bnE ? 'অনুমোদিত' : 'approved'}</span> · <span style="color:var(--bad);font-weight:700">${nWait} ${bnE ? 'অপেক্ষমাণ' : 'waiting'}</span></span></div>` : '';
+  let gh = ''; let ld = '';
+  pageRows.forEach(x => {
+    if (x.date !== ld) { ld = x.date; gh += `<div class="sub" style="margin:12px 0 2px;font-weight:700">${fmtDate(x.date)}</div>`; }
     gh += entryRow(x);
   });
-  $('entryList').innerHTML = list.length ? gh
+  const pager = pages > 1 ? `<div class="row between" style="margin-top:10px;gap:8px"><button class="ghost" style="flex:1;min-height:40px" ${entryPage <= 1 ? 'disabled' : ''} onclick="entryGo(${entryPage - 1})">← ${bnE ? 'আগের' : 'Prev'}</button><span class="sub">${entryPage} / ${pages}</span><button class="ghost" style="flex:1;min-height:40px" ${entryPage >= pages ? 'disabled' : ''} onclick="entryGo(${entryPage + 1})">${bnE ? 'পরের' : 'Next'} →</button></div>` : '';
+  $('entryList').innerHTML = list.length ? summary + gh + pager
     : `<div class="empty">${q ? t('noMatch') : t('noEntries')}</div>`;
 }
 
