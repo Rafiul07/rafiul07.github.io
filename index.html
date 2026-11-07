@@ -2552,8 +2552,8 @@ function actsOf(x) {
   const locked = x.status === 'approved';
   const lockTxt = `<span class="sub">🔒 ${t('locked')}</span>`;
   const noDel = !isMgr && x.addedByAdmin === true;   // members cannot delete admin-added entries; admin can
-  const delBtn = noDel ? '' : `<button class="bad" onclick="delEntry('${x.id}')">${t('del')}</button>`;
-  const mgrEdit = `<button class="ghost" onclick="startEdit('${x.id}')">${t('edit')}</button>${delBtn}`;
+  const delBtn = noDel ? '' : `<button class="bad" onclick="delEntry('${x.id}')">🗑 ${t('del')}</button>`;
+  const mgrEdit = `<button class="ghost" onclick="startEdit('${x.id}')">✎ ${t('edit')}</button>${delBtn}`;
   const ownEdit = mgrEdit;
   const approveBtn = isMgr && !locked ? `<button class="ok" onclick="approve('${x.id}')">✓ ${t('approve')}</button>` : '';
   let acts = '';
