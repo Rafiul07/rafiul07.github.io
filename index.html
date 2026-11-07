@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 :root{--bg:#0a0a12;--card:#15152a;--card2:#1c1c38;--tx:#f1f1f7;--sub:#8b8ba7;--bd:#262643;--inp:#0d0d1a;--p:#a855f7;--s:#22d3ee;--ok:#34d399;--bad:#f87171;--warn:#fbbf24;--blue:#60a5fa}
-body.light{--bg:#f2f4fa;--card:#ffffff;--card2:#f5f6fb;--tx:#14141f;--sub:#60647a;--bd:#e2e5ee;--inp:#f5f6fa}
+body.light{--pos:#047857;--ok:#047857;--bad:#dc2626;--bg:#f2f4fa;--card:#ffffff;--card2:#f5f6fb;--tx:#14141f;--sub:#60647a;--bd:#e2e5ee;--inp:#f5f6fa}
 *{box-sizing:border-box;margin:0;padding:0}
 /* thin scrollbar in the app colour (Firefox + Chrome/Safari) */
 html{scrollbar-width:thin;scrollbar-color:var(--p) transparent}
@@ -345,7 +345,7 @@ body{font-size:clamp(15px,4vw,17px);line-height:1.5}
 .card b,.card .num{font-size:inherit}
 input,textarea,select{font-size:clamp(16px,4.2vw,17px)}
 button{min-height:46px}
-.chip{min-height:38px}
+.chip{min-height:44px}
 #pgEntries .thumb{width:46px;height:46px;border-radius:12px}
 #pgEntries .entry{padding:10px 0;gap:10px}
 .nav{background:linear-gradient(180deg,var(--card),var(--card2));border-top:1.5px solid color-mix(in srgb,var(--p) 35%,var(--bd))}
@@ -426,7 +426,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 
 /* ---- admin tab bar: 3 equal columns, same height, no broken wrapping ---- */
 .admTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
-.admTabs .admTab{font-size:12.5px;padding:8px 4px;min-height:42px}
+.admTabs .admTab{font-size:12.5px;padding:8px 4px;min-height:44px}
 #entriesHost .card{animation:none;opacity:1}   /* moving the Entries cards restarts their fade-in; keep them visible */
 .admTab{min-height:56px;padding:8px 6px;font-size:clamp(13px,3.7vw,15px);font-weight:800;line-height:1.25;white-space:normal;text-align:center;display:flex;align-items:center;justify-content:center;border-radius:16px;word-break:keep-all;overflow-wrap:anywhere}
 .admTab.pri{box-shadow:0 8px 20px -10px var(--p)}
@@ -724,7 +724,7 @@ en: {
   submitted:'Waiting', needs_fix:'Needs fix', approved:'Approved',
   addMember:'Add member', memberEmail:'Member email', nameLbl:'Name', add:'Add',
   memberHint:'Enter email, name and a temporary password. The login is created automatically.',
-  memberCount:'members', admin:'Admin', controlPanel:'Control panel', member:'Member', resetData:'Reset all entries', resetWarn:'All entries, pay slips and notes will be deleted. Every member days go back to 30 and deposit to 0. Members stay. This cannot be undone.', enterAdminPw:'Enter admin password to confirm', resetDone:'All entries were reset', dangerZone:'Danger zone', resetAll:'Delete all', month:'Month', allMonths:'All months', exportCsv:'Download CSV', search:'Search name or note', memberRemove:'Remove member', memberRemoveWarn:'Remove this member? Their entries stay.', memberPage:'Account', rotate:'Rotate', zoomIn:'Zoom +', zoomOut:'Zoom −', noMatch:'No match', themeByAdmin:'Theme is set by the admin', adminOnly:'Only the admin can change this', changePw:'Change password', curPw:'Current password', newPw:'New password', confPw:'Confirm new password', pwShort:'At least 6 characters', pwMismatch:'Passwords do not match', wrongPw:'Current password is wrong', pwChanged:'Password changed', locked:'Locked', back:'Back', paySlip:'Pay slip (required)', needSlip:'Pay slip photo is required. Without it the entry will NOT be saved.', viewSlip:'Tap to view pay slip',
+  memberCount:'members', admin:'Admin', controlPanel:'Control panel', member:'Member', resetData:'Reset all entries', resetWarn:'All entries, pay slips and notes will be deleted. Every member days go back to 30 and deposit to 0. Members stay. This cannot be undone.', enterAdminPw:'Enter admin password to confirm', resetDone:'All entries were reset', dangerZone:'Danger zone', resetAll:'Delete all', month:'Month', allMonths:'All months', exportCsv:'Download CSV', search:'Name or note', memberRemove:'Remove member', memberRemoveWarn:'Remove this member? Their entries stay.', memberPage:'Account', rotate:'Rotate', zoomIn:'Zoom +', zoomOut:'Zoom −', noMatch:'No match', themeByAdmin:'Theme is set by the admin', adminOnly:'Only the admin can change this', changePw:'Change password', curPw:'Current password', newPw:'New password', confPw:'Confirm new password', pwShort:'At least 6 characters', pwMismatch:'Passwords do not match', wrongPw:'Current password is wrong', pwChanged:'Password changed', locked:'Locked', back:'Back', paySlip:'Pay slip (required)', needSlip:'Pay slip photo is required. Without it the entry will NOT be saved.', viewSlip:'Tap to view pay slip',
   quickEntry:'Quick entry', preferences:'Preferences', language:'Language', theme:'Theme', dark:'Dark', light:'Light', auto:'Auto',
   fontSize:'Font size', small:'Small', medium:'Medium', large:'Big',
   management:'Mess management', manageMembers:'Members, days & deposit', account:'Account',
@@ -745,7 +745,7 @@ bn: {
   submitted:'অপেক্ষমাণ', needs_fix:'সংশোধন দরকার', approved:'অনুমোদিত',
   addMember:'সদস্য যোগ', memberEmail:'সদস্যের ইমেইল', nameLbl:'নাম', add:'যোগ',
   memberHint:'ইমেইল, নাম আর একটা অস্থায়ী পাসওয়ার্ড দাও। লগইন নিজে থেকেই তৈরি হবে।',
-  memberCount:'জন', admin:'অ্যাডমিন', controlPanel:'কন্ট্রোল প্যানেল', member:'সদস্য', resetData:'সব এন্ট্রি রিসেট', resetWarn:'সব এন্ট্রি, পে-স্লিপ ও নোট মুছে যাবে। প্রত্যেক সদস্যের দিন ৩০ আর জমা ০ হবে। সদস্যরা থাকবে। এটা ফেরানো যাবে না।', enterAdminPw:'নিশ্চিত করতে অ্যাডমিন পাসওয়ার্ড দাও', resetDone:'সব এন্ট্রি রিসেট হয়েছে', dangerZone:'বিপজ্জনক এলাকা', resetAll:'সব মুছো', month:'মাস', allMonths:'সব মাস', exportCsv:'CSV ডাউনলোড', search:'নাম বা বিবরণ খুঁজুন', memberRemove:'সদস্য মুছো', memberRemoveWarn:'এই সদস্যকে মুছবে? তার এন্ট্রিগুলো থাকবে।', memberPage:'হিসাব', rotate:'ঘোরাও', zoomIn:'বড়', zoomOut:'ছোট', noMatch:'মিলছে না', themeByAdmin:'থিম অ্যাডমিন ঠিক করে দেয়', adminOnly:'এটা শুধু অ্যাডমিন বদলাতে পারবে', changePw:'পাসওয়ার্ড পরিবর্তন', curPw:'বর্তমান পাসওয়ার্ড', newPw:'নতুন পাসওয়ার্ড', confPw:'নতুন পাসওয়ার্ড আবার লেখো', pwShort:'কমপক্ষে ৬ অক্ষর', pwMismatch:'দুটো পাসওয়ার্ড মিলছে না', wrongPw:'বর্তমান পাসওয়ার্ড ভুল', pwChanged:'পাসওয়ার্ড বদলানো হয়েছে', locked:'লক করা', back:'ফিরে যাও', paySlip:'পে-স্লিপ (বাধ্যতামূলক)', needSlip:'পে-স্লিপের ছবি ছাড়া এন্ট্রি সেভ হবে না। ছবি যোগ করে আবার Save দাও।', viewSlip:'পে-স্লিপ দেখতে ট্যাপ করো',
+  memberCount:'জন', admin:'অ্যাডমিন', controlPanel:'কন্ট্রোল প্যানেল', member:'সদস্য', resetData:'সব এন্ট্রি রিসেট', resetWarn:'সব এন্ট্রি, পে-স্লিপ ও নোট মুছে যাবে। প্রত্যেক সদস্যের দিন ৩০ আর জমা ০ হবে। সদস্যরা থাকবে। এটা ফেরানো যাবে না।', enterAdminPw:'নিশ্চিত করতে অ্যাডমিন পাসওয়ার্ড দাও', resetDone:'সব এন্ট্রি রিসেট হয়েছে', dangerZone:'বিপজ্জনক এলাকা', resetAll:'সব মুছো', month:'মাস', allMonths:'সব মাস', exportCsv:'CSV ডাউনলোড', search:'নাম/নোট খোঁজো', memberRemove:'সদস্য মুছো', memberRemoveWarn:'এই সদস্যকে মুছবে? তার এন্ট্রিগুলো থাকবে।', memberPage:'হিসাব', rotate:'ঘোরাও', zoomIn:'বড়', zoomOut:'ছোট', noMatch:'মিলছে না', themeByAdmin:'থিম অ্যাডমিন ঠিক করে দেয়', adminOnly:'এটা শুধু অ্যাডমিন বদলাতে পারবে', changePw:'পাসওয়ার্ড পরিবর্তন', curPw:'বর্তমান পাসওয়ার্ড', newPw:'নতুন পাসওয়ার্ড', confPw:'নতুন পাসওয়ার্ড আবার লেখো', pwShort:'কমপক্ষে ৬ অক্ষর', pwMismatch:'দুটো পাসওয়ার্ড মিলছে না', wrongPw:'বর্তমান পাসওয়ার্ড ভুল', pwChanged:'পাসওয়ার্ড বদলানো হয়েছে', locked:'লক করা', back:'ফিরে যাও', paySlip:'পে-স্লিপ (বাধ্যতামূলক)', needSlip:'পে-স্লিপের ছবি ছাড়া এন্ট্রি সেভ হবে না। ছবি যোগ করে আবার Save দাও।', viewSlip:'পে-স্লিপ দেখতে ট্যাপ করো',
   quickEntry:'দ্রুত এন্ট্রি', preferences:'পছন্দ', language:'ভাষা', theme:'থিম', dark:'ডার্ক', light:'লাইট', auto:'অটো',
   fontSize:'ফন্ট সাইজ', small:'ছোট', medium:'মাঝারি', large:'বড়',
   management:'মেস ব্যবস্থাপনা', manageMembers:'সদস্য, দিন ও জমা', account:'অ্যাকাউন্ট',
@@ -1314,7 +1314,7 @@ function superMessTabHtml(id) {
     + (superOverdue(m) ? `<span class="badge b-bad">${bn ? 'সাবস্ক্রিপশন বকেয়া' : 'Subscription due'}</span>` : '');
   const kpi = (l, v) => `<div class="sKpi"><div class="sub">${l}</div><b class="num">${v}</b></div>`;
   const members = (m.memList || []).map(x => `<div class="entry" style="flex-direction:column;align-items:stretch;padding:10px 0">
-      <div class="row between"><b>${esc(x.name)}</b>${x.email === m.admin ? `<span class="badge b-ok">Admin</span>` : ''}</div>
+      <div class="row between"><b>${esc(x.name)}</b>${x.email === m.admin ? `<span class="badge b-ok">${lang === 'bn' ? 'অ্যাডমিন' : 'Admin'}</span>` : ''}</div>
       <div class="sub" style="word-break:break-all">${esc(x.email)}</div>
       <div class="sub">${bn ? 'দিন' : 'Days'}: <b class="num">${x.days != null ? x.days : 30}</b> · ${bn ? 'জমা' : 'Deposit'}: <b class="num">${f2(x.deposit || 0)}</b></div>
     </div>`).join('') || `<div class="sub">${bn ? 'কোনো সদস্য নেই' : 'No members'}</div>`;
@@ -2234,6 +2234,17 @@ async function toggleInbox() {
 let restoredPage = false;
 // read once when the app loads, before startup code can overwrite it
 const savedPage = (() => { try { return localStorage.getItem('mh_last_page') || ''; } catch (e) { return ''; } })();
+/* admin only: a short status row at the top of Home (month bazar, members, waiting entries) */
+function adminSummaryHtml() {
+  const bn = lang === 'bn';
+  const sumB = entries.filter(x => x.status === 'approved' && String(x.date).slice(0, 7) === month).reduce((a, x) => a + num(x.amount), 0);
+  const pend = entries.filter(x => x.status === 'submitted').length;
+  return `<div class="card" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;padding:12px">
+    <div><div class="sub" style="font-size:12px">${bn ? 'মোট বাজার' : 'Total bazar'}</div><b class="num">${f2(sumB)}</b></div>
+    <div><div class="sub" style="font-size:12px">${bn ? 'সদস্য' : 'Members'}</div><b class="num">${members.length}</b></div>
+    <button onclick="go('admin');admTabSet('wait')" style="background:none;border:0;padding:0;color:inherit;min-height:0"><div class="sub" style="font-size:12px">${bn ? 'অপেক্ষমাণ' : 'Waiting'}</div><b class="num" style="color:${pend ? 'var(--bad)' : 'var(--pos)'}">${pend}</b></button>
+  </div>`;
+}
 function renderHome() {
   // the Home tab always uses the member layout, also for the admin; admin tools live in Entries and Control panel
   const memberLayout = true;
@@ -2352,8 +2363,6 @@ function renderHome() {
         <span style="flex:1;min-width:0"><b style="display:block;font-size:16px">${lang === 'bn' ? 'আমার এন্ট্রি ও ছবি' : 'My entries & photos'}</b><span class="sub" style="font-size:13px;line-height:1.4;display:block">${gMonth.length} ${lang === 'bn' ? 'টি এন্ট্রি' : (gMonth.length === 1 ? 'entry' : 'entries')} · <span style="color:var(--pos);font-weight:700">${gMonth.length - gWait} ${lang === 'bn' ? 'টি অনুমোদিত' : 'approved'}</span>${gWait ? ` · <span style="color:var(--bad);font-weight:700">${gWait} ${lang === 'bn' ? 'টি অপেক্ষমাণ' : 'waiting'}</span>` : ''}</span></span>
         <span style="font-size:24px;opacity:.7">›</span></button>`;
       const all = mineM.slice().sort(byNewest);
-      const shown = all.slice(0, homeLimit);
-      const more = all.length > homeLimit ? `<button class="ghost" style="width:100%;margin-top:10px" onclick="homeMore()">${lang === 'bn' ? 'আরও দেখাও' : 'Show more'} (${all.length - homeLimit})</button>` : '';
     }
     moreH += `<div><h3>${t('statusCount')}</h3>` + ['submitted', 'approved'].map(s =>
       `<div class="row between" style="padding:6px 0"><span class="badge ${STATUS_CLS[s]}">${t(s)}</span><b class="num">${mineM.filter(x => x.status === s).length}</b></div>`
@@ -2377,14 +2386,12 @@ function renderHome() {
         <span style="font-size:16px;opacity:.75">${allView ? '▴' : '▾'}</span></button></div></div>`;
       if (allView) {
         const others = allEmails().slice().sort((a, b) => bazarOf(b) - bazarOf(a));   // everyone, me included (★)
-        const shown = others.slice(0, balLimit);
-        const more = others.length > balLimit ? `<button class="ghost" style="width:100%;margin-top:10px;min-height:40px" onclick="balMore()">${bnL ? 'আরও দেখাও' : 'Show more'} (${others.length - balLimit})</button>` : '';
         allRowList = others.map(rowHtml);   // rows built here, shown in the popup
         setTimeout(openAllPopup, 0);   // the list opens as a popup with a close button
       }
     }
   }
-  $('hContent').innerHTML = h;
+  $('hContent').innerHTML = (isMgr ? adminSummaryHtml() : '') + h;
   $('hContent').classList.toggle('memberHome', memberLayout || !isMgr);
   updateBazarStatus();
 /* member home: shrink the whole page a little so every section fits the screen height (never enlarged) */
@@ -2603,7 +2610,7 @@ function startEdit(id) {
   editId = id;
   $('fDate').value = x.date; $('fAmt').value = x.amount; $('fNote').value = x.note || ''; $('fPhoto').value = '';
   $('fPrev').innerHTML = '';
-  if (x.photo) $('fPrev').innerHTML = `<img src="${x.photo}" class="thumb" alt="">`;
+  if (x.photo) $('fPrev').innerHTML = `<img src="${esc(x.photo)}" class="thumb" alt="">`;
   else getSlip(id).then(src => { if (src && editId === id) $('fPrev').innerHTML = `<img src="${src}" class="thumb" alt="">`; });
   $('fTitle').innerText = t('editEntry');
   $('fCancel').classList.remove('hidden');
@@ -2649,7 +2656,7 @@ function avHtml(email, style = '') {
   const m = memberOf(email) || {};
   const ch = (nameOf(email)[0] || '?').toUpperCase();
   const hue = [...String(email)].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-  if (m.photo) return `<div class="mav" style="${style};padding:0;overflow:hidden"><img src="${m.photo}" alt="" style="width:100%;height:100%;object-fit:cover"></div>`;
+  if (m.photo) return `<div class="mav" style="${style};padding:0;overflow:hidden"><img src="${esc(m.photo)}" alt="" style="width:100%;height:100%;object-fit:cover"></div>`;
   return `<div class="mav" style="${style};background:linear-gradient(135deg,hsl(${hue},70%,55%),hsl(${(hue + 40) % 360},70%,60%))">${esc(ch)}</div>`;
 }
 function compress(file) {
@@ -2914,7 +2921,7 @@ function quickSlipBody() {
   const list = allEmails().map(e => ({ e, n: nameOf(e) })).sort((a, b) => a.n.localeCompare(b.n));
   const today = new Date().toLocaleDateString('en-CA');
   const rows = qSlips.map((r, i) => `<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd)">
-      <img src="${r.photo}" style="width:52px;height:52px;object-fit:cover;border-radius:10px;flex:none">
+      <img src="${esc(r.photo)}" style="width:52px;height:52px;object-fit:cover;border-radius:10px;flex:none">
       <div style="flex:1;min-width:0;display:grid;gap:6px">
         <select onchange="qSlipSet(${i},'email',this.value)">${list.map(x => `<option value="${esc(x.e)}" ${x.e === r.email ? 'selected' : ''}>${esc(x.n)}</option>`).join('')}</select>
         <input type="text" inputmode="decimal" placeholder="${bn ? 'অংক' : 'Amount'}" value="${r.amt}" oninput="qSlipSet(${i},'amt',this.value)" style="margin:0">
@@ -3440,10 +3447,12 @@ function renderAdmin() {
 
   }
   if (admTab === 'settings') {
+  h += gh(isBn ? 'বাজার' : 'Bazar');
   h += sec(isBn ? 'সদস্যদের বাজার যোগ' : 'Member bazar entry', `
       <div class="sub" style="margin-bottom:8px">${bazarOn() ? (isBn ? 'এখন চালু: সদস্যরা বাজার যোগ করতে পারবে।' : 'On: members can add bazar.') : (isBn ? 'এখন বন্ধ: সদস্যরা বাজার যোগ করতে পারবে না।' : 'Off: members cannot add bazar.')}</div>
       <button class="${bazarOn() ? 'bad' : 'pri'}" style="width:100%" onclick="toggleBazarMode()">${bazarOn() ? (isBn ? 'বন্ধ করো' : 'Turn off') : (isBn ? 'চালু করো' : 'Turn on')}</button>
       <div class="row" style="margin-top:12px;justify-content:space-between;align-items:center;gap:8px"><span class="sub">${isBn ? 'সদস্যের স্ক্রিনে "বাজার যোগ: চালু/বন্ধ" ব্যাজ' : 'Members see "Bazar entry" badge'}</span><button class="${showBadge ? 'ghost' : 'pri'}" style="min-height:38px;padding:6px 12px;font-size:13px" onclick="toggleBadgeShow()">${showBadge ? (isBn ? 'লুকাও' : 'Hide') : (isBn ? 'দেখাও' : 'Show')}</button></div>`, false);
+  h += gh(isBn ? 'ডেটা ও আরও' : 'Data & more');
   // rarely used tools sit in one folded section
   h += `<details class="sec" style="margin:0 0 12px"><summary>${isBn ? 'আরও অপশন (ব্যাকআপ, কার্যক্রম লগ)' : 'More options (backup, activity log)'}</summary><div class="secBody">`;
   h += sec(isBn ? 'ডেটা ও ব্যাকআপ' : 'Data & backup', `
