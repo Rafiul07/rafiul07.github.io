@@ -1083,7 +1083,7 @@ function superSettingsHtml() {
     <div class="acts"><button class="${theme === 'dark' ? 'pri' : 'ghost'}" onclick="setSuperTheme('dark')">Dark</button><button class="${theme === 'light' ? 'pri' : 'ghost'}" onclick="setSuperTheme('light')">Light</button></div>
     <h3 style="margin:14px 0 8px">${bn ? 'আমার password' : 'My password'}</h3>
     <button class="ghost" style="width:100%" onclick="superResetSelf()">${bn ? 'আমার password বদলানোর ইমেইল পাঠাও' : 'Send password reset email to me'}</button>
-    <h3 style="margin:14px 0 8px">${bn ? 'অ্যাকাউন্ট' : 'Account'}</h3>
+    <h3 style="margin:14px 0 8px">${bn ? 'লগইন ও লগআউট' : 'Login & logout'}</h3>
     <div class="sub" style="margin-bottom:8px">${esc(me)}</div>
     <button class="bad" style="width:100%" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`;
 }
@@ -3340,7 +3340,6 @@ function settingsHtml(skipMe = false) {
       <div class="sub" style="margin:14px 0 6px">${isBn ? 'iPhone: Safari-তে নিচের Share (⬆) চাপো, তারপর "Add to Home Screen" চাপো।' : 'iPhone: in Safari tap Share (⬆), then "Add to Home Screen".'}</div>
       ${deferredPrompt ? `<button class="pri" style="width:100%" onclick="installApp()">${isBn ? 'ইনস্টল করো' : 'Install'}</button>` : ''}`, false);
 
-  h += gh(isBn ? 'অ্যাকাউন্ট' : 'Account');
   h += sec(t('account'), `
       <button class="item" onclick="changePassword()"><span>${t('changePw')}</span><span class="sub">›</span></button>
       <button class="item" onclick="resetPw()"><span>${t('resetPw')}</span><span class="sub">›</span></button>
@@ -3424,14 +3423,8 @@ function renderAdmin() {
       <div class="lbl" style="margin-top:14px">${isBn ? 'মাস বন্ধ করা' : 'Close month'}</div>
       <div class="sub" style="margin-bottom:6px">${isBn ? 'বন্ধ মাসের এন্ট্রি আর বদলানো যাবে না।' : 'Entries in a closed month cannot be changed.'}</div>
       <div class="sub num" style="margin-bottom:6px">${isBn ? 'বন্ধ মাস' : 'Closed'}: ${closedMonths.length ? closedMonths.join(', ') : '—'}</div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="item" style="flex:1;margin:0" onclick="toggleClose()"><span>${isBn ? 'মাস বন্ধ / খোলা' : 'Close / reopen month'}</span><span class="sub">›</span></button>
-        <button class="item" style="flex:1;margin:0" onclick="newMonthReset()"><span>${isBn ? 'নতুন মাস শুরু' : 'Start new month'}</span><span class="sub">›</span></button>
-      </div>
-      <div class="sub" style="margin-top:6px">${isBn ? 'নতুন মাস শুরু করলে সবার দিন ৩০ হবে। জমা বদলাবে না।' : 'New month sets everyone to 30 days. Deposits stay the same.'}</div>
       <div class="lbl" style="margin-top:14px">${isBn ? 'রিপোর্ট' : 'Report'}</div>
       <button class="item" onclick="exportCSV()"><span>⬇️ ${t('exportCsv')}</span><span class="sub">›</span></button>
-      <button class="item" onclick="monthReport()"><span>📊 ${isBn ? 'মাসের সারাংশ (টেবিল)' : 'Month report (table)'}</span><span class="sub">›</span></button>
       <button class="item" onclick="shareSummary()"><span>📤 ${isBn ? 'সারাংশ শেয়ার করো' : 'Share summary'}</span><span class="sub">›</span></button>`, false);
 
   }
