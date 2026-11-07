@@ -3068,7 +3068,7 @@ async function memberGallery(email) {
   const groups = months.map(m => {
     const idx = list.map((x, i) => i).filter(i => String(list[i].date).slice(0, 7) === m);
     const body = idx.map(i => row(list[i], i)).join('');
-    return `<details ${m === curM ? 'open' : ''} style="margin-top:10px"><summary style="font-weight:800;color:var(--p);padding:6px 0;cursor:pointer;list-style:none">${monthLabel(m)} <span class="sub">(${idx.length})</span></summary>${body}</details>`;
+    return `<details ${m === curM ? 'open' : ''} style="margin-top:14px;border:1px solid var(--bd);border-radius:14px;padding:6px 12px 8px;background:var(--card2)"><summary style="font-weight:800;color:var(--p);padding:6px 0;cursor:pointer;list-style:none">${monthLabel(m)} <span class="sub">(${idx.length})</span></summary>${body}</details>`;
   }).join('');
   const old = document.getElementById('memGal'); if (old) old.remove();
   const box = document.createElement('div');
