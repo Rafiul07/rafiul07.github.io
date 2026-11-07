@@ -552,8 +552,8 @@ details.sCard>summary::-webkit-details-marker{display:none}
       <div id="bazarStatus" class="hidden" style="margin-bottom:10px;padding:8px 12px;border-radius:12px;font-weight:700;font-size:14px"></div>
       <div class="card" id="qBar" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div id="messHead" style="grid-column:1/-1"></div>
-        <button id="addBtn1" class="pri" style="width:100%;white-space:nowrap" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
-        <button id="notesOpenBtn" onclick="openNotesPop()" style="width:100%;min-height:52px;border:0;border-radius:14px;color:#fff;font-weight:800;background:linear-gradient(135deg,#f97316,#ec4899);box-shadow:0 8px 20px rgba(236,72,153,.28)"></button>
+        <button id="addBtn1" class="pri" style="width:100%;white-space:nowrap;min-height:44px;padding:10px 12px;font-size:15px" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
+        <button id="notesOpenBtn" onclick="openNotesPop()" style="width:100%;min-height:44px;font-size:15px;border:0;border-radius:14px;color:#fff;font-weight:800;background:linear-gradient(135deg,#f97316,#ec4899);box-shadow:0 8px 20px rgba(236,72,153,.28)"></button>
       </div>
       <div class="card hidden" id="notesCard">
         <h3 id="notesTitle"></h3>
@@ -2129,8 +2129,8 @@ function messTitleHtml() {
   // shorter names stay big, long names get smaller so the hero card does not grow
   const nl = [...String(messName || '')].length;
   const tfs = nl > 14 ? 18 : nl > 8 ? 22 : 26;
-  return `<div style="text-align:center;margin:6px 0 14px">
-    <div style="display:flex;justify-content:flex-end"><button onclick="quickTheme()" aria-label="theme" title="theme" style="min-height:34px;width:34px;padding:0;border-radius:50%;font-size:16px;flex:none">${document.body.classList.contains('light') ? '🌙' : '☀️'}</button></div>
+  return `<div style="text-align:center;margin:2px 0 6px;position:relative">
+    <div style="position:absolute;top:0;right:0"><button onclick="quickTheme()" aria-label="theme" title="theme" style="min-height:34px;width:34px;padding:0;border-radius:50%;font-size:16px;flex:none">${document.body.classList.contains('light') ? '🌙' : '☀️'}</button></div>
     <div class="sub" style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.7">${bn ? 'আমাদের মেস' : 'Our mess'}</div>
     <div id="messNameTitle" style="font-size:${tfs}px;font-weight:900;letter-spacing:.5px;line-height:1.2;margin-top:4px;padding:2px 6px;background-image:${messGrad()};-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;filter:drop-shadow(0 4px 14px rgba(124,92,255,.25))">${esc(messName)}</div>
   </div>`;
