@@ -754,7 +754,7 @@ let memPickId = '';   // admin member popup: entry picked from the amount boxes 
 let homeLimit = 5;  // member home: recent entries shown (5 at a time)  // admin member popup: month shown in the list (empty = this month)   // member home: show only me, or everyone (toggle at the bottom of the "আমার হিসাব" card)
 /* toggle, then keep the account card on screen so the user stays in the members area */
 function toggleAllView() {
-  allView = !allView; balLimit = 5; render();
+  allView = !allView; balLimit = 5; allPage = 1; render();
   const el = document.getElementById('balCard');
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -2348,7 +2348,8 @@ function renderHome() {
         const others = allEmails().slice().sort((a, b) => bazarOf(b) - bazarOf(a));   // everyone, me included (★)
         const shown = others.slice(0, balLimit);
         const more = others.length > balLimit ? `<button class="ghost" style="width:100%;margin-top:10px;min-height:40px" onclick="balMore()">${bnL ? 'আরও দেখাও' : 'Show more'} (${others.length - balLimit})</button>` : '';
-        h += `<div class="card" id="allCard" style="border:2px solid var(--s);box-shadow:0 0 0 3px rgba(34,211,238,.12);margin-top:14px"><h3 style="margin:0 0 6px">${bnL ? 'সব সদস্য' : 'All members'} <span class="sub">(${others.length})</span></h3>${shown.map(rowHtml).join('')}${more}</div>`;
+        allRowList = others.map(rowHtml);   // rows built here, shown in the popup
+        setTimeout(openAllPopup, 0);   // the list opens as a popup with a close button
       }
     }
   }
@@ -3777,6 +3778,28 @@ function miniRow(x, withName = false) {
   </div></div>`;
 }
 function balMore() { balLimit += 5; render(); }
+/* the all-members list: a popup with a close button, 6 members per page */
+let allPage = 1, allRowList = [];
+const ALL_PER_PAGE = 6;
+function openAllPopup() {
+  const bnL = lang === 'bn';
+  const others = allRowList;
+  const pages = Math.max(1, Math.ceil(others.length / ALL_PER_PAGE));
+  if (allPage > pages) allPage = pages;
+  const show = others.slice((allPage - 1) * ALL_PER_PAGE, allPage * ALL_PER_PAGE);
+  const pager = pages > 1 ? `<div class="row between" style="margin-top:12px;gap:8px"><button class="ghost" ${allPage <= 1 ? 'disabled' : ''} onclick="allGo(${allPage - 1})">‹ ${bnL ? 'আগে' : 'Prev'}</button><span class="sub num">${allPage} / ${pages}</span><button class="ghost" ${allPage >= pages ? 'disabled' : ''} onclick="allGo(${allPage + 1})">${bnL ? 'পরে' : 'Next'} ›</button></div>` : '';
+  const old = document.getElementById('allPop'); if (old) old.remove();
+  const box = document.createElement('div');
+  box.id = 'allPop';
+  box.style.cssText = 'position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px';
+  box.innerHTML = `<div class="card" style="width:100%;max-width:560px;max-height:90vh;overflow:auto;padding-top:18px;border:2px solid var(--s)">
+    <div class="row between" style="margin-bottom:8px"><h3 style="margin:0">${bnL ? 'সব সদস্য' : 'All members'} <span class="sub">(${others.length})</span></h3><button class="ghost" onclick="closeAllPopup()">✕</button></div>
+    ${show.join('')}${pager}
+  </div>`;
+  document.body.appendChild(box);
+}
+function allGo(n) { allPage = n; openAllPopup(); }
+function closeAllPopup() { allView = false; allPage = 1; const b = document.getElementById('allPop'); if (b) b.remove(); render(); }
 function homeMore() { homeLimit += 5; render(); }
 function memMore() { memLimit += 5; openMember(memOpen); }
 /* redraw the open member account (admin only) when entries change, so approvals, edits and new entries show at once */
