@@ -2344,6 +2344,17 @@ function renderHome() {
     }
   }
   $('hContent').innerHTML = h;
+  fitHome();
+/* member home: shrink the whole page a little so every section fits the screen height (never enlarged) */
+function fitHome() {
+  const hc = $('hContent'); if (!hc) return;
+  hc.style.zoom = '';
+  if (isMgr || page !== 'home' || !me) return;
+  const room = innerHeight - hc.getBoundingClientRect().top - 110;   // space left for the bottom bar and the + button
+  const need = hc.scrollHeight;
+  if (room > 0 && need > room) hc.style.zoom = Math.max(0.6, room / need).toFixed(3);
+}
+window.addEventListener('resize', () => fitHome());
 }
 
 function recentList(list, n, withName) {
