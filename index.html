@@ -552,7 +552,10 @@ details.sCard>summary::-webkit-details-marker{display:none}
   <div class="stickyTop">
     <header class="top">
       <span class="brand">MESS HISAB PRO</span>
-      <span class="role" id="roleTag"></span>
+      <span style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span id="bazarStatus" class="hidden" style="display:inline-block;padding:3px 8px;border-radius:999px;font-weight:700;font-size:11px;line-height:1.4;white-space:nowrap"></span>
+        <span class="role" id="roleTag"></span>
+      </span>
     </header>
     <nav class="nav" id="nav"></nav>
   <button id="fabAdd" class="fab hidden" aria-label="add" onclick="openEntryPop()">+</button>
@@ -560,7 +563,6 @@ details.sCard>summary::-webkit-details-marker{display:none}
 
   <main class="wrap">
     <section id="pgHome">
-      <div id="bazarStatus" class="hidden" style="display:inline-block;margin-bottom:8px;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px;line-height:1.4"></div>
       <div class="card" id="qBar" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div id="messHead" style="grid-column:1/-1"></div>
         <button id="addBtn1" class="pri" style="width:100%;white-space:nowrap;min-height:44px;padding:10px 12px;font-size:15px" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
