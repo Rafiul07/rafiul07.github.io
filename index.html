@@ -3156,7 +3156,7 @@ function closeGallery() { galOpenEmail = ''; const g = document.getElementById('
 async function shareMonthImage() {
   const R = lastReport; if (!R) return;
   const bn = lang === "bn";
-  const W = 720, rowH = 44, top = 170, H = top + R.rows.length * rowH + 120;
+  const W = 720, rowH = 44, top = 215, H = top + R.rows.length * rowH + 120;   // rows start below the header line (y=160)
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const g = cv.getContext("2d");
   const grd = g.createLinearGradient(0, 0, W, 0); grd.addColorStop(0, "#7c5cff"); grd.addColorStop(1, "#22d3ee");
