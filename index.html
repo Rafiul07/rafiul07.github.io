@@ -3049,37 +3049,38 @@ async function addMember() {
 /* ================= SETTINGS ================= */
 /* photo gallery of one member's bazar slips (admin only, opened from the member account) */
 let galOpenEmail = '';
-/* entries and photos of one member, grouped by month; the current month opens, older months stay folded until tapped */
+let galMonth = '';
+/* one month at a time: month buttons on top, like the home page; the current month opens first */
 async function memberGallery(email) {
   const bn = lang === 'bn';
   galOpenEmail = email;
   const list = entries.filter(x => x.memberEmail === email).sort(byNewest);
-  const srcs = await Promise.all(list.map(x => getSlip(x.id).catch(() => null)));
   const curM = today().slice(0, 7);
   const months = [...new Set(list.map(x => String(x.date).slice(0, 7)))];
-  const row = (x, i) => `<div style="display:flex;gap:10px;align-items:flex-start;border-top:1px solid var(--bd);padding:10px 0">
-      ${srcs[i] ? `<button onclick="openImg(this.dataset.src)" data-src="${srcs[i]}" style="padding:0;min-height:0;width:68px;height:68px;flex:none;border-radius:10px;overflow:hidden;background:none"><img src="${srcs[i]}" style="width:100%;height:100%;object-fit:cover;display:block"></button>` : `<div class="sub" style="width:68px;height:68px;flex:none;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:11px">${bn ? 'ছবি নেই' : 'No photo'}</div>`}
+  if (!galMonth || !months.includes(galMonth)) galMonth = months.includes(curM) ? curM : (months[0] || curM);
+  const idx = list.map((x, i) => i).filter(i => String(list[i].date).slice(0, 7) === galMonth);
+  const srcs = await Promise.all(idx.map(i => getSlip(list[i].id).catch(() => null)));
+  const row = (x, k) => `<div style="display:flex;gap:10px;align-items:flex-start;border-top:1px solid var(--bd);padding:10px 0">
+      ${srcs[k] ? `<button onclick="openImg(this.dataset.src)" data-src="${srcs[k]}" style="padding:0;min-height:0;width:68px;height:68px;flex:none;border-radius:10px;overflow:hidden;background:none"><img src="${srcs[k]}" style="width:100%;height:100%;object-fit:cover;display:block"></button>` : `<div class="sub" style="width:68px;height:68px;flex:none;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:11px">${bn ? 'ছবি নেই' : 'No photo'}</div>`}
       <div style="flex:1;min-width:0">
         <div class="row between" style="flex-wrap:nowrap;align-items:center"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
         <div class="sub">${CAL}${fmtDate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</div>
         <div class="acts">${actsOf(x)}</div>
       </div>
     </div>`;
-  const groups = months.map(m => {
-    const idx = list.map((x, i) => i).filter(i => String(list[i].date).slice(0, 7) === m);
-    const body = idx.map(i => row(list[i], i)).join('');
-    return `<details ${m === curM ? 'open' : ''} style="margin-top:14px;border:1px solid var(--bd);border-radius:14px;padding:6px 12px 8px;background:var(--card2)"><summary style="font-weight:800;color:var(--p);padding:6px 0;cursor:pointer;list-style:none">${monthLabel(m)} <span class="sub">(${idx.length})</span></summary>${body}</details>`;
-  }).join('');
+  const chips = months.map(m => `<button class="chip ${m === galMonth ? 'on' : ''}" onclick="galPick('${m}')">${monthLabel(m)}</button>`).join('');
   const old = document.getElementById('memGal'); if (old) old.remove();
   const box = document.createElement('div');
   box.id = 'memGal';
   box.style.cssText = 'position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px';
   box.innerHTML = `<div class="card" style="width:100%;max-width:560px;max-height:90vh;overflow:auto;padding-top:18px">
     <div class="row between" style="margin-bottom:8px"><h3 style="margin:0">${bn ? 'আমার এন্ট্রি ও ছবি' : 'My entries & photos'} · ${esc(nameOf(email))}</h3><button class="ghost" onclick="closeGallery()">✕</button></div>
-    ${list.length ? groups : `<div class="sub">${bn ? 'কোনো এন্ট্রি নেই' : 'No entries'}</div>`}
+    ${months.length ? `<div class="chips">${chips}</div>` : ''}
+    ${idx.length ? idx.map((i, k) => row(list[i], k)).join('') : `<div class="sub">${bn ? 'কোনো এন্ট্রি নেই' : 'No entries'}</div>`}
   </div>`;
   document.body.appendChild(box);
 }
+function galPick(m) { galMonth = m; if (galOpenEmail) memberGallery(galOpenEmail); }
 function closeGallery() { galOpenEmail = ''; const g = document.getElementById('memGal'); if (g) g.remove(); }
 /* share the month report as a picture (phone share sheet, or a download on a computer) */
 async function shareMonthImage() {
