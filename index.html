@@ -132,6 +132,9 @@ body.light .chip.s-submitted:not(.on){color:#2563eb}
 .dayHead{display:flex;justify-content:space-between;align-items:center;margin:14px 0 4px;padding:6px 2px;border-bottom:1px solid var(--bd);font-weight:700;font-size:13px}
 .dayHead .num{font-weight:800}
 .filterBar{margin:0 0 12px;padding:0 0 12px;border-bottom:1px solid var(--bd)}
+.entriesHead{cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:40px;user-select:none}
+.entriesHead h3{margin:0}
+.entriesArrow{font-size:18px;opacity:.7;transition:transform .2s}
 body.light .entry .acts .ghost{color:#2563eb}
 .seg button{min-height:42px}
 .item{min-height:52px}
@@ -628,8 +631,8 @@ details.sCard>summary::-webkit-details-marker{display:none}
         </div>
         <div id="chipRow" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div>
       </div>
-        <h3 id="listTitle"></h3>
-        <div id="entryList"></div>
+        <div class="entriesHead" onclick="entriesToggle()"><h3 id="listTitle"></h3><span id="entriesArrow" class="entriesArrow">▾</span></div>
+        <div id="entryList" class="hidden" style="margin-top:10px"></div>
       </div>
     </section>
 
@@ -2434,6 +2437,9 @@ function recentList(list, n, withName) {
 const byNewest = (a, b) => String(b.date).localeCompare(String(a.date)) || num(b.createdAt) - num(a.createdAt);
 
 /* ================= ENTRIES ================= */
+let entriesOpen = false;   // the Entries list is hidden until tapped
+function entriesToggle() { entriesOpen = !entriesOpen; applyEntriesOpen(); }
+function applyEntriesOpen() { const l = $('entryList'), a = $('entriesArrow'); if (l) l.classList.toggle('hidden', !entriesOpen); if (a) a.style.transform = entriesOpen ? 'rotate(180deg)' : ''; }
 function renderEntries() {
   $('fMemberBox').classList.toggle('hidden', !isMgr || !!editId);
   if (isMgr) {
