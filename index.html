@@ -133,7 +133,7 @@ body.light .chip.s-submitted:not(.on){color:#2563eb}
 .dayHead .num{font-weight:800}
 .filterBar{margin:0 0 12px;padding:0 0 12px;border-bottom:1px solid var(--bd)}
 .entriesHead{cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:40px;user-select:none}
-.entriesHead h3{margin:0}
+.entriesHead h3{margin:0;color:var(--tx);font-size:clamp(17px,4.8vw,19px)}
 .entriesArrow{font-size:18px;opacity:.7;transition:transform .2s}
 /* same look as the Settings rows: soft gradient card, left accent bar */
 .menuRow,.menuCard{background:linear-gradient(160deg,rgba(168,85,247,.10),rgba(34,211,238,.06)),var(--card);border:1.5px solid color-mix(in srgb,var(--p) 40%,var(--bd));border-radius:clamp(16px,4.5vw,22px);position:relative;overflow:hidden;box-shadow:none}
@@ -457,7 +457,8 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 /* ---- admin tab bar: 3 equal columns, same height, no broken wrapping ---- */
 .admTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
 .admTabs .admTab{font-size:12.5px;padding:8px 4px;min-height:44px}
-#entriesHost .card{animation:none;opacity:1}   /* moving the Entries cards restarts their fade-in; keep them visible */
+#entriesHost .card{animation:none;opacity:1}
+#pgAdmin .card,#hContent .card{animation:none;opacity:1}   /* control panel and Home cards stay visible on every redraw */   /* moving the Entries cards restarts their fade-in; keep them visible */
 .admTab{min-height:56px;padding:8px 6px;font-size:clamp(13px,3.7vw,15px);font-weight:800;line-height:1.25;white-space:normal;text-align:center;display:flex;align-items:center;justify-content:center;border-radius:16px;word-break:keep-all;overflow-wrap:anywhere}
 .admTab.pri{box-shadow:0 8px 20px -10px var(--p)}
 /* admin tab bar: one rounded segmented control, active tab filled */
