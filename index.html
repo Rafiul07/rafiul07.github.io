@@ -2917,8 +2917,8 @@ function redrawKeep() { const y = window.scrollY; render(); window.scrollTo(0, y
 function qSetTab(t) { qTab = t; redrawKeep(); }
 function quickEntryHtml() {
   const bn = lang === 'bn';
-  const tabs = `<div class="row" style="gap:8px;margin-bottom:10px;flex-wrap:nowrap"><button class="${qTab === 'amt' ? 'pri' : 'ghost'}" style="flex:1" onclick="qSetTab('amt')">${bn ? 'অংক দিয়ে' : 'By amount'}</button><button class="${qTab === 'slip' ? 'pri' : 'ghost'}" style="flex:1" onclick="qSetTab('slip')">${bn ? 'স্লিপ দিয়ে' : 'By slip'}</button></div>`;
-  const body = qTab === 'slip' ? quickSlipBody() : quickAmtBody();
+  const tabs = '';   // only the By amount entry is kept here (By slip removed)
+  const body = quickAmtBody();
   return `<details class="sec" style="margin:0 0 12px" ${qOpen ? 'open' : ''} ontoggle="qOpen=this.open"><summary>${bn ? 'দ্রুত বাজার এন্ট্রি (অংক দিয়ে)' : 'Quick bazar entry by amount'}</summary><div class="secBody">${tabs}${body}</div></details>`;
 }
 function quickSlipBody() {
