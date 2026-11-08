@@ -455,6 +455,11 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.45}
 #entriesHost .card{animation:none;opacity:1}   /* moving the Entries cards restarts their fade-in; keep them visible */
 .admTab{min-height:56px;padding:8px 6px;font-size:clamp(13px,3.7vw,15px);font-weight:800;line-height:1.25;white-space:normal;text-align:center;display:flex;align-items:center;justify-content:center;border-radius:16px;word-break:keep-all;overflow-wrap:anywhere}
 .admTab.pri{box-shadow:0 8px 20px -10px var(--p)}
+/* admin tab bar: one rounded segmented control, active tab filled */
+.admTabs{gap:4px;padding:4px;background:var(--card2);border:1px solid var(--bd);border-radius:20px;margin-bottom:14px}
+.admTabs .admTab{border:0;background:transparent;box-shadow:none;border-radius:16px;min-height:46px;padding:8px 4px;font-size:13px;font-weight:700;color:var(--sub)}
+.admTabs .admTab.pri{color:#0a0a12;background:linear-gradient(135deg,var(--p),var(--s));box-shadow:0 6px 16px -8px var(--p)}
+body.light .admTabs .admTab.pri{color:#fff;background:linear-gradient(135deg,#7c3aed,#0891b2)}
 
 /* ---- settings: account card ---- */
 .meCard{background:linear-gradient(135deg,color-mix(in srgb,var(--p) 22%,var(--card)),color-mix(in srgb,var(--s,var(--p)) 12%,var(--card)));border:1px solid color-mix(in srgb,var(--p) 45%,var(--bd));padding:clamp(16px,4vw,20px)}
