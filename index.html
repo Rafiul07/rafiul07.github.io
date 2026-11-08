@@ -624,6 +624,8 @@ details.sCard>summary::-webkit-details-marker{display:none}
       <button id="addBtn2" class="pri" style="width:100%;margin-bottom:14px;white-space:nowrap" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
       <div id="quickHost"></div>
       <div class="card">
+        <div class="entriesHead" onclick="entriesToggle()"><h3 id="listTitle"></h3><span id="entriesArrow" class="entriesArrow">▾</span></div>
+      <div id="entriesBody" class="hidden">
       <div class="filterBar" id="filterBox">
         <div class="row" style="gap:8px;flex-wrap:nowrap;align-items:flex-start">
           <input id="qSearch" data-ph="search" oninput="entryPage=1;render()" style="margin-top:0;flex:1 1 55%;min-width:0">
@@ -631,8 +633,8 @@ details.sCard>summary::-webkit-details-marker{display:none}
         </div>
         <div id="chipRow" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div>
       </div>
-        <div class="entriesHead" onclick="entriesToggle()"><h3 id="listTitle"></h3><span id="entriesArrow" class="entriesArrow">▾</span></div>
-        <div id="entryList" class="hidden" style="margin-top:10px"></div>
+        <div id="entryList" style="margin-top:10px"></div>
+      </div>
       </div>
     </section>
 
@@ -2439,7 +2441,7 @@ const byNewest = (a, b) => String(b.date).localeCompare(String(a.date)) || num(b
 /* ================= ENTRIES ================= */
 let entriesOpen = false;   // the Entries list is hidden until tapped
 function entriesToggle() { entriesOpen = !entriesOpen; applyEntriesOpen(); }
-function applyEntriesOpen() { const l = $('entryList'), a = $('entriesArrow'); if (l) l.classList.toggle('hidden', !entriesOpen); if (a) a.style.transform = entriesOpen ? 'rotate(180deg)' : ''; }
+function applyEntriesOpen() { const l = $('entriesBody'), a = $('entriesArrow'); if (l) l.classList.toggle('hidden', !entriesOpen); if (a) a.style.transform = entriesOpen ? 'rotate(180deg)' : ''; }
 function renderEntries() {
   $('fMemberBox').classList.toggle('hidden', !isMgr || !!editId);
   if (isMgr) {
