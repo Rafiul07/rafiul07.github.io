@@ -930,6 +930,11 @@ function calc(list = approvedScoped()) {
 /* Rate: manager computes it live; members read the manager's published summary */
 function currentRate() { const c = calc(); return c.tD > 0 ? c.rate : null; } // null until someone has days
 function balOf(e, rate) { return bazarOf(e) + depOf(e) - num(rate) * daysOf(e); }
+function memTag(e, b) {
+  const pos = b >= 0, bn = lang === 'bn';
+  const txt = e === me ? (pos ? t('refund') : t('due')) : (pos ? (bn ? 'পাবে' : 'Gets back') : (bn ? 'দেবে' : 'Pays'));
+  return `<span class="badge ${pos ? 'b-ok' : 'b-bad'}">${pos ? '↑' : '↓'} ${txt}: ${Math.round(Math.abs(b))}</span>`;
+}
 function balTag(b) {
   const pos = b >= 0;
   return `<span class="badge ${pos ? 'b-ok' : 'b-bad'}">${pos ? '↑' : '↓'} ${pos ? t('refund') : t('due')}: ${Math.round(Math.abs(b))}</span>`;
@@ -2422,7 +2427,7 @@ function renderHome() {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0"><b style="font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${esc(nameOf(e))}${e === me ? ' ★' : ''}</b></div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px">
           <span class="sub num" style="font-size:13px">${bnL ? 'বাজার' : 'Bazar'} ${f2(bazarOf(e))}</span>
-          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${balTag(balOf(e, r2))}<button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(e)}')">ⓘ</button></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${memTag(e, balOf(e, r2))}<button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(e)}')">ⓘ</button></div>
         </div></div>`;
       const topBtn = `<button class="ghost" style="min-height:32px;padding:4px 12px;font-size:13px;white-space:nowrap" onclick="toggleAllView()">${allView ? '▴ ' + (bnL ? 'সব সদস্য' : 'All members') : '▾ ' + (bnL ? 'সব সদস্য' : 'All members')}</button>`;
       // two tabs: my name (opens my popup) and "সব সদস্য" (opens the list below)
@@ -2526,13 +2531,13 @@ function explainLines(email, rate) {
   const share = days * rate;               // meal cost = the member's share of the mess cost
   const diff = b - share;
   const L = [];
-  if (Math.abs(diff) < 0.005) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ ৳${f2(share)}, সমান।` : `${who} paid ৳${f2(b)}, equal to the meal cost ৳${f2(share)}.`);
-  else if (diff > 0) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ (৳${f2(share)}) এর চেয়ে ৳${f2(diff)} বেশি। এই টাকা ব্যালেন্সে যোগ হবে।` : `${who} paid ৳${f2(b)}, ৳${f2(diff)} more than the meal cost (৳${f2(share)}). This is added to the balance.`);
-  else L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ (৳${f2(share)}) এর চেয়ে ৳${f2(-diff)} কম। এই ঘাটতি ব্যালেন্স থেকে কাটা হবে।` : `${who} paid ৳${f2(b)}, ৳${f2(-diff)} less than the meal cost (৳${f2(share)}). This shortfall is deducted from the balance.`);
-  L.push(d > 0 ? (bn ? `${nm}-এর জমা ৳${f2(d)} আছে, তাই হিসাবে যোগ হয়েছে।` : `${who === 'You' ? 'Your' : nm + `'s`} deposit of ৳${f2(d)} is added to the balance.`) : (bn ? 'কোনো জমা নেই।' : 'No deposit.'));
+  if (Math.abs(diff) < 0.005) L.push(bn ? `${who} বাজার ৳${f2(b)} ${email === me ? 'দিয়েছ' : 'দিয়েছে'}, খাওয়ার খরচ ৳${f2(share)}, সমান।` : `${who} paid ৳${f2(b)}, equal to the meal cost ৳${f2(share)}.`);
+  else if (diff > 0) L.push(bn ? `${who} বাজার ৳${f2(b)} ${email === me ? 'দিয়েছ' : 'দিয়েছে'}, খাওয়ার খরচ (৳${f2(share)}) এর চেয়ে ৳${f2(diff)} বেশি। এই টাকা ব্যালেন্সে যোগ হবে।` : `${who} paid ৳${f2(b)}, ৳${f2(diff)} more than the meal cost (৳${f2(share)}). This is added to the balance.`);
+  else L.push(bn ? `${who} বাজার ৳${f2(b)} ${email === me ? 'দিয়েছ' : 'দিয়েছে'}, খাওয়ার খরচ (৳${f2(share)}) এর চেয়ে ৳${f2(-diff)} কম। এই ঘাটতি ব্যালেন্স থেকে কাটা হবে।` : `${who} paid ৳${f2(b)}, ৳${f2(-diff)} less than the meal cost (৳${f2(share)}). This shortfall is deducted from the balance.`);
+  L.push(d > 0 ? (bn ? `${email === me ? 'তোমার' : nm + '-এর'} জমা ৳${f2(d)} আছে, তাই হিসাবে যোগ হয়েছে।` : `${who === 'You' ? 'Your' : nm + `'s`} deposit of ৳${f2(d)} is added to the balance.`) : (bn ? 'কোনো জমা নেই।' : 'No deposit.'));
   const dayTxt = days === Math.round(avgDays) ? (bn ? 'গড়ের সমান' : 'same as the average') : days < avgDays ? (bn ? 'গড়ের চেয়ে কম, তাই খাওয়ার খরচ কম' : 'below average, so meal cost is lower') : (bn ? 'গড়ের চেয়ে বেশি, তাই খাওয়ার খরচ বেশি' : 'above average, so meal cost is higher');
-  L.push(bn ? `${nm} ${days} দিন খেয়েছে (মেসের গড় ${avgDays.toFixed(1)} দিন), ${dayTxt}।` : `${who} had ${days} days (mess average ${avgDays.toFixed(1)}), ${dayTxt}.`);
-  L.push(bn ? `${nm}-এর খাওয়ার খরচ = ${days} দিন × ৳${f2(rate)} = ৳${f2(share)}।` : `Meal cost = ${days} days × ৳${f2(rate)} = ৳${f2(share)}.`);
+  L.push(bn ? `${who} ${days} দিন ${email === me ? 'খেয়েছ' : 'খেয়েছে'} (মেসের গড় ${avgDays.toFixed(1)} দিন), ${dayTxt}।` : `${who} had ${days} days (mess average ${avgDays.toFixed(1)}), ${dayTxt}.`);
+  L.push(bn ? `${email === me ? 'তোমার' : nm + '-এর'} খাওয়ার খরচ = ${days} দিন × ৳${f2(rate)} = ৳${f2(share)}।` : `Meal cost = ${days} days × ৳${f2(rate)} = ৳${f2(share)}.`);
   const net = b + d - share;
   L.push(bn ? `মোট হিসাব = বাজার ৳${f2(b)} + জমা ৳${f2(d)} − খাওয়া ৳${f2(share)} = ${net >= 0 ? '+' : '−'} ৳${f2(Math.abs(net))}।` : `Balance = paid ৳${f2(b)} + deposit ৳${f2(d)} − meal ৳${f2(share)} = ${net >= 0 ? '+' : '−'} ৳${f2(Math.abs(net))}.`);
   return L;
@@ -2572,7 +2577,7 @@ function memberSummary(email) {
         const rate = currentRate();
         if (rate == null) return '';
         const b = balOf(email, rate), pos = b >= 0;
-        const lbl = pos ? (bn ? 'পাবে' : 'You get') : (bn ? 'দিতে হবে' : 'You pay');
+        const lbl = email === me ? (pos ? (bn ? 'তুমি পাবে' : 'You get') : (bn ? 'তোমাকে দিতে হবে' : 'You pay')) : (pos ? (bn ? nameOf(email) + ' পাবে' : nameOf(email) + ' gets back') : (bn ? nameOf(email) + ' দেবে' : nameOf(email) + ' pays'));
         return `<div class="row between" style="padding:8px 0;font-size:17px"><b>${lbl}</b><b class="num" style="color:${pos ? 'var(--pos)' : 'var(--bad)'}">${pos ? '+' : '−'} ${f2(Math.abs(b))}</b></div>`;
       })();
   const items = list.length
@@ -3296,7 +3301,7 @@ async function shareSummary() {
   const { tB, tD } = calc();
   const label = month === 'all' ? (isBn ? 'সব মাস' : 'All months') : monthLabel(month);
   const rows = allEmails().map(e => ({ n: nameOf(e), bal: balOf(e, rate) })).sort((a, b) => a.n.localeCompare(b.n));
-  const lines = rows.map(r => `• ${r.n}: ${r.bal >= 0 ? (isBn ? 'পাবে ' : 'gets back ') : (isBn ? 'বাকি ' : 'owes ')}${f2(Math.abs(r.bal))}`);
+  const lines = rows.map(r => `• ${r.n}: ${r.bal >= 0 ? (isBn ? 'পাবে ' : 'gets back ') : (isBn ? 'দেবে ' : 'pays ')}${f2(Math.abs(r.bal))}`);
   const text = [
     `MESS HISAB PRO · ${label}`,
     `${isBn ? 'মোট বাজার' : 'Total bazar'}: ${f2(tB)}`,
