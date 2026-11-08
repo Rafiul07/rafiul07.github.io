@@ -2356,7 +2356,7 @@ function renderHome() {
         </div>
         <div class="totalGrid tri">
           <div class="totalTile">
-            <div class="sub">${isBn ? 'মেসের মোট বাজার' : 'Mess bazar'}</div>
+            <div class="sub">${isBn ? 'মোট বাজার' : 'Total bazar'}</div>
             <div class="totalAmt num">৳ ${f2(calc().tB)}</div>
           </div>
           <div class="totalTile">
@@ -2364,7 +2364,7 @@ function renderHome() {
             <div class="totalAmt num">৳ ${f2(allEmails().length ? calc().tB / allEmails().length : 0)}</div>
           </div>
           <div class="totalTile">
-            <div class="sub">${isBn ? 'তুমি দিয়েছ' : 'You paid'}</div>
+            <div class="sub">${isBn ? 'আমার দেওয়া বাজার' : 'My paid bazar'}</div>
             <div class="totalAmt num">৳ ${f2(bazarOf(me))}</div>
           </div>
         </div>
