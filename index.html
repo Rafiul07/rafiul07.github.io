@@ -122,6 +122,15 @@ button{min-height:42px}
 .entry .acts .ok{background:transparent;border:1px solid var(--bd);color:var(--ok)}
 .entry .acts .bad{background:transparent;border:1px solid var(--bd);color:var(--bad)}
 .entry .acts .ghost{background:transparent;border:1px solid var(--bd);color:var(--blue)}
+.chip.s-submitted:not(.on){color:var(--blue)}
+.chip.s-approved:not(.on){color:var(--ok)}
+.chip.s-locked:not(.on){color:var(--sub)}
+body.light .chip.s-submitted:not(.on){color:#2563eb}
+.entry.st-approved{box-shadow:inset 3px 0 0 var(--ok)}
+.entry.st-submitted{box-shadow:inset 3px 0 0 var(--blue)}
+.entry.st-needs_fix{box-shadow:inset 3px 0 0 var(--warn)}
+.dayHead{display:flex;justify-content:space-between;align-items:center;margin:14px 0 4px;padding:6px 2px;border-bottom:1px solid var(--bd);font-weight:700;font-size:13px}
+.dayHead .num{font-weight:800}
 body.light .entry .acts .ghost{color:#2563eb}
 .seg button{min-height:42px}
 .item{min-height:52px}
@@ -2444,7 +2453,7 @@ function renderEntries() {
         ${allEmails().map(e => `<option value="${esc(e)}" ${filt.m === e ? 'selected' : ''}>${esc(nameOf(e))}</option>`).join('')}
       </select>` : '';
   $('chipRow').innerHTML = [['all', bnE ? 'সব' : 'All'], ['submitted', bnE ? 'অপেক্ষমাণ' : 'Waiting'], ['approved', bnE ? 'অনুমোদিত' : 'Approved'], ['locked', bnE ? 'লক' : 'Locked']]
-    .map(([v, l]) => `<button class="chip ${filt.s === v ? 'on' : ''}" onclick="filt.s='${v}';entryPage=1;render()">${l}</button>`).join('');
+    .map(([v, l]) => `<button class="chip s-${v} ${filt.s === v ? 'on' : ''}" onclick="filt.s='${v}';entryPage=1;render()">${l}</button>`).join('');
   const list = entries.filter(x => {
     if (isMgr) {
       if (!isMgr && x.memberEmail !== me) return false;
@@ -2472,7 +2481,7 @@ function renderEntries() {
   const summary = list.length ? `<div class="row between" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;padding:8px 10px;border-radius:12px;background:var(--card2)"><span class="sub">${list.length} ${bnE ? 'টি এন্ট্রি' : 'entries'}</span><b class="num">৳${f2(sum)}</b><span class="sub"><span style="color:var(--pos);font-weight:700">${list.length - nWait} ${bnE ? 'অনুমোদিত' : 'approved'}</span> · <span style="color:var(--bad);font-weight:700">${nWait} ${bnE ? 'অপেক্ষমাণ' : 'waiting'}</span></span></div>` : '';
   let gh = ''; let ld = '';
   pageRows.forEach(x => {
-    if (x.date !== ld) { ld = x.date; gh += `<div class="sub" style="margin:12px 0 2px;font-weight:700">${fmtDate(x.date)}</div>`; }
+    if (x.date !== ld) { ld = x.date; { const dayT = list.filter(y => y.date === x.date).reduce((a, y) => a + (Number(y.amount) || 0), 0); gh += `<div class="dayHead"><span>${fmtDate(x.date)}</span><b class="num">৳${f2(dayT)}</b></div>`; } }
     gh += entryRow(x);
   });
   const pager = pages > 1 ? `<div class="row between" style="margin-top:10px;gap:8px"><button class="ghost" style="flex:1;min-height:40px" ${entryPage <= 1 ? 'disabled' : ''} onclick="entryGo(${entryPage - 1})">← ${bnE ? 'আগের' : 'Prev'}</button><span class="sub">${entryPage} / ${pages}</span><button class="ghost" style="flex:1;min-height:40px" ${entryPage >= pages ? 'disabled' : ''} onclick="entryGo(${entryPage + 1})">${bnE ? 'পরের' : 'Next'} →</button></div>` : '';
@@ -2593,7 +2602,7 @@ function entryRow(x) {
   const acts = actsOf(x);
   const who = (isMgr || !mine) ? `<div class="sub">${esc(firstName(x.memberEmail))}</div>` : '';
   const shown = mine ? thumbFor(x) : `<div class="thumb" style="display:grid;place-items:center">🧾</div>`;
-  return `<div class="entry">${shown}<div class="grow">
+  return `<div class="entry st-${x.status}">${shown}<div class="grow">
     <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
     <div class="sub">${CAL}${fmtDate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</div>${who}
     <div class="acts">${adminTag}${acts}</div></div></div>`;
@@ -2919,7 +2928,7 @@ function quickEntryHtml() {
   const bn = lang === 'bn';
   const tabs = '';   // only the By amount entry is kept here (By slip removed)
   const body = quickAmtBody();
-  return `<details class="sec" style="margin:0 0 12px" ${qOpen ? 'open' : ''} ontoggle="qOpen=this.open"><summary>${bn ? 'দ্রুত বাজার এন্ট্রি (অংক দিয়ে)' : 'Quick bazar entry by amount'}</summary><div class="secBody">${tabs}${body}</div></details>`;
+  return `<details class="sec" style="margin:0 0 12px" ${qOpen ? 'open' : ''} ontoggle="qOpen=this.open"><summary>⚡ ${bn ? 'দ্রুত বাজার এন্ট্রি (অংক দিয়ে)' : 'Quick bazar entry by amount'}</summary><div class="secBody">${tabs}${body}</div></details>`;
 }
 function quickSlipBody() {
   const bn = lang === 'bn';
@@ -3411,7 +3420,7 @@ function renderAdmin() {
     settings: isBn ? 'মেসের নাম, বাজার যোগ, মাস বন্ধ ও রিপোর্ট' : 'Mess name, bazar entry, month close and reports'
   };
   h += `<div class="sub" style="text-align:center;margin:-4px 0 10px">${TAB_HINT[admTab] || ''}</div>`;
-  if (admTab === 'entries') h += `<button class="ghost" style="width:100%;margin-bottom:10px" onclick="monthReport()">📊 ${isBn ? 'মাসের রিপোর্ট' : 'Month report'}</button><div id="entriesHost"></div>`;
+  if (admTab === 'entries') h += `<button class="ghost" style="width:100%;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;font-weight:800;border-color:var(--s)" onclick="monthReport()"><span>📊 ${isBn ? 'মাসের রিপোর্ট' : 'Month report'}</span><span style="color:var(--s)">›</span></button><div id="entriesHost"></div>`;
   if (admTab === 'wait') h += `<div class="card"><h3>${isBn ? `অপেক্ষমাণ এন্ট্রি (${pending.length})` : `Waiting approval (${pending.length})`}</h3>`
     + (pending.length ? pending.map(x => `<div class="entry">${thumbFor(x)}<div class="grow">
         <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
