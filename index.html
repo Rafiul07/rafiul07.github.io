@@ -135,6 +135,11 @@ body.light .chip.s-submitted:not(.on){color:#2563eb}
 .entriesHead{cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:40px;user-select:none}
 .entriesHead h3{margin:0}
 .entriesArrow{font-size:18px;opacity:.7;transition:transform .2s}
+/* same look as the Settings rows: soft gradient card, left accent bar */
+.menuRow,.menuCard{background:linear-gradient(160deg,rgba(168,85,247,.10),rgba(34,211,238,.06)),var(--card);border:1.5px solid color-mix(in srgb,var(--p) 40%,var(--bd));border-radius:clamp(16px,4.5vw,22px);position:relative;overflow:hidden;box-shadow:none}
+.menuRow::before,.menuCard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--p),var(--s))}
+.menuRow{display:flex;align-items:center;justify-content:space-between;min-height:56px;padding:14px 18px 14px 20px;font-size:clamp(16px,4.6vw,18px);font-weight:800;color:var(--tx);text-align:left}
+.menuCard .entriesHead{padding-left:8px}
 body.light .entry .acts .ghost{color:#2563eb}
 .seg button{min-height:42px}
 .item{min-height:52px}
@@ -633,7 +638,7 @@ details.sCard>summary::-webkit-details-marker{display:none}
       </div>
       <button id="addBtn2" class="pri" style="width:100%;margin-bottom:14px;white-space:nowrap" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
       <div id="quickHost"></div>
-      <div class="card">
+      <div class="card menuCard">
         <div class="entriesHead" onclick="entriesToggle()"><h3 id="listTitle"></h3><span id="entriesArrow" class="entriesArrow">▾</span></div>
       <div id="entriesBody" class="hidden">
       <div class="filterBar" id="filterBox">
@@ -3443,7 +3448,7 @@ function renderAdmin() {
     settings: isBn ? 'মেসের নাম, বাজার যোগ, মাস বন্ধ ও রিপোর্ট' : 'Mess name, bazar entry, month close and reports'
   };
   h += `<div class="sub" style="text-align:center;margin:-4px 0 10px">${TAB_HINT[admTab] || ''}</div>`;
-  if (admTab === 'entries') h += `<button class="ghost" style="width:100%;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;font-weight:800;border-color:var(--s)" onclick="monthReport()"><span>📊 ${isBn ? 'মাসের রিপোর্ট' : 'Month report'}</span><span style="color:var(--s)">›</span></button><div id="entriesHost"></div>`;
+  if (admTab === 'entries') h += `<button class="menuRow" style="width:100%;margin-bottom:12px" onclick="monthReport()"><span>📊 ${isBn ? 'মাসের রিপোর্ট' : 'Month report'}</span><span style="color:var(--s)">›</span></button><div id="entriesHost"></div>`;
   if (admTab === 'wait') h += `<div class="card"><h3>${isBn ? `অপেক্ষমাণ এন্ট্রি (${pending.length})` : `Waiting approval (${pending.length})`}</h3>`
     + (pending.length ? pending.map(x => `<div class="entry">${thumbFor(x)}<div class="grow">
         <div class="row between"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
