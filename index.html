@@ -87,6 +87,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--p);box-shadow:0 0 0 3
 .empty{text-align:center;padding:22px 8px;color:var(--sub)}
 .mcard .row input{margin-top:0}
 .mgrid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px}
+.mdGroup{margin-top:16px}
+.mdHead{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--sub);margin:0 0 8px 2px}
+.mdHint{font-size:11px;opacity:.7}
+.mdAct{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;text-align:left;min-height:52px}
+.mdAct small{font-size:12px;color:var(--sub);font-weight:600;white-space:nowrap}
+.mdDanger{padding-top:12px;border-top:1px dashed var(--bd)}
+.mdDel{width:100%;min-height:50px;border:1px solid var(--bad);background:var(--bad);color:#fff;border-radius:14px;font-weight:800;font-size:15px}
+#mdSave:disabled{opacity:.45;filter:grayscale(.3)}
 .mf{display:flex;flex-direction:column;gap:4px;min-width:0}
 .mf span{font-size:12px;font-weight:600;opacity:.7}
 .mf input{width:100%;min-width:0}
@@ -4035,16 +4043,20 @@ function openMember(email) {
       ${all.length ? pagedMem(all, bn) :`<div class="empty">${t('noEntries')}</div>`}
     </div></details>
     ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
-      <div class="mgrid">
-        <label class="mf"><span>${t('nameLbl')}</span><input id="mdName" type="text" data-orig="${esc(nameOf(email))}" value="${esc(nameOf(email))}"></label>
-        <label class="mf"><span>${t('days')}</span><input id="mdDays" type="text" inputmode="numeric" data-orig="${daysOf(email)}" value="${daysOf(email)}"></label>
-        <label class="mf"><span>${t('deposit')}</span><input id="mdDep" type="text" inputmode="decimal" data-orig="${depOf(email)}" value="${depOf(email)}"></label>
+      <div class="mdGroup"><div class="mdHead">${bn ? 'তথ্য' : 'Details'}</div>
+        <div class="mgrid">
+          <label class="mf"><span>${t('nameLbl')}</span><input id="mdName" type="text" data-orig="${esc(nameOf(email))}" value="${esc(nameOf(email))}" oninput="mdDirty()"></label>
+          <label class="mf"><span>${t('days')}</span><input id="mdDays" type="text" inputmode="numeric" data-orig="${daysOf(email)}" value="${daysOf(email)}" oninput="mdDirty()"><small class="mdHint">${bn ? 'ডিফল্ট ৩০' : 'Default 30'}</small></label>
+          <label class="mf"><span>${t('deposit')}</span><input id="mdDep" type="text" inputmode="decimal" data-orig="${depOf(email)}" value="${depOf(email)}" oninput="mdDirty()"></label>
+        </div>
+        <button id="mdSave" class="pri" style="width:100%;margin-top:10px" disabled onclick="saveMemberFields('${esc(email)}')">✎ ${t('save')}</button>
       </div>
-      ${email !== MESS_ADMIN ? `<button class="ghost" style="width:100%;margin-top:12px" onclick="toggleFreeze('${esc(email)}', ${!(memberOf(email) || {}).frozen})">${(memberOf(email) || {}).frozen ? (bn ? 'ফ্রিজ সরাও (আবার চালু করো)' : 'Unfreeze member') : (bn ? 'সদস্যকে ফ্রিজ করো (সাময়িক বন্ধ)' : 'Freeze member')}</button>` : ''}
-      ${email !== MESS_ADMIN ? `<button class="ghost" style="width:100%;margin-top:12px" onclick="toggleAdmin('${esc(email)}', ${!isAdminRow(email)})">${isAdminRow(email) ? (bn ? 'অ্যাডমিন থেকে সরাও' : 'Remove admin rights') : (bn ? 'অ্যাডমিন বানাও' : 'Make admin')}</button>` : ''}
-      <div class="row" style="margin-top:12px">
-        <button class="pri grow" onclick="saveMemberFields('${esc(email)}')">${t('save')}</button>
-        <button class="bad" onclick="closeMember(); removeMember('${esc(email)}')">${t('del')}</button>
+      ${email !== MESS_ADMIN ? `<div class="mdGroup"><div class="mdHead">${bn ? 'অ্যাক্সেস' : 'Access'}</div>
+        <button class="ghost mdAct" onclick="toggleFreeze('${esc(email)}', ${!(memberOf(email) || {}).frozen})"><span>❄ ${(memberOf(email) || {}).frozen ? (bn ? 'ফ্রিজ সরাও (আবার চালু করো)' : 'Unfreeze member') : (bn ? 'সদস্যকে ফ্রিজ করো (সাময়িক বন্ধ)' : 'Freeze member')}</span><small>${(memberOf(email) || {}).frozen ? (bn ? 'এখন ফ্রিজ করা' : 'Frozen now') : (bn ? 'এখন চালু' : 'Active now')}</small></button>
+        <button class="ghost mdAct" onclick="toggleAdmin('${esc(email)}', ${!isAdminRow(email)})"><span>★ ${isAdminRow(email) ? (bn ? 'অ্যাডমিন থেকে সরাও' : 'Remove admin rights') : (bn ? 'অ্যাডমিন বানাও' : 'Make admin')}</span><small>${isAdminRow(email) ? (bn ? 'এখন অ্যাডমিন' : 'Admin now') : (bn ? 'সাধারণ সদস্য' : 'Regular member')}</small></button>
+      </div>` : ''}
+      <div class="mdGroup mdDanger"><div class="mdHead">${bn ? 'বিপজ্জনক' : 'Danger zone'}</div>
+        <button class="mdDel" onclick="closeMember(); removeMember('${esc(email)}')">🗑 ${t('del')}</button>
       </div>
     </div></details>` : ''}
     <button class="ghost" style="width:100%;margin-top:14px" onclick="closeMember()">← ${t('back')}</button>
@@ -4052,6 +4064,7 @@ function openMember(email) {
   if (keepD !== null) $('mdDays').value = keepD;
   if (keepP !== null) $('mdDep').value = keepP;
   if (keepN !== null && $('mdName')) $('mdName').value = keepN;
+  mdDirty();
   const newDet = $('memBody').querySelector('details.mgrDet');
   if (newDet && keepOpen) newDet.open = true;
   const newBaz = $('memBody').querySelector('details.bazDet');
@@ -4063,6 +4076,10 @@ function openMember(email) {
   hydrateSlips();
 }
 /* freeze: the member can still log in and see their own history, but cannot add or change bazar entries. Nothing is deleted */
+function mdDirty() {
+  const ch = ['mdName', 'mdDays', 'mdDep'].some(id => { const el = $(id); return el && el.value !== el.dataset.orig; });
+  const b = $('mdSave'); if (b) b.disabled = !ch;
+}
 async function toggleFreeze(email, freeze) {
   const bn = lang === 'bn';
   const who = nameOf(email);
