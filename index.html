@@ -134,7 +134,8 @@ body.light .chip.s-submitted:not(.on){color:#2563eb}
 .filterBar{margin:0 0 12px;padding:0 0 12px;border-bottom:1px solid var(--bd)}
 .entriesHead{cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:40px;user-select:none}
 .entriesHead h3{margin:0;color:var(--tx);font-size:clamp(17px,4.8vw,19px)}
-.entriesArrow{font-size:18px;opacity:.7;transition:transform .2s}
+.entriesArrow{font-size:22px;line-height:1;color:var(--s);opacity:1;transition:transform .2s}
+details.sec>summary::after{color:var(--s);opacity:1}
 /* same look as the Settings rows: soft gradient card, left accent bar */
 .menuRow,.menuCard{background:linear-gradient(160deg,rgba(168,85,247,.10),rgba(34,211,238,.06)),var(--card);border:1.5px solid color-mix(in srgb,var(--p) 40%,var(--bd));border-radius:clamp(16px,4.5vw,22px);position:relative;overflow:hidden;box-shadow:none}
 .menuRow::before,.menuCard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--p),var(--s))}
@@ -2457,7 +2458,7 @@ const byNewest = (a, b) => String(b.date).localeCompare(String(a.date)) || num(b
 /* ================= ENTRIES ================= */
 let entriesOpen = false;   // the Entries list is hidden until tapped
 function entriesToggle() { entriesOpen = !entriesOpen; applyEntriesOpen(); }
-function applyEntriesOpen() { const l = $('entriesBody'), a = $('entriesArrow'); if (l) l.classList.toggle('hidden', !entriesOpen); if (a) a.style.transform = entriesOpen ? 'rotate(180deg)' : ''; }
+function applyEntriesOpen() { const hint = $('tabHint'); if (hint) hint.classList.toggle('hidden', !entriesOpen || admTab !== 'entries'); const l = $('entriesBody'), a = $('entriesArrow'); if (l) l.classList.toggle('hidden', !entriesOpen); if (a) a.style.transform = entriesOpen ? 'rotate(180deg)' : ''; }
 function renderEntries() {
   $('fMemberBox').classList.toggle('hidden', !isMgr || !!editId);
   if (isMgr) {
@@ -3448,7 +3449,7 @@ function renderAdmin() {
     members: isBn ? 'সদস্য যোগ, খোঁজা ও সদস্যের হিসাব দেখা' : 'Add members, search and open member accounts',
     settings: isBn ? 'মেসের নাম, বাজার যোগ, মাস বন্ধ ও রিপোর্ট' : 'Mess name, bazar entry, month close and reports'
   };
-  h += `<div class="sub" style="text-align:center;margin:-4px 0 10px">${TAB_HINT[admTab] || ''}</div>`;
+  h += `<div class="sub" id="tabHint" style="text-align:center;margin:-4px 0 10px">${TAB_HINT[admTab] || ''}</div>`;
   if (admTab === 'entries') h += `<button class="menuRow" style="width:100%;margin-bottom:12px" onclick="monthReport()"><span>📊 ${isBn ? 'মাসের রিপোর্ট' : 'Month report'}</span><span style="color:var(--s)">›</span></button><div id="entriesHost"></div>`;
   if (admTab === 'wait') h += `<div class="card"><h3>${isBn ? `অপেক্ষমাণ এন্ট্রি (${pending.length})` : `Waiting approval (${pending.length})`}</h3>`
     + (pending.length ? pending.map(x => `<div class="entry">${thumbFor(x)}<div class="grow">
@@ -3529,6 +3530,7 @@ function renderAdmin() {
     $('entriesHost').appendChild(pe); pe.classList.remove('hidden');
     renderEntries();
   }
+  applyEntriesOpen();
   Object.entries(typed).forEach(([i, v]) => { const el = $(i); if (el) el.value = v; });
   if (admTab === 'members') { renderMembers(); applyMemKeep(memKeep); }
   if (keep) { const el = $(keep.id); if (el) { el.value = keep.v; el.focus(); try { el.setSelectionRange(keep.pos, keep.pos); } catch (e) {} } }
