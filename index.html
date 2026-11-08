@@ -2522,15 +2522,16 @@ function explainLines(email, rate) {
   const c = calc(), n = c.em.length || 1;
   const avgDays = c.tD / n;
   const b = bazarOf(email), d = depOf(email), days = daysOf(email), nm = nameOf(email);
+  const who = email === me ? (bn ? 'তুমি' : 'You') : nm;   // the subject of each line
   const share = days * rate;               // meal cost = the member's share of the mess cost
   const diff = b - share;
   const L = [];
-  if (Math.abs(diff) < 0.005) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ ৳${f2(share)}, সমান।` : `You paid ৳${f2(b)}, equal to your meal cost ৳${f2(share)}.`);
-  else if (diff > 0) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ (৳${f2(share)}) এর চেয়ে ৳${f2(diff)} বেশি। এই টাকা ${nm}-কে ফেরত দেওয়া হবে।` : `You paid ৳${f2(b)}, ৳${f2(diff)} more than your meal cost (৳${f2(share)}). This is added back to you.`);
-  else L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ (৳${f2(share)}) এর চেয়ে ৳${f2(-diff)} কম। এই টাকা ${nm}-কে দিতে হবে।` : `You paid ৳${f2(b)}, ৳${f2(-diff)} less than your meal cost (৳${f2(share)}). You owe this.`);
-  L.push(d > 0 ? (bn ? `${nm}-এর জমা ৳${f2(d)} আছে, তাই হিসাবে যোগ হয়েছে।` : `Deposit of ৳${f2(d)} is added to the balance.`) : (bn ? 'কোনো জমা নেই।' : 'No deposit.'));
+  if (Math.abs(diff) < 0.005) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ ৳${f2(share)}, সমান।` : `${who} paid ৳${f2(b)}, equal to the meal cost ৳${f2(share)}.`);
+  else if (diff > 0) L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ (৳${f2(share)}) এর চেয়ে ৳${f2(diff)} বেশি। এই টাকা ব্যালেন্সে যোগ হবে।` : `${who} paid ৳${f2(b)}, ৳${f2(diff)} more than the meal cost (৳${f2(share)}). This is added to the balance.`);
+  else L.push(bn ? `${nm} বাজার ৳${f2(b)} দিয়েছে, খাওয়ার খরচ (৳${f2(share)}) এর চেয়ে ৳${f2(-diff)} কম। এই ঘাটতি ব্যালেন্স থেকে কাটা হবে।` : `${who} paid ৳${f2(b)}, ৳${f2(-diff)} less than the meal cost (৳${f2(share)}). This shortfall is deducted from the balance.`);
+  L.push(d > 0 ? (bn ? `${nm}-এর জমা ৳${f2(d)} আছে, তাই হিসাবে যোগ হয়েছে।` : `${who === 'You' ? 'Your' : nm + `'s`} deposit of ৳${f2(d)} is added to the balance.`) : (bn ? 'কোনো জমা নেই।' : 'No deposit.'));
   const dayTxt = days === Math.round(avgDays) ? (bn ? 'গড়ের সমান' : 'same as the average') : days < avgDays ? (bn ? 'গড়ের চেয়ে কম, তাই খাওয়ার খরচ কম' : 'below average, so meal cost is lower') : (bn ? 'গড়ের চেয়ে বেশি, তাই খাওয়ার খরচ বেশি' : 'above average, so meal cost is higher');
-  L.push(bn ? `${nm} ${days} দিন খেয়েছে (মেসের গড় ${avgDays.toFixed(1)} দিন), ${dayTxt}।` : `You had ${days} days (mess average ${avgDays.toFixed(1)}), ${dayTxt}.`);
+  L.push(bn ? `${nm} ${days} দিন খেয়েছে (মেসের গড় ${avgDays.toFixed(1)} দিন), ${dayTxt}।` : `${who} had ${days} days (mess average ${avgDays.toFixed(1)}), ${dayTxt}.`);
   L.push(bn ? `${nm}-এর খাওয়ার খরচ = ${days} দিন × ৳${f2(rate)} = ৳${f2(share)}।` : `Meal cost = ${days} days × ৳${f2(rate)} = ৳${f2(share)}.`);
   const net = b + d - share;
   L.push(bn ? `মোট হিসাব = বাজার ৳${f2(b)} + জমা ৳${f2(d)} − খাওয়া ৳${f2(share)} = ${net >= 0 ? '+' : '−'} ৳${f2(Math.abs(net))}।` : `Balance = paid ৳${f2(b)} + deposit ৳${f2(d)} − meal ৳${f2(share)} = ${net >= 0 ? '+' : '−'} ৳${f2(Math.abs(net))}.`);
@@ -2562,9 +2563,9 @@ function memberSummary(email) {
   const row = (l, v) => `<div class="row between" style="padding:6px 0"><span class="sub">${l}</span><b class="num">${v}</b></div>`;
   const cc = calc();
   const perHead = cc.em.length ? cc.tB / cc.em.length : 0;
-  const head = row(bn ? 'মোট বাজার' : 'Total bazar', f2(bazarOf(email)))
+  const head = row(bn ? 'এর বাজার' : 'Bazar', f2(bazarOf(email)))
+    + row(bn ? 'মেসের মোট বাজার' : 'Mess total bazar', f2(cc.tB))
     + row(bn ? 'প্রতিজনের ভাগ' : 'Per person share', f2(perHead))
-    + row(bn ? 'তোমার বাজার' : 'Your bazar', f2(bazarOf(me)))
     + row(t('days'), daysOf(email))
     + row(t('deposit'), f2(depOf(email)))
     + (() => {
