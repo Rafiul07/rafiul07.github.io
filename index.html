@@ -1213,9 +1213,8 @@ async function superAct(i, what) {
     }
     if (what === 'subSet') {
       const cur = m.sub || {};
-      const cyc = await sheet({ title: bn ? 'প্ল্যান: ফ্রি / 7 দিন / 1 মাস / 1 বছর' : 'Plan: free / 7 days / month / year', value: cur.cycle || 'month', ph: 'month' });
-      if (!cyc) return;
-      const plan = planFrom(cyc);
+      const plan = await pickPlan(cur.cycle || 'month', bn);
+      if (!plan) return;
       if (plan === 'free') {
         await db.collection('messes').doc(m.id).update({ 'subscription.amount': 0, 'subscription.cycle': 'free', 'subscription.required': false });
         toast(bn ? 'ফ্রি প্ল্যান সেট হয়েছে' : 'Free plan set'); return loadAllMesses();
@@ -4200,6 +4199,29 @@ function isoToday() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+// tap-to-choose plan picker: free / 7 days / 1 month / 1 year; resolves to the plan key or null
+function pickPlan(cur, bn) {
+  return new Promise(res => {
+    const opts = [
+      ['free', bn ? 'ফ্রি' : 'Free', bn ? 'কোনো subscription লাগবে না' : 'No subscription needed'],
+      ['days7', bn ? '৭ দিন' : '7 days', bn ? '৭ দিন পর নিজে থেকে বন্ধ হবে' : 'Ends automatically after 7 days'],
+      ['month', bn ? '১ মাস' : '1 month', bn ? 'প্রতি মাসে renewal code' : 'Renewal code every month'],
+      ['year', bn ? '১ বছর' : '1 year', bn ? 'বছরে একবার renewal code' : 'Renewal code once a year']
+    ];
+    const box = document.createElement('div');
+    box.id = 'planPick';
+    box.style.cssText = 'position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px';
+    box.innerHTML = `<div class="card" style="width:100%;max-width:420px">
+      <h3 style="margin:0 0 8px">${bn ? 'প্ল্যান বাছো' : 'Choose plan'}</h3>
+      <div class="optList">${opts.map(([k, l, d]) => `<button class="optRow ${cur === k ? 'on' : ''}" data-k="${k}"><span style="text-align:left"><b>${l}</b><br><span class="sub" style="font-size:12px">${d}</span></span>${cur === k ? '<span class="optTick">✓</span>' : ''}</button>`).join('')}</div>
+      <button class="ghost" id="planCancel" style="width:100%;margin-top:10px">${bn ? 'বাতিল' : 'Cancel'}</button></div>`;
+    document.body.appendChild(box);
+    const done = v => { box.remove(); res(v); };
+    box.querySelectorAll('.optRow').forEach(b => { b.onclick = () => done(b.dataset.k); });
+    box.querySelector('#planCancel').onclick = () => done(null);
+    box.onclick = e => { if (e.target === box) done(null); };
+  });
+}
 // plans: 'days7' = 7 days, 'month' = 1 month
 function planFrom(text) {
   const t = String(text || '').trim().toLowerCase();
@@ -4239,7 +4261,7 @@ function superSubHtml(m) {
       <div class="sub">${bn ? 'শেষ পেমেন্ট' : 'Last payment'}: ${s.lastPaid || '—'}</div>
       <div style="margin-top:6px">${hist}</div>
       <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button class="ghost" onclick="superActId('${m.id}','subSet')">${bn ? 'ফি সেট' : 'Set fee'}</button>
+        <button class="ghost" onclick="superActId('${m.id}','subSet')">${bn ? 'ফি ও প্ল্যান' : 'Plan & fee'}</button>
         <button class="pri" onclick="superActId('${m.id}','subPaid')">${bn ? 'পেমেন্ট নিলাম' : 'Record payment'}</button>
         <button class="ghost" onclick="superActId('${m.id}','subCode')">${bn ? 'কোড তৈরি' : 'Make code'}</button>
       </div>
