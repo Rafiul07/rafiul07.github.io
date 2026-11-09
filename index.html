@@ -1435,7 +1435,7 @@ function renderSuper() {
   Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== 'home'));
   page = 'home';
   $('nav').innerHTML = '';
-  $('qBar').classList.add('hidden'); $('bazarStatus').classList.add('hidden');
+  $('qBar').classList.add('hidden'); ($('bazarStatus') && $('bazarStatus').classList.add('hidden'));
   $('roleTag').innerText = 'Super admin';
   const body = superTab.startsWith('m:') ? superMessTabHtml(superTab.slice(2))
     : superTab === 'messes' ? superMessesHtml()
@@ -1453,7 +1453,7 @@ function renderBlocked() {
   Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== 'home'));
   page = 'home';
   $('nav').innerHTML = '';
-  $('qBar').classList.add('hidden'); $('bazarStatus').classList.add('hidden');
+  $('qBar').classList.add('hidden'); ($('bazarStatus') && $('bazarStatus').classList.add('hidden'));
   $('roleTag').innerText = bn ? 'বন্ধ' : 'Off';
   if (subExpired) { $('hContent').innerHTML = subExpiredHtml(); return; }
   $('hContent').innerHTML = `<div class="card" style="text-align:center;padding:24px"><div class="sub">${bn ? 'এই mess এখন বন্ধ আছে।' : 'This mess is switched off right now.'}</div>${blockedNote ? `<div style="margin-top:10px">${esc(blockedNote)}</div>` : ''}<div class="sub" style="margin-top:10px">${bn ? 'আরও তথ্যের জন্য super admin এর সাথে যোগাযোগ করো।' : 'Contact the super admin for details.'}</div>
@@ -1568,7 +1568,7 @@ function watchJoinReq() {
 }
 /* email not verified yet (new sign-up): only the verify screen shows. Admin and members are never blocked here */
 function renderVerify() {
-  $('qBar').classList.add('hidden'); $('bazarStatus').classList.add('hidden');   // only the verify card shows
+  $('qBar').classList.add('hidden'); ($('bazarStatus') && $('bazarStatus').classList.add('hidden'));   // only the verify card shows
   const bn = lang === 'bn';
   $('app').classList.remove('hidden');
   Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== 'home'));
@@ -1644,7 +1644,7 @@ function resendVerify() {
 }
 /* signed in but not approved yet: the app opens, only a short note shows, no data and no tabs */
 function renderPending() {
-  $('qBar').classList.add('hidden'); $('bazarStatus').classList.add('hidden');   // only the create / join card shows
+  $('qBar').classList.add('hidden'); ($('bazarStatus') && $('bazarStatus').classList.add('hidden'));   // only the create / join card shows
   const bn = lang === 'bn', has = myReq !== undefined && myReq !== null;
   $('app').classList.remove('hidden');
   Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== 'home'));
