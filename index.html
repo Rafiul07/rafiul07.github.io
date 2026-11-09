@@ -96,6 +96,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--p);box-shadow:0 0 0 3
 .mdDel{width:100%;min-height:50px;border:1px solid var(--bad);background:var(--bad);color:#fff;border-radius:14px;font-weight:800;font-size:15px}
 #mdSave:disabled{opacity:.45;filter:grayscale(.3)}
 .mrEdit{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)}
+.mgAct{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.mgAct button{min-height:40px;padding:8px 12px;font-size:13px;font-weight:800;border-radius:12px;line-height:1;border:1px solid var(--bd);background:transparent}
+.mgAct .ok{color:var(--ok)}
+.mgAct .bad{color:var(--bad)}
+.mgAct .ghost{color:var(--blue)}
+body.light .mgAct .ghost{color:#2563eb}
 .mrEdit label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--sub)}
 .mrEdit input{width:84px;min-height:36px;padding:6px 8px;font-size:14px}
 #memberList .mrEdit .mrSave{min-height:36px;padding:6px 12px;font-size:13px;background:linear-gradient(135deg,var(--p),var(--s));color:#0a0a12;border:0;border-radius:12px;font-weight:800;flex:0 0 100%;margin-top:4px}
@@ -2613,15 +2619,15 @@ function explainOld(email) {
 }
 const cntOf = e => scoped().filter(x => x.memberEmail === e).length;   // entries in the month being viewed
 const bn = () => lang === 'bn';
-function actsOf(x) {
+function actsOf(x, txt = false) {
   const own = x.memberEmail === me;
   const locked = x.status === 'approved';
   const lockTxt = `<span class="sub">🔒 ${t('locked')}</span>`;
   const noDel = !isMgr && x.addedByAdmin === true;   // members cannot delete admin-added entries; admin can
-  const delBtn = noDel ? '' : `<button class="bad" title="${t('del')}" aria-label="${t('del')}" onclick="delEntry('${x.id}')">🗑</button>`;
-  const mgrEdit = `<button class="ghost" title="${t('edit')}" aria-label="${t('edit')}" onclick="startEdit('${x.id}')">✎</button>${delBtn}`;
+  const delBtn = noDel ? '' : `<button class="bad" title="${t('del')}" aria-label="${t('del')}" onclick="delEntry('${x.id}')">${txt ? t('del') : '🗑'}</button>`;
+  const mgrEdit = `<button class="ghost" title="${t('edit')}" aria-label="${t('edit')}" onclick="startEdit('${x.id}')">${txt ? t('edit') : '✎'}</button>${delBtn}`;
   const ownEdit = mgrEdit;
-  const approveBtn = isMgr && !locked ? `<button class="ok" title="${t('approve')}" aria-label="${t('approve')}" onclick="approve('${x.id}')">✓</button>` : '';
+  const approveBtn = isMgr && !locked ? `<button class="ok" title="${t('approve')}" aria-label="${t('approve')}" onclick="approve('${x.id}')">${txt ? t('approve') : '✓'}</button>` : '';
   let acts = '';
   if (isClosed(x)) {
     acts = `<span class="sub">🔒 ${lang === 'bn' ? 'মাস বন্ধ' : 'Month closed'}</span>`;
@@ -3255,7 +3261,7 @@ async function memberGallery(email) {
       <div style="flex:1;min-width:0">
         <div class="row between" style="flex-wrap:nowrap;align-items:center"><b class="num">${f2(x.amount)}</b><span class="badge ${STATUS_CLS[x.status] || 'b-sub'}">${t(x.status)}</span></div>
         <div class="sub">${CAL}${fmtDate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</div>
-        <div class="acts">${actsOf(x)}</div>
+        <div class="acts mgAct">${actsOf(x, true)}</div>
       </div>
     </div>`;
   const pager = pages > 1 ? `<div class="row between" style="margin-top:12px;gap:8px"><button class="ghost" ${galPage <= 1 ? 'disabled' : ''} onclick="galGo(${galPage - 1})">‹ ${bn ? 'আগে' : 'Prev'}</button><span class="sub num">${galPage} / ${pages}</span><button class="ghost" ${galPage >= pages ? 'disabled' : ''} onclick="galGo(${galPage + 1})">${bn ? 'পরে' : 'Next'} ›</button></div>` : '';
