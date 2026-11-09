@@ -3204,6 +3204,12 @@ async function saveQuick() {
   }).catch(showErr);
 }
 let mSort = 'name';
+/* member name, days and deposit are edited here (Settings), not in the member account view */
+function renderMemberEdits() {
+  const host = $('memEditHost'); if (!host) return;
+  const list = members.slice().sort((x, y) => nameOf(x.email).localeCompare(nameOf(y.email)));
+  host.innerHTML = list.map(m => `<div class="card mcard mcompact" data-email="${esc(m.email)}" style="margin-bottom:10px"><div class="sub" style="word-break:break-all;margin-bottom:6px">${esc(m.email)}</div>${mrEditHtml(m, true)}</div>`).join('') || `<div class="empty">${t('noEntries')}</div>`;
+}
 function renderMembers() {
   const q = ($('mSearch') ? $('mSearch').value : '').trim().toLowerCase();
   const rate = currentRate();
@@ -3229,14 +3235,13 @@ function renderMembers() {
         <div class="grow" style="min-width:0"><div class="mname" style="font-size:15px;overflow-wrap:anywhere">${esc(firstName(m.email))}${isAdminRow(m.email) ? ' <span class="badge b-s" style="font-size:10px;vertical-align:middle">Admin</span>' : ''}</div><div class="sub num" style="font-size:12px;margin-top:2px">${f2(b)} · ${pct}% · ${t('days')} ${m.days ?? 30}</div><div style="margin-top:6px">${chip}</div></div>
         <button class="ghost" aria-label="info" title="info" style="min-height:30px;width:30px;padding:0;border-radius:50%;flex:none" onclick="event.stopPropagation();explain('${esc(m.email)}')">ⓘ</button>
       </div>
-      ${mrEditHtml(m)}
     </div>`;
   }).join('') || `<div class="card empty">${t('noEntries')}</div>`;
 }
 /* keeps values the admin typed (and has not saved) when the member cards are redrawn */
 function collectMemKeep() {
   const out = {};
-  document.querySelectorAll('#memberList .mcard').forEach(c => {
+  document.querySelectorAll('#memberList .mcard, #memEditHost .mcard').forEach(c => {
     ['mn', 'md', 'mp'].forEach(k => {
       const el = c.querySelector('.' + k);
       if (el && el.value !== el.dataset.orig) (out[c.dataset.email] = out[c.dataset.email] || {})[k] = el.value;
@@ -3246,14 +3251,16 @@ function collectMemKeep() {
 }
 function applyMemKeep(keep) {
   Object.entries(keep).forEach(([email, vals]) => {
-    const c = [...document.querySelectorAll('#memberList .mcard')].find(x => x.dataset.email === email);
+    const c = [...document.querySelectorAll('#memberList .mcard, #memEditHost .mcard')].find(x => x.dataset.email === email);
     if (c) Object.entries(vals).forEach(([k, v]) => { const el = c.querySelector('.' + k); if (el) { el.value = v; mrDirty(el); } });
   });
 }
-function mrEditHtml(m) {
+function mrEditHtml(m, withName) {
   const d = m.days ?? 30, p = m.deposit ?? 0, e = esc(m.email);
+  const nm = esc(nameOf(m.email));
   const k = `onkeydown="if(event.key==='Enter'){event.preventDefault();saveMemberRow('${e}',this)}"`;
   return `<div class="mrEdit" onclick="event.stopPropagation()">
+    ${withName ? `<label style="grid-column:1/-1"><span>${t('nameLbl')}</span><input class="mn" type="text" data-orig="${nm}" value="${nm}" oninput="mrDirty(this)" ${k}></label>` : ''}
     <label><span>${t('days')}</span><input class="md" type="text" inputmode="numeric" data-orig="${d}" value="${d}" oninput="mrDirty(this)" ${k}></label>
     <label><span>${t('deposit')}</span><input class="mp" type="text" inputmode="decimal" data-orig="${num(p)}" value="${num(p)}" oninput="mrDirty(this)" ${k}></label>
     <button class="pri mrSave" disabled onclick="event.stopPropagation();saveMemberRow('${e}',this)">✓ ${t('save')}</button>
@@ -3262,16 +3269,18 @@ function mrEditHtml(m) {
 function mrDirty(el) {
   const card = el.closest('.mcard'), b = card && card.querySelector('.mrSave');
   if (!card || !b) return;
-  const ch = [...card.querySelectorAll('.md,.mp')].some(x => x.value !== x.dataset.orig);
+  const ch = [...card.querySelectorAll('.md,.mp,.mn')].some(x => x.value !== x.dataset.orig);
   b.disabled = !ch;
 }
 function saveMemberRow(email, el) {
   const card = el.closest('.mcard');
-  const d = card.querySelector('.md'), p = card.querySelector('.mp');
+  const d = card.querySelector('.md'), p = card.querySelector('.mp'), nmEl = card.querySelector('.mn');
   const bad = v => v.trim() === '' || isNaN(num(v));
   if (bad(d.value) || bad(p.value)) { toast(t('needDateAmt')); return; }
+  if (nmEl && !nmEl.value.trim()) { toast(t('needDateAmt')); return; }
   const days = num(d.value), dep = num(p.value);
-  ADBm('members').doc(email).set({ days, deposit: dep }, { merge: true })
+  const nm = nmEl ? nmEl.value.trim() : '';
+  ADBm('members').doc(email).set({ days, deposit: dep, ...(nm ? { name: nm } : {}) }, { merge: true })
     .then(() => { toast(t('saved')); logAct('Days/deposit · ' + email + ' · ' + days + ' / ' + dep); })
     .catch(showErr);
 }
@@ -3659,8 +3668,8 @@ function renderAdmin() {
   const TAB_HINT = {
     wait: isBn ? 'সদস্যদের জমা দেওয়া, অনুমোদনের অপেক্ষায় থাকা এন্ট্রি' : 'Member entries waiting for approval',
     entries: isBn ? 'সব এন্ট্রি খোঁজো, ফিল্টার করো, অনুমোদন বা সম্পাদনা করো' : 'Search, filter, approve or edit all entries',
-    members: isBn ? 'সদস্য যোগ, খোঁজা ও সদস্যের হিসাব দেখা' : 'Add members, search and open member accounts',
-    settings: isBn ? 'মেসের নাম, বাজার যোগ, মাস বন্ধ ও রিপোর্ট' : 'Mess name, bazar entry, month close and reports'
+    members: isBn ? 'সব সদস্যের পুরো হিসাব শুধু দেখা যাবে' : 'Full member accounts, view only',
+    settings: isBn ? 'মেসের নাম, সদস্যদের তথ্য, বাজার, মাস বন্ধ ও রিপোর্ট' : 'Mess name, member details, bazar, month close and reports'
   };
   h += `<div class="sub" id="tabHint" style="text-align:center;margin:-4px 0 10px">${TAB_HINT[admTab] || ''}</div>`;
   if (admTab === 'entries') h += `<button class="menuRow" style="width:100%;margin-bottom:12px" onclick="monthReport()"><span>📊 ${isBn ? 'মাসের রিপোর্ট' : 'Month report'}</span><span style="color:var(--s)">›</span></button><div id="entriesHost"></div>`;
@@ -3674,6 +3683,7 @@ function renderAdmin() {
   if (admTab === 'settings') {
   h += meCardHtml();
   h += monthChecklistHtml();
+  h += sec(isBn ? 'সদস্যদের তথ্য (নাম, দিন, জমা)' : 'Member details (name, days, deposit)', '<div id="memEditHost"></div>', false);
   h += sec(isBn ? 'সদস্য যোগ করার কোড' : 'Invite code', `
       <div class="sub" style="margin-bottom:6px">${isBn ? 'নতুন সদস্য এই কোড দিয়ে সরাসরি যোগ দিতে পারবে।' : 'New members join directly with this code.'}</div>
       <div class="num" style="font-size:24px;font-weight:800;letter-spacing:3px;margin:8px 0">${esc(inviteCode || '—')}</div>
@@ -3746,6 +3756,7 @@ function renderAdmin() {
   applyEntriesOpen();
   Object.entries(typed).forEach(([i, v]) => { const el = $(i); if (el) el.value = v; });
   if (admTab === 'members') { renderMembers(); applyMemKeep(memKeep); }
+  if (admTab === 'settings') { renderMemberEdits(); applyMemKeep(memKeep); }
   if (keep) { const el = $(keep.id); if (el) { el.value = keep.v; el.focus(); try { el.setSelectionRange(keep.pos, keep.pos); } catch (e) {} } }
 }
 
@@ -4222,6 +4233,7 @@ function openMember(email) {
       ${avHtml(email)}
       <div class="grow" style="min-width:0"><div class="mname">${esc(nameOf(email))}</div><div class="sub" style="word-break:break-all">${esc(email)} · ${all.length} ${bn ? 'টি এন্ট্রি' : 'entries'}</div></div>
     </div>
+    <div class="row" style="gap:8px;margin:-4px 0 12px;flex-wrap:wrap"><span class="badge">${bn ? 'দিন' : 'Days'}: <b class="num">${daysOf(email)}</b></span><span class="badge">${bn ? 'জমা' : 'Deposit'}: <b class="num">${f2(depOf(email))}</b></span></div>
     ${rate != null ? `<details class="sec hisDet" style="margin:0 0 14px"><summary>${bn ? 'হিসাব কীভাবে হলো' : 'How it adds up'}</summary><div class="secBody">
       ${row(bn ? 'মেসের মোট বাজার' : 'Total mess bazar', f2(cc.tB))}
       ${row(bn ? 'জনপ্রতি ভাগ' : 'Per person share', f2(perHead))}
@@ -4241,15 +4253,7 @@ function openMember(email) {
       <button class="ghost" style="width:100%;margin-bottom:10px" onclick="memberGallery('${esc(email)}')">${bn ? 'ছবির গ্যালারি' : 'Photo gallery'}</button>
       ${all.length ? pagedMem(all, bn) :`<div class="empty">${t('noEntries')}</div>`}
     </div></details>
-    ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'এডিট / মুছো' : 'Edit / delete'}</summary><div class="secBody">
-      <div class="mdGroup"><div class="mdHead">${bn ? 'তথ্য' : 'Details'}</div>
-        <div class="mgrid">
-          <label class="mf"><span>${t('nameLbl')}</span><input id="mdName" type="text" data-orig="${esc(nameOf(email))}" value="${esc(nameOf(email))}" oninput="mdDirty()"></label>
-          <label class="mf"><span>${t('days')}</span><input id="mdDays" type="text" inputmode="numeric" data-orig="${daysOf(email)}" value="${daysOf(email)}" oninput="mdDirty()"><small class="mdHint">${bn ? 'ডিফল্ট ৩০' : 'Default 30'}</small></label>
-          <label class="mf"><span>${t('deposit')}</span><input id="mdDep" type="text" inputmode="decimal" data-orig="${depOf(email)}" value="${depOf(email)}" oninput="mdDirty()"></label>
-        </div>
-        <button id="mdSave" class="pri" style="width:100%;margin-top:10px" disabled onclick="saveMemberFields('${esc(email)}')">✎ ${t('save')}</button>
-      </div>
+    ${isMgr ? `<details class="sec mgrDet" style="margin:14px 0 0"><summary>${bn ? 'অ্যাক্সেস ও মুছে ফেলা' : 'Access & remove'}</summary><div class="secBody">
       ${email !== MESS_ADMIN ? `<div class="mdGroup"><div class="mdHead">${bn ? 'অ্যাক্সেস' : 'Access'}</div>
         <button class="ghost mdAct" onclick="toggleFreeze('${esc(email)}', ${!(memberOf(email) || {}).frozen})"><span>❄ ${(memberOf(email) || {}).frozen ? (bn ? 'ফ্রিজ সরাও (আবার চালু করো)' : 'Unfreeze member') : (bn ? 'সদস্যকে ফ্রিজ করো (সাময়িক বন্ধ)' : 'Freeze member')}</span><small>${(memberOf(email) || {}).frozen ? (bn ? 'এখন ফ্রিজ করা' : 'Frozen now') : (bn ? 'এখন চালু' : 'Active now')}</small></button>
         <button class="ghost mdAct" onclick="toggleAdmin('${esc(email)}', ${!isAdminRow(email)})"><span>★ ${isAdminRow(email) ? (bn ? 'অ্যাডমিন থেকে সরাও' : 'Remove admin rights') : (bn ? 'অ্যাডমিন বানাও' : 'Make admin')}</span><small>${isAdminRow(email) ? (bn ? 'এখন অ্যাডমিন' : 'Admin now') : (bn ? 'সাধারণ সদস্য' : 'Regular member')}</small></button>
