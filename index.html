@@ -1432,7 +1432,7 @@ function superMessTabHtml(id) {
       ${m.code ? `<div class="sub" style="margin-top:10px">Invite code: <b>${esc(m.code)}</b> <button class="ghost" style="padding:5px 10px;font-size:12px;min-height:0" onclick="superCopy('${esc(m.code)}')">${bn ? 'কপি' : 'Copy'}</button></div>` : ''}
     </div>
     <div class="sCard">${superSubHtml(m)}</div>
-    <details class="sCard" open><summary><b>${bn ? 'সদস্যরা' : 'Members'} (${m.count})</b></summary><div style="margin-top:8px">${members}</div></details>
+    <details class="sCard"><summary><b>${bn ? 'সদস্যরা' : 'Members'} (${m.count})</b></summary><div style="margin-top:8px">${members}</div></details>
     <details class="sCard"><summary><b>${bn ? 'মাস অনুযায়ী বাজার' : 'Bazar by month'}</b></summary><div style="margin-top:6px">${months}</div></details>
     <div class="sCard"><b>${bn ? 'কাজ' : 'Actions'}</b>${acts}</div>`;
 }
