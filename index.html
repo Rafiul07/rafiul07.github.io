@@ -1423,8 +1423,6 @@ function superMessTabHtml(id) {
       </div>
       <div class="sKpis">
         ${kpi(bn ? 'সদস্য' : 'Members', m.count)}
-        ${kpi(bn ? 'এই মাসের বাজার' : 'This month', f2(m.tB || 0))}
-        ${kpi(bn ? 'মোট বাজার' : 'All-time bazar', f2(m.allTB || 0))}
         ${kpi(bn ? 'তৈরি' : 'Created', m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '—')}
       </div>
       ${m.adminFrozen && m.adminFreezeNote ? `<div class="sub" style="margin-top:10px">${bn ? 'ফ্রিজের কারণ' : 'Freeze reason'}: ${esc(m.adminFreezeNote)}</div>` : ''}
@@ -1432,8 +1430,7 @@ function superMessTabHtml(id) {
     </div>
     <div class="sCard">${superSubHtml(m)}</div>
     <details class="sCard"><summary><b>${bn ? 'সদস্যরা' : 'Members'} (${m.count})</b></summary><div style="margin-top:8px">${members}</div></details>
-    <details class="sCard"><summary><b>${bn ? 'মাস অনুযায়ী বাজার' : 'Bazar by month'}</b></summary><div style="margin-top:6px">${months}</div></details>
-    <div class="sCard"><b>${bn ? 'কাজ' : 'Actions'}</b>${acts}</div>`;
+    <details class="sCard"><summary><b>${bn ? 'কাজ' : 'Actions'}</b></summary><div style="margin-top:8px">${acts}</div></details>`;
 }
 /* super admin's only page: summary, tabs, and the active tab. Nothing from any mess is shown here */
 function renderSuper() {
