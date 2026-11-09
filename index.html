@@ -362,7 +362,7 @@ details.sec .secBody{margin-top:12px}
 #hContent .card .sub{font-size:clamp(13px,3.7vw,14.5px);line-height:1.5}
 #hContent .card > div:not(.sub){font-size:clamp(15px,4vw,16.5px)}
 #hContent .card b{font-weight:800}
-#hContent .totalGrid{gap:12px}
+#hContent .totalGrid{gap:8px}
 #hContent .totalTile{border-radius:18px;padding:16px 14px;background:linear-gradient(135deg,rgba(168,85,247,.20),rgba(34,211,238,.12));border:1px solid rgba(168,85,247,.25)}
 #hContent .totalTile .sub{font-size:clamp(13px,3.6vw,14px);font-weight:600}
 #hContent .totalTile .totalAmt{font-size:clamp(20px,6.2vw,28px);font-weight:900;margin-top:6px;letter-spacing:-.3px}
@@ -515,8 +515,8 @@ body.light .admTabs .admTab.pri{color:#fff;background:linear-gradient(135deg,#7c
 /* member home: tighter boxes so the page takes less height (text sizes stay the same) */
 #hContent.memberHome .card{padding:12px 14px;margin-bottom:10px}
 #hContent.memberHome .hCard h3{margin:0 0 6px}
-#hContent.memberHome .hHero{padding:10px;margin:0 0 8px}
-#hContent.memberHome .hHeroAmt{font-size:26px;margin:2px 0 0}
+#hContent.memberHome .hHero{padding:14px 10px;margin:0 0 10px}
+#hContent.memberHome .hHeroAmt{font-size:30px;margin:2px 0 0}
 #hContent.memberHome .totalGrid{gap:8px;margin:0 0 8px}
 #hContent.memberHome .totalTile{padding:8px 10px;margin:0}
 #hContent.memberHome .totalTile .totalAmt{font-size:clamp(16px,4.6vw,20px)}
@@ -627,8 +627,8 @@ details.sCard>summary::-webkit-details-marker{display:none}
     <section id="pgHome">
       <div class="card" id="qBar" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div id="messHead" style="grid-column:1/-1"></div>
-        <button id="addBtn1" class="pri" style="width:100%;white-space:nowrap;min-height:44px;padding:10px 12px;font-size:15px" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
-        <button id="notesOpenBtn" onclick="openNotesPop()" style="width:100%;min-height:44px;font-size:15px;border:0;border-radius:14px;color:#fff;font-weight:800;background:linear-gradient(135deg,#f97316,#ec4899);box-shadow:0 8px 20px rgba(236,72,153,.28)"></button>
+        <button id="addBtn1" class="pri" style="width:100%;white-space:nowrap;min-height:50px;padding:10px 12px;font-size:16px;border-radius:14px" onclick="openEntryPop()"><span data-i18n="addEntry"></span> +</button>
+        <button id="notesOpenBtn" onclick="openNotesPop()" style="width:100%;min-height:50px;font-size:16px;border:0;border-radius:14px;color:#fff;font-weight:800;background:linear-gradient(135deg,#f97316,#ec4899);box-shadow:0 8px 20px rgba(236,72,153,.28)"></button>
       </div>
       <div class="card hidden" id="notesCard">
         <h3 id="notesTitle"></h3>
@@ -2310,10 +2310,10 @@ function adminSummaryHtml() {
   const bn = lang === 'bn';
   const sumB = entries.filter(x => x.status === 'approved' && String(x.date).slice(0, 7) === month).reduce((a, x) => a + num(x.amount), 0);
   const pend = entries.filter(x => x.status === 'submitted').length;
-  return `<div class="card" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;padding:12px">
-    <div><div class="sub" style="font-size:12px">${bn ? 'মোট বাজার' : 'Total bazar'}</div><b class="num">${f2(sumB)}</b></div>
-    <div><div class="sub" style="font-size:12px">${bn ? 'সদস্য' : 'Members'}</div><b class="num">${members.length}</b></div>
-    <button onclick="go('admin');admTabSet('wait')" style="background:none;border:0;padding:0;color:inherit;min-height:0"><div class="sub" style="font-size:12px">${bn ? 'অপেক্ষমাণ' : 'Waiting'}</div><b class="num" style="color:${pend ? 'var(--bad)' : 'var(--pos)'}">${pend}</b></button>
+  return `<div class="card" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;padding:14px 12px">
+    <div><div class="sub" style="font-size:12px">${bn ? 'মোট বাজার' : 'Total bazar'}</div><b class="num" style="font-size:17px;font-weight:800">${f2(sumB)}</b></div>
+    <div><div class="sub" style="font-size:12px">${bn ? 'সদস্য' : 'Members'}</div><b class="num" style="font-size:17px;font-weight:800">${members.length}</b></div>
+    <button onclick="go('admin');admTabSet('wait')" style="background:none;border:0;padding:0;color:inherit;min-height:0"><div class="sub" style="font-size:12px">${bn ? 'অপেক্ষমাণ' : 'Waiting'}</div><b class="num" style="font-size:17px;font-weight:800;color:${pend ? 'var(--bad)' : 'var(--pos)'}">${pend}</b></button>
   </div>`;
 }
 function renderHome() {
