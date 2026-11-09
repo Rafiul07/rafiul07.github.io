@@ -588,6 +588,16 @@ details.sCard[open]>summary::after{transform:rotate(90deg)}
 .sGrid button{min-height:46px;font-size:14px;font-weight:700}
 .sGroup{margin:16px 0 0;font-size:11.5px;letter-spacing:.04em;color:var(--bad)}
 .sDetTop{gap:14px}
+/* super admin borders and surfaces: one thin neutral outline everywhere, no accent stripe or purple frame */
+#hContent.superPage > .card{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:14px 16px;box-shadow:0 6px 18px rgba(0,0,0,.18);margin-bottom:12px}
+#hContent.superPage > .card::before{display:none}
+body.light #hContent.superPage > .card{box-shadow:0 1px 2px rgba(20,20,40,.06),0 6px 16px rgba(20,20,40,.06)}
+#hContent.superPage .card h3,#hContent.superPage .card .gh{margin-top:0}
+.sHero{border:1px solid var(--bd);box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.sKpi,.sCard,.sList,.sSeg,.sChips button,.sCodeBox{border-color:var(--bd)}
+.sSearch input,#superSearchIn{border:1px solid var(--bd);background:var(--inp)}
+.sList .sRow{border-top:1px solid var(--bd)}
+.sRow:active{background:var(--card2)}
 .sStick{position:sticky;top:0;z-index:20;background:var(--bg);display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0 10px;margin:0}
 .sStick .sBack{margin:0}
 .sStick button.ghost:not(.sBack){min-height:36px;padding:6px 12px;font-size:13px;margin:0;margin-left:auto}
@@ -1558,6 +1568,7 @@ function superMessTabHtml(id) {
 /* super admin's only page: summary, tabs, and the active tab. Nothing from any mess is shown here */
 function renderSuper() {
   $('app').classList.remove('hidden');
+  $('hContent').classList.add('superPage'); $('hContent').classList.remove('memberHome');
   Object.entries(PAGES).forEach(([k, id]) => $(id).classList.toggle('hidden', k !== 'home'));
   page = 'home';
   $('nav').innerHTML = '';
@@ -2592,6 +2603,7 @@ function renderHome() {
   }
   $('hContent').innerHTML = (isMgr ? adminSummaryHtml() : '') + h;
   $('hContent').classList.toggle('memberHome', memberLayout || !isMgr);
+  $('hContent').classList.remove('superPage');
   updateBazarStatus();
 }
 
