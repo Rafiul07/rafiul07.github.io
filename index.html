@@ -1213,15 +1213,22 @@ async function superAct(i, what) {
     }
     if (what === 'subSet') {
       const cur = m.sub || {};
+      const cyc = await sheet({ title: bn ? 'প্ল্যান: ফ্রি / 7 দিন / 1 মাস / 1 বছর' : 'Plan: free / 7 days / month / year', value: cur.cycle || 'month', ph: 'month' });
+      if (!cyc) return;
+      const plan = planFrom(cyc);
+      if (plan === 'free') {
+        await db.collection('messes').doc(m.id).update({ 'subscription.amount': 0, 'subscription.cycle': 'free', 'subscription.required': false });
+        toast(bn ? 'ফ্রি প্ল্যান সেট হয়েছে' : 'Free plan set'); return loadAllMesses();
+      }
       const amt = await sheet({ title: bn ? 'ফি কত টাকা?' : 'Fee amount', value: cur.amount || '', ph: '500' });
       if (!amt || +amt <= 0) return;
-      const cyc = await sheet({ title: bn ? 'প্ল্যান: 7 দিন না 1 মাস? (7 / month)' : 'Plan: 7 days or 1 month? (7 / month)', value: cur.cycle === 'days7' ? '7' : 'month', ph: 'month' });
-      await db.collection('messes').doc(m.id).update({ 'subscription.amount': +amt, 'subscription.cycle': planFrom(cyc), 'subscription.required': true });
+      await db.collection('messes').doc(m.id).update({ 'subscription.amount': +amt, 'subscription.cycle': plan, 'subscription.required': true });
       toast(bn ? 'ফি সেট হয়েছে' : 'Fee saved'); return loadAllMesses();
     }
     if (what === 'subCode') {
       const cur = m.sub || {};
       if (!cur.amount) return toast(bn ? 'আগে ফি সেট করো' : 'Set the fee first', true);
+      if (cur.cycle === 'free') { toast(bn ? 'ফ্রি মেসে কোড লাগে না' : 'A free mess needs no code'); return; }
       const cyc = cur.cycle || SUB_DEFAULT_CYCLE;
       const today = isoToday();
       const from = (cur.paidUntil && cur.paidUntil > today) ? cur.paidUntil : today;
@@ -4196,15 +4203,22 @@ function isoToday() {
 // plans: 'days7' = 7 days, 'month' = 1 month
 function planFrom(text) {
   const t = String(text || '').trim().toLowerCase();
+  if (/free|ফ্রি/.test(t)) return 'free';
+  if (/year|বছর/.test(t)) return 'year';
   return (/^7|day|দিন|week/.test(t)) ? 'days7' : 'month';
 }
 function planLabel(p, bn) {
+  if (p === 'free') return bn ? 'ফ্রি' : 'Free';
+  if (p === 'year') return bn ? '1 বছর' : '1 year';
   return p === 'days7' ? (bn ? '7 দিন' : '7 days') : (bn ? '1 মাস' : '1 month');
 }
 function addPeriod(ymd, cycle) {
   const [y, mo, da] = ymd.split('-').map(Number);
   const d = new Date(y, mo - 1, da);
-  if (cycle === 'days7') d.setDate(d.getDate() + 7); else d.setMonth(d.getMonth() + 1);
+  if (cycle === 'free') return ymd;
+  if (cycle === 'days7') d.setDate(d.getDate() + 7);
+  else if (cycle === 'year') d.setFullYear(d.getFullYear() + 1);
+  else d.setMonth(d.getMonth() + 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 // super admin: fee, status, payment history and buttons for one mess
