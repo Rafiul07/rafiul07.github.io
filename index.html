@@ -538,7 +538,7 @@ body.light .sHero{background:linear-gradient(135deg,rgba(168,85,247,.13),rgba(34
 .sKpi b{display:block;font-size:19px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sKpi b.g{color:var(--ok)}.sKpi b.red{color:var(--bad)}
 .sSeg{display:flex;gap:4px;background:var(--inp);border:1px solid var(--bd);border-radius:14px;padding:4px;overflow-x:auto;margin:4px 0 12px;scrollbar-width:none}
-.sSeg button{flex:1 0 auto;background:transparent;padding:9px 12px;border-radius:10px;font-size:13.5px;color:var(--sub);white-space:nowrap;margin:0}
+.sSeg button{flex:1 1 0;min-width:0;background:transparent;padding:9px 4px;border-radius:10px;font-size:12.5px;color:var(--sub);white-space:nowrap;margin:0}
 .sSeg button.on{background:var(--card2);color:var(--tx);box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .sSearch input{margin:0;border-radius:14px;padding:13px 14px}
 .sChips{display:flex;gap:6px;overflow-x:auto;margin:10px 0 4px;scrollbar-width:none;padding-bottom:2px}
@@ -1157,7 +1157,7 @@ function superSettingsHtml() {
     <button class="ghost" style="width:100%" onclick="superResetSelf()">${bn ? 'আমার password বদলানোর ইমেইল পাঠাও' : 'Send password reset email to me'}</button>
     <h3 style="margin:14px 0 8px">${bn ? 'লগইন ও লগআউট' : 'Login & logout'}</h3>
     <div class="sub" style="margin-bottom:8px">${esc(me)}</div>
-    <button class="bad" style="width:100%" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`;
+    <button class="meOut" onclick="logout()">${bn ? 'লগআউট' : 'Logout'}</button></div>`;
 }
 const SUPER_ZOOM = { small: 0.88, medium: 1, big: 1.16 };
 function superFont() {
