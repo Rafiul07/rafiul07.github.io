@@ -698,7 +698,7 @@ body.light #hContent.superPage > .card{box-shadow:0 1px 2px rgba(20,20,40,.06),0
           <div class="grow"><div class="lbl" data-i18n="amount"></div><input id="fAmt" type="text" inputmode="decimal" placeholder="0.00"></div>
         </div>
         <div id="fMemberBox" class="hidden"><div class="lbl" id="fMemberLbl"></div><select id="fMember" class="hidden"></select><button type="button" class="item" onclick="toggleFMem()" style="margin:0"><span id="fMemName"></span><span class="sub" id="fMemArrow" style="transition:transform .2s ease">›</span></button><div id="fMemList" class="hidden" style="margin-top:8px"></div></div>
-        <div id="fMdBox" class="hidden" style="margin-top:12px"><div class="lbl" id="fMdLbl" style="margin-bottom:6px"></div><input id="fMdSearch" type="search" style="display:none;margin-bottom:10px" oninput="renderMemberEdits('fMdHost','fMdSearch')"><div id="fMdHost"></div></div>
+
         <div class="lbl" data-i18n="note"></div>
         <input id="fNote">
         <div class="lbl" data-i18n="paySlip"></div>
@@ -2640,8 +2640,7 @@ function entriesToggle() { entriesOpen = !entriesOpen; applyEntriesOpen(); }
 function applyEntriesOpen() { const hint = $('tabHint'); if (hint) hint.classList.toggle('hidden', !entriesOpen || admTab !== 'entries'); const l = $('entriesBody'), a = $('entriesArrow'); if (l) l.classList.toggle('hidden', !entriesOpen); if (a) a.style.transform = entriesOpen ? 'rotate(90deg)' : ''; }
 function renderEntries() {
   $('fMemberBox').classList.toggle('hidden', !isMgr || !!editId);
-  $('fMdBox').classList.toggle('hidden', !isMgr || !!editId);
-  if (isMgr && !editId) { $('fMdLbl').innerText = lang === 'bn' ? 'সদস্যদের তথ্য (নাম, দিন, জমা)' : 'Member details (name, days, deposit)'; renderMemberEdits('fMdHost', 'fMdSearch'); }
+
   if (isMgr) {
     $('fMemberLbl').innerText = lang === 'bn' ? 'কার নামে এন্ট্রি' : 'Entry for';
     const sel = $('fMember'), key = allEmails().join(',');
@@ -3245,25 +3244,23 @@ async function saveQuick() {
 let mSort = 'name';
 /* member name, days and deposit are edited here (Settings), not in the member account view */
 /* Settings: a compact member list; tap one to edit its name, days and deposit below */
-/* Member details picker: used in Settings and in the New bazar entry form. Each place has its own host and search box */
 let memEditPick = '';
 let memEditOpen = false;
-function toggleMemEdit(hid, sid) { memEditOpen = !memEditOpen; renderMemberEdits(hid, sid); }
-function pickMemEdit(email, hid, sid) { memEditPick = email; memEditOpen = false; renderMemberEdits(hid, sid); }
-function renderMemberEdits(hid, sid) {
-  const host = $(hid || 'memEditHost'); if (!host) return;
-  const sIn = $(sid || 'memEditSearch');
+function toggleMemEdit() { memEditOpen = !memEditOpen; renderMemberEdits(); }
+function pickMemEdit(email) { memEditPick = email; memEditOpen = false; renderMemberEdits(); }
+function renderMemberEdits() {
+  const host = $('memEditHost'); if (!host) return;
+  const sIn = $('memEditSearch');
   if (sIn) sIn.style.display = memEditOpen ? '' : 'none';
   const q = (sIn && memEditOpen ? sIn.value : '').trim().toLowerCase();
   const bn = lang === 'bn';
-  const H = esc(hid || 'memEditHost'), S = esc(sid || 'memEditSearch');
   const pick = members.find(m => m.email === memEditPick);
-  const head = `<button class="item" style="margin:0 0 6px" onclick="toggleMemEdit('${H}','${S}')"><span><b>${pick ? esc(nameOf(pick.email)) : (bn ? 'সদস্য বাছাই করো' : 'Choose a member')}</b>${pick ? `<br><small class="sub" style="word-break:break-all">${esc(pick.email)}</small>` : ''}</span><span class="sub" style="transition:transform .2s ease;${memEditOpen ? 'transform:rotate(90deg)' : ''}">›</span></button>`;
+  const head = `<button class="item" style="margin:0 0 6px" onclick="toggleMemEdit()"><span><b>${pick ? esc(nameOf(pick.email)) : (bn ? 'সদস্য বাছাই করো' : 'Choose a member')}</b>${pick ? `<br><small class="sub" style="word-break:break-all">${esc(pick.email)}</small>` : ''}</span><span class="sub" style="transition:transform .2s ease;${memEditOpen ? 'transform:rotate(90deg)' : ''}">›</span></button>`;
   let list = '';
   if (memEditOpen) {
     const items = members.filter(m => !q || (nameOf(m.email) + ' ' + m.email).toLowerCase().includes(q))
       .sort((x, y) => nameOf(x.email).localeCompare(nameOf(y.email)));
-    list = items.map(m => `<button class="item" style="margin:0 0 6px${m.email === memEditPick ? ';border-color:var(--p)' : ''}" onclick="pickMemEdit('${esc(m.email)}','${H}','${S}')"><span><b>${esc(nameOf(m.email))}</b><br><small class="sub" style="word-break:break-all">${esc(m.email)}</small></span><span class="sub">›</span></button>`).join('')
+    list = items.map(m => `<button class="item" style="margin:0 0 6px${m.email === memEditPick ? ';border-color:var(--p)' : ''}" onclick="pickMemEdit('${esc(m.email)}')"><span><b>${esc(nameOf(m.email))}</b><br><small class="sub" style="word-break:break-all">${esc(m.email)}</small></span><span class="sub">›</span></button>`).join('')
       || `<div class="sub" style="padding:8px 2px">${bn ? 'কোনো সদস্য মেলেনি' : 'No member matches'}</div>`;
   }
   const edit = pick
@@ -3744,7 +3741,6 @@ function renderAdmin() {
   if (admTab === 'settings') {
   h += meCardHtml();
   h += monthChecklistHtml();
-  h += sec(isBn ? 'সদস্যদের তথ্য (নাম, দিন, জমা)' : 'Member details (name, days, deposit)', `<input id="memEditSearch" type="search" placeholder="${isBn ? 'নাম বা email লিখে সদস্য খোঁজো' : 'Type a name or email to find a member'}" oninput="renderMemberEdits()" style="margin-bottom:10px;display:none"><div id="memEditHost"></div>`, false);
   h += sec(isBn ? 'সদস্য যোগ করার কোড' : 'Invite code', `
       <div class="sub" style="margin-bottom:6px">${isBn ? 'নতুন সদস্য এই কোড দিয়ে সরাসরি যোগ দিতে পারবে।' : 'New members join directly with this code.'}</div>
       <div class="num" style="font-size:24px;font-weight:800;letter-spacing:3px;margin:8px 0">${esc(inviteCode || '—')}</div>
@@ -3817,7 +3813,6 @@ function renderAdmin() {
   applyEntriesOpen();
   Object.entries(typed).forEach(([i, v]) => { const el = $(i); if (el) el.value = v; });
   if (admTab === 'members') { renderMembers(); applyMemKeep(memKeep); }
-  if (admTab === 'settings') { renderMemberEdits(); applyMemKeep(memKeep); }
   if (keep) { const el = $(keep.id); if (el) { el.value = keep.v; el.focus(); try { el.setSelectionRange(keep.pos, keep.pos); } catch (e) {} } }
 }
 
