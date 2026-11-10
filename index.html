@@ -3218,15 +3218,23 @@ async function saveQuick() {
 }
 let mSort = 'name';
 /* member name, days and deposit are edited here (Settings), not in the member account view */
+/* Settings: a compact member list; tap one to edit its name, days and deposit below */
+let memEditPick = '';
+function pickMemEdit(email) { memEditPick = email; renderMemberEdits(); }
 function renderMemberEdits() {
   const host = $('memEditHost'); if (!host) return;
   const sIn = $('memEditSearch');
   const q = (sIn ? sIn.value : '').trim().toLowerCase();
   const bn = lang === 'bn';
-  if (!q) { host.innerHTML = `<div class="sub" style="padding:8px 2px">${bn ? 'উপরে নাম বা email লিখলে সেই সদস্যের তথ্য দেখাবে।' : 'Type a name or email above to show that member.'}</div>`; return; }
-  const list = members.filter(m => (nameOf(m.email) + ' ' + m.email).toLowerCase().includes(q))
-    .sort((x, y) => nameOf(x.email).localeCompare(nameOf(y.email))).slice(0, 10);
-  host.innerHTML = list.map(m => `<div class="card mcard mcompact" data-email="${esc(m.email)}" style="margin-bottom:10px"><div class="sub" style="word-break:break-all;margin-bottom:6px">${esc(m.email)}</div>${mrEditHtml(m, true)}</div>`).join('') || `<div class="empty">${t('noEntries')}</div>`;
+  const list = members.filter(m => !q || (nameOf(m.email) + ' ' + m.email).toLowerCase().includes(q))
+    .sort((x, y) => nameOf(x.email).localeCompare(nameOf(y.email)));
+  const pick = members.find(m => m.email === memEditPick);
+  const rows = list.map(m => `<button class="item" style="margin:0 0 6px${m.email === memEditPick ? ';border-color:var(--p)' : ''}" onclick="pickMemEdit('${esc(m.email)}')"><span><b>${esc(nameOf(m.email))}</b><br><small class="sub" style="word-break:break-all">${esc(m.email)}</small></span><span class="sub">›</span></button>`).join('')
+    || `<div class="sub" style="padding:8px 2px">${bn ? 'কোনো সদস্য মেলেনি' : 'No member matches'}</div>`;
+  const edit = pick
+    ? `<div class="card mcard mcompact" data-email="${esc(pick.email)}" style="margin-top:10px">${mrEditHtml(pick, true)}</div>`
+    : `<div class="sub" style="padding:6px 2px">${bn ? 'একজন সদস্য বেছে নাও, তারপর তার তথ্য বদলাও।' : 'Pick a member to edit their details.'}</div>`;
+  host.innerHTML = rows + edit;
 }
 function renderMembers() {
   const q = ($('mSearch') ? $('mSearch').value : '').trim().toLowerCase();
