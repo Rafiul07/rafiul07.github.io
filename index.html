@@ -3243,21 +3243,28 @@ let mSort = 'name';
 /* member name, days and deposit are edited here (Settings), not in the member account view */
 /* Settings: a compact member list; tap one to edit its name, days and deposit below */
 let memEditPick = '';
-function pickMemEdit(email) { memEditPick = email; renderMemberEdits(); }
+let memEditOpen = false;
+function toggleMemEdit() { memEditOpen = !memEditOpen; renderMemberEdits(); }
+function pickMemEdit(email) { memEditPick = email; memEditOpen = false; renderMemberEdits(); }
 function renderMemberEdits() {
   const host = $('memEditHost'); if (!host) return;
   const sIn = $('memEditSearch');
-  const q = (sIn ? sIn.value : '').trim().toLowerCase();
+  if (sIn) sIn.style.display = memEditOpen ? '' : 'none';
+  const q = (sIn && memEditOpen ? sIn.value : '').trim().toLowerCase();
   const bn = lang === 'bn';
-  const list = members.filter(m => !q || (nameOf(m.email) + ' ' + m.email).toLowerCase().includes(q))
-    .sort((x, y) => nameOf(x.email).localeCompare(nameOf(y.email)));
   const pick = members.find(m => m.email === memEditPick);
-  const rows = list.map(m => `<button class="item" style="margin:0 0 6px${m.email === memEditPick ? ';border-color:var(--p)' : ''}" onclick="pickMemEdit('${esc(m.email)}')"><span><b>${esc(nameOf(m.email))}</b><br><small class="sub" style="word-break:break-all">${esc(m.email)}</small></span><span class="sub">›</span></button>`).join('')
-    || `<div class="sub" style="padding:8px 2px">${bn ? 'কোনো সদস্য মেলেনি' : 'No member matches'}</div>`;
+  const head = `<button class="item" style="margin:0 0 6px" onclick="toggleMemEdit()"><span><b>${pick ? esc(nameOf(pick.email)) : (bn ? 'সদস্য বাছাই করো' : 'Choose a member')}</b>${pick ? `<br><small class="sub" style="word-break:break-all">${esc(pick.email)}</small>` : ''}</span><span class="sub" style="transition:transform .2s ease;${memEditOpen ? 'transform:rotate(90deg)' : ''}">›</span></button>`;
+  let list = '';
+  if (memEditOpen) {
+    const items = members.filter(m => !q || (nameOf(m.email) + ' ' + m.email).toLowerCase().includes(q))
+      .sort((x, y) => nameOf(x.email).localeCompare(nameOf(y.email)));
+    list = items.map(m => `<button class="item" style="margin:0 0 6px${m.email === memEditPick ? ';border-color:var(--p)' : ''}" onclick="pickMemEdit('${esc(m.email)}')"><span><b>${esc(nameOf(m.email))}</b><br><small class="sub" style="word-break:break-all">${esc(m.email)}</small></span><span class="sub">›</span></button>`).join('')
+      || `<div class="sub" style="padding:8px 2px">${bn ? 'কোনো সদস্য মেলেনি' : 'No member matches'}</div>`;
+  }
   const edit = pick
     ? `<div class="card mcard mcompact" data-email="${esc(pick.email)}" style="margin-top:10px">${mrEditHtml(pick, true)}</div>`
-    : `<div class="sub" style="padding:6px 2px">${bn ? 'একজন সদস্য বেছে নাও, তারপর তার তথ্য বদলাও।' : 'Pick a member to edit their details.'}</div>`;
-  host.innerHTML = rows + edit;
+    : '';
+  host.innerHTML = head + list + edit;
 }
 function renderMembers() {
   const q = ($('mSearch') ? $('mSearch').value : '').trim().toLowerCase();
@@ -3732,7 +3739,7 @@ function renderAdmin() {
   if (admTab === 'settings') {
   h += meCardHtml();
   h += monthChecklistHtml();
-  h += sec(isBn ? 'সদস্যদের তথ্য (নাম, দিন, জমা)' : 'Member details (name, days, deposit)', `<input id="memEditSearch" type="search" placeholder="${isBn ? 'নাম বা email লিখে সদস্য খোঁজো' : 'Type a name or email to find a member'}" oninput="renderMemberEdits()" style="margin-bottom:10px"><div id="memEditHost"></div>`, false);
+  h += sec(isBn ? 'সদস্যদের তথ্য (নাম, দিন, জমা)' : 'Member details (name, days, deposit)', `<input id="memEditSearch" type="search" placeholder="${isBn ? 'নাম বা email লিখে সদস্য খোঁজো' : 'Type a name or email to find a member'}" oninput="renderMemberEdits()" style="margin-bottom:10px;display:none"><div id="memEditHost"></div>`, false);
   h += sec(isBn ? 'সদস্য যোগ করার কোড' : 'Invite code', `
       <div class="sub" style="margin-bottom:6px">${isBn ? 'নতুন সদস্য এই কোড দিয়ে সরাসরি যোগ দিতে পারবে।' : 'New members join directly with this code.'}</div>
       <div class="num" style="font-size:24px;font-weight:800;letter-spacing:3px;margin:8px 0">${esc(inviteCode || '—')}</div>
