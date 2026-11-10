@@ -697,7 +697,7 @@ body.light #hContent.superPage > .card{box-shadow:0 1px 2px rgba(20,20,40,.06),0
           <div class="grow"><div class="lbl" data-i18n="date"></div><input id="fDate" type="date"></div>
           <div class="grow"><div class="lbl" data-i18n="amount"></div><input id="fAmt" type="text" inputmode="decimal" placeholder="0.00"></div>
         </div>
-        <div id="fMemberBox" class="hidden"><div class="lbl" id="fMemberLbl"></div><select id="fMember" class="hidden"></select><button type="button" class="item" onclick="toggleFMem()" style="margin:0"><span id="fMemName"></span><span class="sub" id="fMemArrow" style="transition:transform .2s ease">›</span></button><div id="fMemList" class="hidden" style="margin-top:8px"></div></div>
+        <div id="fMemberBox" class="hidden"><div class="lbl" id="fMemberLbl"></div><select id="fMember"></select></div>
 
         <div class="lbl" data-i18n="note"></div>
         <input id="fNote">
@@ -2649,7 +2649,6 @@ function renderEntries() {
       sel.innerHTML = allEmails().map(e => `<option value="${esc(e)}">${esc(nameOf(e))}${e === me ? ' (' + (lang === 'bn' ? 'আমি' : 'me') + ')' : ''}</option>`).join('');
       sel.value = keep; sel.dataset.key = key;
     }
-    renderFMem();
   }
   $('filterBox').classList.remove('hidden');
   const q = $('qSearch').value.trim().toLowerCase();
@@ -2816,28 +2815,6 @@ function entryRow(x) {
     <div class="acts">${adminTag}${acts}</div></div></div>`;
 }
 
-/* Entry for: shows only the chosen name; tap it to open the full member list, tap a name to pick */
-function renderFMem() {
-  const sel = $('fMember'), btn = $('fMemName'), list = $('fMemList');
-  if (!sel || !btn || !list) return;
-  const bn = lang === 'bn';
-  const cur = sel.options[sel.selectedIndex];
-  btn.innerText = cur ? cur.text : '';
-  list.innerHTML = [...sel.options].map(o => `<button class="item" style="margin:0 0 6px${o.value === sel.value ? ';border-color:var(--p)' : ''}" onclick="pickFMem('${esc(o.value)}')"><span><b>${esc(o.text.replace(/ \((me|আমি)\)$/, ''))}</b>${o.value === me ? ` <span class="badge b-s" style="font-size:10px">${bn ? 'আমি' : 'me'}</span>` : ''}<br><small class="sub" style="word-break:break-all">${esc(o.value)}</small></span><span class="sub">›</span></button>`).join('');
-}
-function toggleFMem() {
-  const list = $('fMemList'), arrow = $('fMemArrow');
-  if (!list) return;
-  const open = list.classList.toggle('hidden') === false;
-  if (arrow) arrow.style.transform = open ? 'rotate(90deg)' : '';
-}
-function pickFMem(email) {
-  const sel = $('fMember'); if (!sel) return;
-  sel.value = email;
-  $('fMemList').classList.add('hidden');
-  const arrow = $('fMemArrow'); if (arrow) arrow.style.transform = '';
-  renderFMem();
-}
 /* long-press a member row (about 0.6 s) to edit name, days and deposit; a normal tap opens the account */
 let lpTimer = null, lpFired = false;
 function lpStart(email) { lpEnd(); lpFired = false; lpTimer = setTimeout(() => { lpTimer = null; lpFired = true; openMemEditSheet(email); }, 600); }
@@ -4282,9 +4259,6 @@ function openMember(email) {
   if (!sameM) memPage = 1;
   const keepD = sameM && oldD && oldD.value !== oldD.dataset.orig ? oldD.value : null;
   const keepP = sameM && oldP && oldP.value !== oldP.dataset.orig ? oldP.value : null;
-  const edD0 = sameM ? $('mdEdD') : null, edP0 = sameM ? $('mdEdP') : null;
-  const keepEdD = edD0 && edD0.value !== edD0.dataset.orig ? edD0.value : null;
-  const keepEdP = edP0 && edP0.value !== edP0.dataset.orig ? edP0.value : null;
   const oldN = $('mdName');
   const keepN = sameM && oldN && oldN.value !== oldN.dataset.orig ? oldN.value : null;
   const oldDet = $('memBody').querySelector('details.mgrDet');
@@ -4332,7 +4306,6 @@ function openMember(email) {
       <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">${boxes}</div>
       ${pickedHtml}
     </div></details>` : ''}
-    ${isMgr ? mdEditHtml2(email) : ''}
     <details class="sec" style="margin:0 0 14px"><summary>ⓘ ${bn ? 'কেন এমন হলো' : 'Why this amount'}</summary><div class="secBody">
       ${explainItems(email, rate).map(x => `<div style="padding:7px 0;border-top:1px solid var(--bd);font-size:14px;${x.red ? 'color:var(--bad);font-weight:700' : ''}">${esc(x.t)}</div>`).join('')}
     </div></details>
@@ -4356,9 +4329,6 @@ function openMember(email) {
   if (keepD !== null) $('mdDays').value = keepD;
   if (keepP !== null) $('mdDep').value = keepP;
   if (keepN !== null && $('mdName')) $('mdName').value = keepN;
-  if (keepEdD !== null && $('mdEdD')) $('mdEdD').value = keepEdD;
-  if (keepEdP !== null && $('mdEdP')) $('mdEdP').value = keepEdP;
-  mdEditDirty();
   mdDirty();
   const newDet = $('memBody').querySelector('details.mgrDet');
   if (newDet && keepOpen) newDet.open = true;
@@ -4369,40 +4339,6 @@ function openMember(email) {
   $('memBox').classList.remove('hidden');
   openLayer('memBox');
   hydrateSlips();
-}
-/* admin: edit a member's days and deposit inside the account; Save shows only when a value changed */
-function mdEditHtml2(email) {
-  const m = memberOf(email) || {};
-  const d = m.days ?? 30, p = m.deposit ?? 0, bn = lang === 'bn';
-  return `<div style="margin:0 0 14px;padding:12px 14px;background:var(--card);border:1px solid var(--bd);border-radius:16px">
-    <div class="sub" style="font-weight:700;margin:0 0 8px">${bn ? 'দিন ও জমা বদলাও' : 'Edit days & deposit'}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <label><span>${bn ? 'দিন' : 'Days'}</span><input id="mdEdD" class="md" type="text" inputmode="numeric" data-orig="${d}" value="${d}" oninput="mdEditDirty()"></label>
-      <label><span>${bn ? 'জমা' : 'Deposit'}</span><input id="mdEdP" class="mp" type="text" inputmode="decimal" data-orig="${num(p)}" value="${num(p)}" oninput="mdEditDirty()"></label>
-    </div>
-    <div id="mdEdWrap" style="margin-top:10px"></div>
-  </div>`;
-}
-function mdEditDirty() {
-  const dEl = $('mdEdD'), pEl = $('mdEdP'), w = $('mdEdWrap');
-  if (!dEl || !pEl || !w) return;
-  const ch = dEl.value !== dEl.dataset.orig || pEl.value !== pEl.dataset.orig;
-  const has = !!w.querySelector('button');
-  if (ch && !has) w.innerHTML = `<button class="pri" style="width:100%" onclick="mdEditSave()">✓ ${t('save')}</button>`;
-  else if (!ch && has) w.innerHTML = '';
-}
-function mdEditSave() {
-  const email = $('memBody').dataset.email, dEl = $('mdEdD'), pEl = $('mdEdP');
-  if (!email || !dEl || !pEl) return;
-  const bad = v => v.trim() === '' || isNaN(num(v));
-  if (bad(dEl.value) || bad(pEl.value)) { toast(t('needDateAmt')); return; }
-  const days = num(dEl.value), dep = num(pEl.value);
-  ADBm('members').doc(email).set({ days, deposit: dep }, { merge: true })
-    .then(() => {
-      toast(t('saved')); logAct('Days/deposit · ' + email + ' · ' + days + ' / ' + dep);
-      if (dEl.isConnected) { dEl.dataset.orig = dEl.value; pEl.dataset.orig = pEl.value; mdEditDirty(); }
-    })
-    .catch(showErr);
 }
 /* freeze: the member can still log in and see their own history, but cannot add or change bazar entries. Nothing is deleted */
 function mdDirty() {
