@@ -697,7 +697,7 @@ body.light #hContent.superPage > .card{box-shadow:0 1px 2px rgba(20,20,40,.06),0
           <div class="grow"><div class="lbl" data-i18n="date"></div><input id="fDate" type="date"></div>
           <div class="grow"><div class="lbl" data-i18n="amount"></div><input id="fAmt" type="text" inputmode="decimal" placeholder="0.00"></div>
         </div>
-        <div id="fMemberBox" class="hidden"><div class="lbl" id="fMemberLbl"></div><select id="fMember"></select></div>
+        <div id="fMemberBox" class="hidden"><div class="lbl" id="fMemberLbl"></div><select id="fMember" class="hidden"></select><button type="button" class="item" onclick="toggleFMem()" style="margin:0"><span id="fMemName"></span><span class="sub" id="fMemArrow" style="transition:transform .2s ease">›</span></button><div id="fMemList" class="hidden" style="margin-top:8px"></div></div>
         <div class="lbl" data-i18n="note"></div>
         <input id="fNote">
         <div class="lbl" data-i18n="paySlip"></div>
@@ -2647,6 +2647,7 @@ function renderEntries() {
       sel.innerHTML = allEmails().map(e => `<option value="${esc(e)}">${esc(nameOf(e))}${e === me ? ' (' + (lang === 'bn' ? 'আমি' : 'me') + ')' : ''}</option>`).join('');
       sel.value = keep; sel.dataset.key = key;
     }
+    renderFMem();
   }
   $('filterBox').classList.remove('hidden');
   const q = $('qSearch').value.trim().toLowerCase();
@@ -2813,6 +2814,28 @@ function entryRow(x) {
     <div class="acts">${adminTag}${acts}</div></div></div>`;
 }
 
+/* Entry for: shows only the chosen name; tap it to open the full member list, tap a name to pick */
+function renderFMem() {
+  const sel = $('fMember'), btn = $('fMemName'), list = $('fMemList');
+  if (!sel || !btn || !list) return;
+  const bn = lang === 'bn';
+  const cur = sel.options[sel.selectedIndex];
+  btn.innerText = cur ? cur.text : '';
+  list.innerHTML = [...sel.options].map(o => `<button class="item" style="margin:0 0 6px${o.value === sel.value ? ';border-color:var(--p)' : ''}" onclick="pickFMem('${esc(o.value)}')"><span><b>${esc(o.text.replace(/ \((me|আমি)\)$/, ''))}</b>${o.value === me ? ` <span class="badge b-s" style="font-size:10px">${bn ? 'আমি' : 'me'}</span>` : ''}<br><small class="sub" style="word-break:break-all">${esc(o.value)}</small></span><span class="sub">›</span></button>`).join('');
+}
+function toggleFMem() {
+  const list = $('fMemList'), arrow = $('fMemArrow');
+  if (!list) return;
+  const open = list.classList.toggle('hidden') === false;
+  if (arrow) arrow.style.transform = open ? 'rotate(90deg)' : '';
+}
+function pickFMem(email) {
+  const sel = $('fMember'); if (!sel) return;
+  sel.value = email;
+  $('fMemList').classList.add('hidden');
+  const arrow = $('fMemArrow'); if (arrow) arrow.style.transform = '';
+  renderFMem();
+}
 /* Entry form (shared by members and manager) */
 function formErr(m) { const e = $('fMsg'); e.innerText = m; e.classList.add('err'); }
 function resetForm() {
