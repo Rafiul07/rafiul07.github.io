@@ -2830,13 +2830,22 @@ function memDaysHtml() {
   return `<details class="sec" style="margin:0 0 12px" ${memDaysOpen ? 'open' : ''} ontoggle="memDaysOpen=this.open"><summary>${bn ? 'সদস্যের দিন ও জমা' : 'Member days & deposit'}</summary><div class="secBody">
     <label><span>${bn ? 'সদস্য' : 'Member'}</span><select id="mdPick" onchange="memDaysPick=this.value;memDaysRedraw()">${opts}</select></label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-      <label><span>${bn ? 'দিন' : 'Days'}</span><input id="mdDayIn" type="text" inputmode="numeric" value="${d}"></label>
-      <label><span>${bn ? 'জমা' : 'Deposit'}</span><input id="mdDepIn" type="text" inputmode="decimal" value="${num(p)}"></label>
+      <label><span>${bn ? 'দিন' : 'Days'}</span><input id="mdDayIn" type="text" inputmode="numeric" data-orig="${d}" value="${d}" oninput="memDaysDirty()"></label>
+      <label><span>${bn ? 'জমা' : 'Deposit'}</span><input id="mdDepIn" type="text" inputmode="decimal" data-orig="${num(p)}" value="${num(p)}" oninput="memDaysDirty()"></label>
     </div>
-    <button class="pri" style="width:100%;margin-top:10px" onclick="memDaysSave()">✓ ${t('save')}</button>
+    <div id="mdSaveWrap"></div>
   </div></details>`;
 }
-function memDaysRedraw() { const h = $('memDaysHost'); if (h) h.innerHTML = memDaysHtml(); }
+function memDaysRedraw() { const h = $('memDaysHost'); if (h) h.innerHTML = memDaysHtml(); memDaysDirty(); }
+/* Save shows only when days or deposit differ from the saved value */
+function memDaysDirty() {
+  const dEl = $('mdDayIn'), pEl = $('mdDepIn'), w = $('mdSaveWrap');
+  if (!dEl || !pEl || !w) return;
+  const ch = dEl.value !== dEl.dataset.orig || pEl.value !== pEl.dataset.orig;
+  const has = !!w.querySelector('button');
+  if (ch && !has) w.innerHTML = `<button class="pri" style="width:100%;margin-top:10px" onclick="memDaysSave()">✓ ${t('save')}</button>`;
+  else if (!ch && has) w.innerHTML = '';
+}
 function memDaysSave() {
   const email = $('mdPick') && $('mdPick').value, dEl = $('mdDayIn'), pEl = $('mdDepIn');
   if (!email || !dEl || !pEl) return;
@@ -2844,7 +2853,10 @@ function memDaysSave() {
   if (bad(dEl.value) || bad(pEl.value)) { toast(t('needDateAmt')); return; }
   const days = num(dEl.value), dep = num(pEl.value);
   ADBm('members').doc(email).set({ days, deposit: dep }, { merge: true })
-    .then(() => { toast(t('saved')); logAct('Days/deposit · ' + email + ' · ' + days + ' / ' + dep); })
+    .then(() => {
+      toast(t('saved')); logAct('Days/deposit · ' + email + ' · ' + days + ' / ' + dep);
+      if (dEl.isConnected) { dEl.dataset.orig = dEl.value; pEl.dataset.orig = pEl.value; memDaysDirty(); }
+    })
     .catch(showErr);
 }
 /* long-press a member row (about 0.6 s) to edit name, days and deposit; a normal tap opens the account */
@@ -3850,6 +3862,7 @@ function renderAdmin() {
   }
   applyEntriesOpen();
   Object.entries(typed).forEach(([i, v]) => { const el = $(i); if (el) el.value = v; });
+  memDaysDirty();
   if (admTab === 'members') { renderMembers(); applyMemKeep(memKeep); }
   if (keep) { const el = $(keep.id); if (el) { el.value = keep.v; el.focus(); try { el.setSelectionRange(keep.pos, keep.pos); } catch (e) {} } }
 }
