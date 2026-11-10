@@ -157,7 +157,7 @@ body.light .chip.s-submitted:not(.on){color:#2563eb}
 #pgAdmin details.sec::before,#pgAdmin .menuRow::before,#pgAdmin .menuCard::before,#pgAdmin #hContent > .card::before{display:none}
 #pgAdmin details.sec,#pgAdmin .menuRow,#pgAdmin .menuCard,#pgAdmin .card{border:1px solid var(--bd)}
 /* floating "back to top" for long lists */
-#toTop{position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:45;min-height:40px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:800;background:var(--card2);color:var(--tx);border:1px solid var(--bd);box-shadow:0 8px 20px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s ease}
+#toTop{position:fixed;left:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:45;min-height:40px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:800;background:var(--card2);color:var(--tx);border:1px solid var(--bd);box-shadow:0 8px 20px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s ease}
 #toTop.show{opacity:1;pointer-events:auto}
 .filterBar{margin:0 0 12px;padding:0 0 12px;border-bottom:1px solid var(--bd)}
 .entriesHead{cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:40px;user-select:none}
@@ -3220,7 +3220,12 @@ let mSort = 'name';
 /* member name, days and deposit are edited here (Settings), not in the member account view */
 function renderMemberEdits() {
   const host = $('memEditHost'); if (!host) return;
-  const list = members.slice().sort((x, y) => nameOf(x.email).localeCompare(nameOf(y.email)));
+  const sIn = $('memEditSearch');
+  const q = (sIn ? sIn.value : '').trim().toLowerCase();
+  const bn = lang === 'bn';
+  if (!q) { host.innerHTML = `<div class="sub" style="padding:8px 2px">${bn ? 'উপরে নাম বা email লিখলে সেই সদস্যের তথ্য দেখাবে।' : 'Type a name or email above to show that member.'}</div>`; return; }
+  const list = members.filter(m => (nameOf(m.email) + ' ' + m.email).toLowerCase().includes(q))
+    .sort((x, y) => nameOf(x.email).localeCompare(nameOf(y.email))).slice(0, 10);
   host.innerHTML = list.map(m => `<div class="card mcard mcompact" data-email="${esc(m.email)}" style="margin-bottom:10px"><div class="sub" style="word-break:break-all;margin-bottom:6px">${esc(m.email)}</div>${mrEditHtml(m, true)}</div>`).join('') || `<div class="empty">${t('noEntries')}</div>`;
 }
 function renderMembers() {
@@ -3672,7 +3677,7 @@ function renderAdmin() {
   const keep = active && active.closest && active.closest('#pgAdmin') ? { id: active.id, v: active.value, pos: active.selectionStart } : null;
   const memKeep = collectMemKeep();
   const typed = {};
-  ['nEmail', 'nName', 'nPw', 'mSearch', 'mName', 'nmName', 'nmAdmin', 'bcTxt'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
+  ['nEmail', 'nName', 'nPw', 'mSearch', 'mName', 'nmName', 'nmAdmin', 'bcTxt', 'memEditSearch'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
 
   const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
   const tabBtn = (k, label) => `<button class="admTab ${admTab === k ? 'pri' : 'ghost'}" onclick="admTabSet('${k}')">${label}</button>`;
@@ -3696,7 +3701,7 @@ function renderAdmin() {
   if (admTab === 'settings') {
   h += meCardHtml();
   h += monthChecklistHtml();
-  h += sec(isBn ? 'সদস্যদের তথ্য (নাম, দিন, জমা)' : 'Member details (name, days, deposit)', '<div id="memEditHost"></div>', false);
+  h += sec(isBn ? 'সদস্যদের তথ্য (নাম, দিন, জমা)' : 'Member details (name, days, deposit)', `<input id="memEditSearch" type="search" placeholder="${isBn ? 'নাম বা email লিখে সদস্য খোঁজো' : 'Type a name or email to find a member'}" oninput="renderMemberEdits()" style="margin-bottom:10px"><div id="memEditHost"></div>`, false);
   h += sec(isBn ? 'সদস্য যোগ করার কোড' : 'Invite code', `
       <div class="sub" style="margin-bottom:6px">${isBn ? 'নতুন সদস্য এই কোড দিয়ে সরাসরি যোগ দিতে পারবে।' : 'New members join directly with this code.'}</div>
       <div class="num" style="font-size:24px;font-weight:800;letter-spacing:3px;margin:8px 0">${esc(inviteCode || '—')}</div>
