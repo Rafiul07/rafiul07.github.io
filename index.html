@@ -4282,6 +4282,9 @@ function openMember(email) {
   if (!sameM) memPage = 1;
   const keepD = sameM && oldD && oldD.value !== oldD.dataset.orig ? oldD.value : null;
   const keepP = sameM && oldP && oldP.value !== oldP.dataset.orig ? oldP.value : null;
+  const edD0 = sameM ? $('mdEdD') : null, edP0 = sameM ? $('mdEdP') : null;
+  const keepEdD = edD0 && edD0.value !== edD0.dataset.orig ? edD0.value : null;
+  const keepEdP = edP0 && edP0.value !== edP0.dataset.orig ? edP0.value : null;
   const oldN = $('mdName');
   const keepN = sameM && oldN && oldN.value !== oldN.dataset.orig ? oldN.value : null;
   const oldDet = $('memBody').querySelector('details.mgrDet');
@@ -4329,6 +4332,7 @@ function openMember(email) {
       <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">${boxes}</div>
       ${pickedHtml}
     </div></details>` : ''}
+    ${isMgr ? mdEditHtml2(email) : ''}
     <details class="sec" style="margin:0 0 14px"><summary>ⓘ ${bn ? 'কেন এমন হলো' : 'Why this amount'}</summary><div class="secBody">
       ${explainItems(email, rate).map(x => `<div style="padding:7px 0;border-top:1px solid var(--bd);font-size:14px;${x.red ? 'color:var(--bad);font-weight:700' : ''}">${esc(x.t)}</div>`).join('')}
     </div></details>
@@ -4352,6 +4356,9 @@ function openMember(email) {
   if (keepD !== null) $('mdDays').value = keepD;
   if (keepP !== null) $('mdDep').value = keepP;
   if (keepN !== null && $('mdName')) $('mdName').value = keepN;
+  if (keepEdD !== null && $('mdEdD')) $('mdEdD').value = keepEdD;
+  if (keepEdP !== null && $('mdEdP')) $('mdEdP').value = keepEdP;
+  mdEditDirty();
   mdDirty();
   const newDet = $('memBody').querySelector('details.mgrDet');
   if (newDet && keepOpen) newDet.open = true;
@@ -4362,6 +4369,40 @@ function openMember(email) {
   $('memBox').classList.remove('hidden');
   openLayer('memBox');
   hydrateSlips();
+}
+/* admin: edit a member's days and deposit inside the account; Save shows only when a value changed */
+function mdEditHtml2(email) {
+  const m = memberOf(email) || {};
+  const d = m.days ?? 30, p = m.deposit ?? 0, bn = lang === 'bn';
+  return `<div style="margin:0 0 14px;padding:12px 14px;background:var(--card);border:1px solid var(--bd);border-radius:16px">
+    <div class="sub" style="font-weight:700;margin:0 0 8px">${bn ? 'দিন ও জমা বদলাও' : 'Edit days & deposit'}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <label><span>${bn ? 'দিন' : 'Days'}</span><input id="mdEdD" class="md" type="text" inputmode="numeric" data-orig="${d}" value="${d}" oninput="mdEditDirty()"></label>
+      <label><span>${bn ? 'জমা' : 'Deposit'}</span><input id="mdEdP" class="mp" type="text" inputmode="decimal" data-orig="${num(p)}" value="${num(p)}" oninput="mdEditDirty()"></label>
+    </div>
+    <div id="mdEdWrap" style="margin-top:10px"></div>
+  </div>`;
+}
+function mdEditDirty() {
+  const dEl = $('mdEdD'), pEl = $('mdEdP'), w = $('mdEdWrap');
+  if (!dEl || !pEl || !w) return;
+  const ch = dEl.value !== dEl.dataset.orig || pEl.value !== pEl.dataset.orig;
+  const has = !!w.querySelector('button');
+  if (ch && !has) w.innerHTML = `<button class="pri" style="width:100%" onclick="mdEditSave()">✓ ${t('save')}</button>`;
+  else if (!ch && has) w.innerHTML = '';
+}
+function mdEditSave() {
+  const email = $('memBody').dataset.email, dEl = $('mdEdD'), pEl = $('mdEdP');
+  if (!email || !dEl || !pEl) return;
+  const bad = v => v.trim() === '' || isNaN(num(v));
+  if (bad(dEl.value) || bad(pEl.value)) { toast(t('needDateAmt')); return; }
+  const days = num(dEl.value), dep = num(pEl.value);
+  ADBm('members').doc(email).set({ days, deposit: dep }, { merge: true })
+    .then(() => {
+      toast(t('saved')); logAct('Days/deposit · ' + email + ' · ' + days + ' / ' + dep);
+      if (dEl.isConnected) { dEl.dataset.orig = dEl.value; pEl.dataset.orig = pEl.value; mdEditDirty(); }
+    })
+    .catch(showErr);
 }
 /* freeze: the member can still log in and see their own history, but cannot add or change bazar entries. Nothing is deleted */
 function mdDirty() {
