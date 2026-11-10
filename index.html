@@ -3138,7 +3138,7 @@ function quickEntryHtml() {
   const bn = lang === 'bn';
   const tabs = '';   // only the By amount entry is kept here (By slip removed)
   const body = quickAmtBody();
-  return `<details class="sec" style="margin:0 0 12px" ${qOpen ? 'open' : ''} ontoggle="qOpen=this.open"><summary>⚡ ${bn ? 'দ্রুত বাজার এন্ট্রি (অংক দিয়ে)' : 'Quick bazar entry by amount'}</summary><div class="secBody">${tabs}${body}</div></details>`;
+  return `<details class="sec" style="margin:0 0 12px" ${qOpen ? 'open' : ''} ontoggle="qOpen=this.open"><summary>${bn ? 'দ্রুত বাজার এন্ট্রি (অংক দিয়ে)' : 'Quick bazar entry by amount'}</summary><div class="secBody">${tabs}${body}</div></details>`;
 }
 function quickSlipBody() {
   const bn = lang === 'bn';
