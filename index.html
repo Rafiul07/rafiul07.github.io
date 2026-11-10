@@ -712,6 +712,7 @@ body.light #hContent.superPage > .card{box-shadow:0 1px 2px rgba(20,20,40,.06),0
       </div>
       <button id="addBtn2" class="menuRow" style="width:100%;margin-bottom:14px;white-space:nowrap" onclick="openEntryPop()"><span data-i18n="addEntry"></span>&nbsp;+</button>
       <div id="quickHost"></div>
+      <div id="memDaysHost"></div>
       <div class="card menuCard">
         <div class="entriesHead" onclick="entriesToggle()"><h3 id="listTitle"></h3><span id="entriesArrow" class="entriesArrow">›</span></div>
       <div id="entriesBody" class="hidden">
@@ -2815,6 +2816,37 @@ function entryRow(x) {
     <div class="acts">${adminTag}${acts}</div></div></div>`;
 }
 
+/* Entries tab (admin): pick any member, set days and deposit, Save */
+let memDaysPick = '', memDaysOpen = false;
+function memDaysHtml() {
+  if (!isMgr) return '';
+  const bn = lang === 'bn';
+  const list = allEmails();
+  if (!list.length) return '';
+  const cur = list.includes(memDaysPick) ? memDaysPick : list[0];
+  const m = memberOf(cur) || {};
+  const d = m.days ?? 30, p = m.deposit ?? 0;
+  const opts = list.map(e => `<option value="${esc(e)}" ${e === cur ? 'selected' : ''}>${esc(nameOf(e))}${e === me ? ' (' + (bn ? 'আমি' : 'me') + ')' : ''}</option>`).join('');
+  return `<details class="sec" style="margin:0 0 12px" ${memDaysOpen ? 'open' : ''} ontoggle="memDaysOpen=this.open"><summary>${bn ? 'সদস্যের দিন ও জমা' : 'Member days & deposit'}</summary><div class="secBody">
+    <label><span>${bn ? 'সদস্য' : 'Member'}</span><select id="mdPick" onchange="memDaysPick=this.value;memDaysRedraw()">${opts}</select></label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+      <label><span>${bn ? 'দিন' : 'Days'}</span><input id="mdDayIn" type="text" inputmode="numeric" value="${d}"></label>
+      <label><span>${bn ? 'জমা' : 'Deposit'}</span><input id="mdDepIn" type="text" inputmode="decimal" value="${num(p)}"></label>
+    </div>
+    <button class="pri" style="width:100%;margin-top:10px" onclick="memDaysSave()">✓ ${t('save')}</button>
+  </div></details>`;
+}
+function memDaysRedraw() { const h = $('memDaysHost'); if (h) h.innerHTML = memDaysHtml(); }
+function memDaysSave() {
+  const email = $('mdPick') && $('mdPick').value, dEl = $('mdDayIn'), pEl = $('mdDepIn');
+  if (!email || !dEl || !pEl) return;
+  const bad = v => v.trim() === '' || isNaN(num(v));
+  if (bad(dEl.value) || bad(pEl.value)) { toast(t('needDateAmt')); return; }
+  const days = num(dEl.value), dep = num(pEl.value);
+  ADBm('members').doc(email).set({ days, deposit: dep }, { merge: true })
+    .then(() => { toast(t('saved')); logAct('Days/deposit · ' + email + ' · ' + days + ' / ' + dep); })
+    .catch(showErr);
+}
 /* long-press a member row (about 0.6 s) to edit name, days and deposit; a normal tap opens the account */
 let lpTimer = null, lpFired = false;
 function lpStart(email) { lpEnd(); lpFired = false; lpTimer = setTimeout(() => { lpTimer = null; lpFired = true; openMemEditSheet(email); }, 600); }
@@ -3722,7 +3754,7 @@ function renderAdmin() {
   const keep = active && active.closest && active.closest('#pgAdmin') ? { id: active.id, v: active.value, pos: active.selectionStart } : null;
   const memKeep = collectMemKeep();
   const typed = {};
-  ['nEmail', 'nName', 'nPw', 'mSearch', 'mName', 'nmName', 'nmAdmin', 'bcTxt', 'memEditSearch'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
+  ['nEmail', 'nName', 'nPw', 'mSearch', 'mName', 'nmName', 'nmAdmin', 'bcTxt', 'memEditSearch', 'mdDayIn', 'mdDepIn'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
 
   const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
   const tabBtn = (k, label) => `<button class="admTab ${admTab === k ? 'pri' : 'ghost'}" onclick="admTabSet('${k}')">${label}</button>`;
@@ -3811,6 +3843,7 @@ function renderAdmin() {
   if (pe) { document.querySelector('main.wrap').appendChild(pe); pe.classList.add('hidden'); }
   $('pgAdmin').innerHTML = h;
   if (admTab === 'entries' && $('quickHost')) $('quickHost').innerHTML = quickEntryHtml();
+  if (admTab === 'entries' && $('memDaysHost')) $('memDaysHost').innerHTML = memDaysHtml();
   if (admTab === 'entries' && pe && $('entriesHost')) {
     $('entriesHost').appendChild(pe); pe.classList.remove('hidden');
     renderEntries();
