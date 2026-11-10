@@ -152,6 +152,12 @@ body.light .chip.s-submitted:not(.on){color:#2563eb}
 .entry.st-needs_fix{box-shadow:inset 3px 0 0 var(--warn)}
 .dayHead{display:flex;justify-content:space-between;align-items:center;margin:14px 0 4px;padding:6px 2px;border-bottom:1px solid var(--bd);font-weight:700;font-size:13px}
 .dayHead .num{font-weight:800}
+/* admin page: plain thin outlines, no coloured edge strips (same look as the super admin page) */
+#pgAdmin details.sec::before,#pgAdmin .menuRow::before,#pgAdmin .menuCard::before,#pgAdmin #hContent > .card::before{display:none}
+#pgAdmin details.sec,#pgAdmin .menuRow,#pgAdmin .menuCard,#pgAdmin .card{border:1px solid var(--bd)}
+/* floating "back to top" for long lists */
+#toTop{position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:45;min-height:40px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:800;background:var(--card2);color:var(--tx);border:1px solid var(--bd);box-shadow:0 8px 20px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s ease}
+#toTop.show{opacity:1;pointer-events:auto}
 .filterBar{margin:0 0 12px;padding:0 0 12px;border-bottom:1px solid var(--bd)}
 .entriesHead{cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:40px;user-select:none}
 .entriesHead h3{margin:0;color:var(--tx);font-size:clamp(16px,4.6vw,18px);font-weight:800}
@@ -915,6 +921,12 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const num = v => { let s = String(v ?? '').replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d)).replace(/\s/g, ''); if (!s.includes('.') && /,\d{1,2}$/.test(s)) s = s.replace(/,(\d{1,2})$/, '.$1'); s = s.replace(/,/g, ''); const n = Number(s); return isFinite(n) ? n : 0; };
 const f2 = v => num(v).toFixed(2);
 const t = k => (T[lang] && T[lang][k]) || T.en[k] || k;
+/* day heading with the weekday, e.g. "১০ নভেম্বর, মঙ্গলবার" */
+function fmtDayWd(d) {
+  const p = String(d || '').split('-'); if (p.length !== 3) return d;
+  const dt = new Date(+p[0], +p[1] - 1, +p[2]);
+  return dt.toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'long', weekday: 'long' });
+}
 function fmtDate(d) {
   const p = String(d || '').split('-'); if (p.length !== 3) return d;
   return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'long' });
@@ -2672,7 +2684,7 @@ function renderEntries() {
   const summary = list.length ? `<div class="row between" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;padding:8px 10px;border-radius:12px;background:var(--card2)"><span class="sub">${list.length} ${bnE ? 'টি এন্ট্রি' : 'entries'}</span><b class="num">৳${f2(sum)}</b><span class="sub"><span style="color:var(--pos);font-weight:700">${list.length - nWait} ${bnE ? 'অনুমোদিত' : 'approved'}</span> · <span style="color:var(--bad);font-weight:700">${nWait} ${bnE ? 'অপেক্ষমাণ' : 'waiting'}</span></span></div>` : '';
   let gh = ''; let ld = '';
   pageRows.forEach(x => {
-    if (x.date !== ld) { ld = x.date; { const dayT = list.filter(y => y.date === x.date).reduce((a, y) => a + (Number(y.amount) || 0), 0); gh += `<div class="dayHead"><span>${fmtDate(x.date)}</span><b class="num">৳${f2(dayT)}</b></div>`; } }
+    if (x.date !== ld) { ld = x.date; { const dayT = list.filter(y => y.date === x.date).reduce((a, y) => a + (Number(y.amount) || 0), 0); gh += `<div class="dayHead"><span>${fmtDayWd(x.date)}</span><b class="num">৳${f2(dayT)}</b></div>`; } }
     gh += entryRow(x);
   });
   const pager = pages > 1 ? `<div class="row between" style="margin-top:10px;gap:8px"><button class="ghost" style="flex:1;min-height:40px" ${entryPage <= 1 ? 'disabled' : ''} onclick="entryGo(${entryPage - 1})">← ${bnE ? 'আগের' : 'Prev'}</button><span class="sub">${entryPage} / ${pages}</span><button class="ghost" style="flex:1;min-height:40px" ${entryPage >= pages ? 'disabled' : ''} onclick="entryGo(${entryPage + 1})">${bnE ? 'পরের' : 'Next'} →</button></div>` : '';
@@ -4503,6 +4515,15 @@ if (window.matchMedia) matchMedia('(prefers-color-scheme: light)').addEventListe
 applyTheme();
 applyFs();
 applyLang();
+</script>
+<button id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ উপরে</button>
+<script>
+/* shows the back-to-top button only after the page is scrolled down */
+(function () {
+  const b = document.getElementById('toTop');
+  if (!b) return;
+  window.addEventListener('scroll', () => b.classList.toggle('show', window.scrollY > 400), { passive: true });
+})();
 </script>
 </body>
 </html>
