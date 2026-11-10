@@ -94,7 +94,6 @@ input:focus,select:focus,textarea:focus{border-color:var(--p);box-shadow:0 0 0 3
 .mdAct small{font-size:12px;color:var(--sub);font-weight:600;white-space:nowrap}
 .mdDanger{padding-top:12px;border-top:1px dashed var(--bd)}
 .mdDel{width:100%;min-height:46px;border:1px solid var(--bad);background:var(--bad);color:#fff;border-radius:14px;font-weight:800;font-size:15px}
-#mdSave:disabled{opacity:.45;filter:grayscale(.3)}
 .mrEdit{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)}
 .mgAct{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .mgAct button{min-height:44px;padding:8px 12px;font-size:13px;font-weight:800;border-radius:12px;line-height:1;border:1px solid var(--bd);background:transparent}
@@ -2818,11 +2817,18 @@ function entryRow(x) {
 
 /* Entries tab (admin): pick any member, set days and deposit, Save */
 let memDaysPick = '', memDaysOpen = false;
+function memDaysLocked() { return closedMonths.includes(month) || (month === 'all' && closedMonths.length > 0); }
 function memDaysHtml() {
   if (!isMgr) return '';
   const bn = lang === 'bn';
   const list = allEmails();
   if (!list.length) return '';
+  if (memDaysLocked()) {
+    const msg = month === 'all'
+      ? (bn ? 'সব মাস দেখা হচ্ছে, আর কিছু মাস বন্ধ। দিন ও জমা বদলাতে একটি খোলা মাস বেছে নাও।' : 'All months is showing and some months are closed. Pick an open month to change days and deposit.')
+      : (bn ? 'এই মাস বন্ধ আছে, তাই দিন ও জমা এখানে বদলানো যাবে না।' : 'This month is closed, so days and deposit cannot be changed here.');
+    return `<details class="sec" style="margin:0 0 12px" open><summary>${bn ? 'সদস্যের দিন ও জমা' : 'Member days & deposit'}</summary><div class="secBody"><div class="sub">${msg}</div></div></details>`;
+  }
   const cur = list.includes(memDaysPick) ? memDaysPick : list[0];
   const m = memberOf(cur) || {};
   const d = m.days ?? 30, p = m.deposit ?? 0;
@@ -2847,6 +2853,7 @@ function memDaysDirty() {
   else if (!ch && has) w.innerHTML = '';
 }
 function memDaysSave() {
+  if (memDaysLocked()) { toast(lang === 'bn' ? 'এই মাস বন্ধ আছে' : 'This month is closed', true); return; }
   const email = $('mdPick') && $('mdPick').value, dEl = $('mdDayIn'), pEl = $('mdDepIn');
   if (!email || !dEl || !pEl) return;
   const bad = v => v.trim() === '' || isNaN(num(v));
@@ -2858,34 +2865,6 @@ function memDaysSave() {
       if (dEl.isConnected) { dEl.dataset.orig = dEl.value; pEl.dataset.orig = pEl.value; memDaysDirty(); }
     })
     .catch(showErr);
-}
-/* long-press a member row (about 0.6 s) to edit name, days and deposit; a normal tap opens the account */
-let lpTimer = null, lpFired = false;
-function lpStart(email) { lpEnd(); lpFired = false; lpTimer = setTimeout(() => { lpTimer = null; lpFired = true; openMemEditSheet(email); }, 600); }
-function lpEnd() { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } }
-function memRowTap(email) { if (lpFired) { lpFired = false; return; } openMember(email); }
-function openMemEditSheet(email) {
-  const m = members.find(x => x.email === email); if (!m) return;
-  closeMemEditSheet();
-  const bn = lang === 'bn';
-  const d = document.createElement('div');
-  d.id = 'memEditSheet';
-  d.style.cssText = 'position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:12px';
-  d.innerHTML = `<div class="card mcard mcompact" style="width:100%;max-width:460px;margin:0;max-height:90vh;overflow:auto" onclick="event.stopPropagation()">
-    <div class="row between" style="margin-bottom:8px"><b>${bn ? 'সদস্যের তথ্য বদলাও' : 'Edit member'}</b><button class="ghost" style="min-height:36px" onclick="closeMemEditSheet()">✕</button></div>
-    <div class="sub" style="word-break:break-all;margin-bottom:8px">${esc(m.email)}</div>
-    ${mrEditHtml(m, true)}</div>`;
-  d.onclick = closeMemEditSheet;
-  document.body.appendChild(d);
-}
-function closeMemEditSheet() { const d = $('memEditSheet'); if (d) d.remove(); }
-function memInfo() {
-  const bn = lang === 'bn';
-  openInfo(bn ? 'সদস্যের তথ্য বদলানো' : 'Edit a member', [
-    { t: bn ? 'সদস্যের নামে সাধারণ চাপলে তার হিসাব খুলবে।' : 'A normal tap on a member opens their account.' },
-    { t: bn ? 'নামে প্রায় ১ সেকেন্ড চেপে ধরে রাখলে নাম, দিন আর জমা বদলানোর বক্স আসবে।' : 'Press and hold a member for about 1 second to open the box to change their name, days and deposit.' },
-    { t: bn ? 'Save চাপলে বদল সেভ হবে আর বক্স বন্ধ হবে।' : 'Tap Save to keep the change. The box then closes.' }
-  ]);
 }
 /* Entry form (shared by members and manager) */
 function formErr(m) { const e = $('fMsg'); e.innerText = m; e.classList.add('err'); }
@@ -3291,32 +3270,6 @@ async function saveQuick() {
   }).catch(showErr);
 }
 let mSort = 'name';
-/* member name, days and deposit are edited here (Settings), not in the member account view */
-/* Settings: a compact member list; tap one to edit its name, days and deposit below */
-let memEditPick = '';
-let memEditOpen = false;
-function toggleMemEdit() { memEditOpen = !memEditOpen; renderMemberEdits(); }
-function pickMemEdit(email) { memEditPick = email; memEditOpen = false; renderMemberEdits(); }
-function renderMemberEdits() {
-  const host = $('memEditHost'); if (!host) return;
-  const sIn = $('memEditSearch');
-  if (sIn) sIn.style.display = memEditOpen ? '' : 'none';
-  const q = (sIn && memEditOpen ? sIn.value : '').trim().toLowerCase();
-  const bn = lang === 'bn';
-  const pick = members.find(m => m.email === memEditPick);
-  const head = `<button class="item" style="margin:0 0 6px" onclick="toggleMemEdit()"><span><b>${pick ? esc(nameOf(pick.email)) : (bn ? 'সদস্য বাছাই করো' : 'Choose a member')}</b>${pick ? `<br><small class="sub" style="word-break:break-all">${esc(pick.email)}</small>` : ''}</span><span class="sub" style="transition:transform .2s ease;${memEditOpen ? 'transform:rotate(90deg)' : ''}">›</span></button>`;
-  let list = '';
-  if (memEditOpen) {
-    const items = members.filter(m => !q || (nameOf(m.email) + ' ' + m.email).toLowerCase().includes(q))
-      .sort((x, y) => nameOf(x.email).localeCompare(nameOf(y.email)));
-    list = items.map(m => `<button class="item" style="margin:0 0 6px${m.email === memEditPick ? ';border-color:var(--p)' : ''}" onclick="pickMemEdit('${esc(m.email)}')"><span><b>${esc(nameOf(m.email))}</b><br><small class="sub" style="word-break:break-all">${esc(m.email)}</small></span><span class="sub">›</span></button>`).join('')
-      || `<div class="sub" style="padding:8px 2px">${bn ? 'কোনো সদস্য মেলেনি' : 'No member matches'}</div>`;
-  }
-  const edit = pick
-    ? `<div class="card mcard mcompact" data-email="${esc(pick.email)}" style="margin-top:10px">${mrEditHtml(pick, true)}</div>`
-    : '';
-  host.innerHTML = head + list + edit;
-}
 function renderMembers() {
   const q = ($('mSearch') ? $('mSearch').value : '').trim().toLowerCase();
   const rate = currentRate();
@@ -3336,7 +3289,7 @@ function renderMembers() {
     const pct = Math.round(b / tot * 100);
     const chip = rate == null ? '' : `<span class="mchip ${bal >= 0 ? 'g' : 'r'}">${bal >= 0 ? '↑ ' + t('refund') : '↓ ' + t('due')}: ${f2(Math.abs(bal))}</span>`;
     const picked = selMem.has(m.email);
-    return `<div class="card mcard mcompact" data-email="${esc(m.email)}" style="cursor:pointer;${picked ? 'border:2px solid var(--p);background:rgba(124,92,255,.08)' : ''}" onclick="memRowTap('${esc(m.email)}')" onpointerdown="lpStart('${esc(m.email)}')" onpointerup="lpEnd()" onpointerleave="lpEnd()" onpointercancel="lpEnd()" oncontextmenu="return false">
+    return `<div class="card mcard mcompact" data-email="${esc(m.email)}" style="cursor:pointer;${picked ? 'border:2px solid var(--p);background:rgba(124,92,255,.08)' : ''}" onclick="openMember('${esc(m.email)}')">
       <div class="mhead" style="gap:10px;align-items:center;flex-wrap:nowrap">
         ${avHtml(m.email, 'width:36px;height:36px;font-size:15px;flex-shrink:0')}
         <div class="grow" style="min-width:0"><div class="mname" style="font-size:15px;overflow-wrap:anywhere">${esc(firstName(m.email))}${isAdminRow(m.email) ? ` <span class="badge b-s" style="font-size:10px;vertical-align:middle">${lang === 'bn' ? 'অ্যাডমিন' : 'Admin'}</span>` : ''}</div><div class="sub num" style="font-size:12px;margin-top:2px">${f2(b)} · ${pct}% · ${t('days')} ${m.days ?? 30} · ${t('deposit')} <span style="color:var(--ok);font-weight:700">${f2(m.deposit || 0)}</span></div><div style="margin-top:6px">${chip}</div></div>
@@ -3344,52 +3297,6 @@ function renderMembers() {
       </div>
     </div>`;
   }).join('') || `<div class="card empty">${t('noEntries')}</div>`;
-}
-/* keeps values the admin typed (and has not saved) when the member cards are redrawn */
-function collectMemKeep() {
-  const out = {};
-  document.querySelectorAll('#memberList .mcard, #memEditHost .mcard').forEach(c => {
-    ['mn', 'md', 'mp'].forEach(k => {
-      const el = c.querySelector('.' + k);
-      if (el && el.value !== el.dataset.orig) (out[c.dataset.email] = out[c.dataset.email] || {})[k] = el.value;
-    });
-  });
-  return out;
-}
-function applyMemKeep(keep) {
-  Object.entries(keep).forEach(([email, vals]) => {
-    const c = [...document.querySelectorAll('#memberList .mcard, #memEditHost .mcard')].find(x => x.dataset.email === email);
-    if (c) Object.entries(vals).forEach(([k, v]) => { const el = c.querySelector('.' + k); if (el) { el.value = v; mrDirty(el); } });
-  });
-}
-function mrEditHtml(m, withName) {
-  const d = m.days ?? 30, p = m.deposit ?? 0, e = esc(m.email);
-  const nm = esc(nameOf(m.email));
-  const k = `onkeydown="if(event.key==='Enter'){event.preventDefault();saveMemberRow('${e}',this)}"`;
-  return `<div class="mrEdit" onclick="event.stopPropagation()">
-    ${withName ? `<label style="grid-column:1/-1"><span>${t('nameLbl')}</span><input class="mn" type="text" data-orig="${nm}" value="${nm}" oninput="mrDirty(this)" ${k}></label>` : ''}
-    <label><span>${t('days')}</span><input class="md" type="text" inputmode="numeric" data-orig="${d}" value="${d}" oninput="mrDirty(this)" ${k}></label>
-    <label><span>${t('deposit')}</span><input class="mp" type="text" inputmode="decimal" data-orig="${num(p)}" value="${num(p)}" oninput="mrDirty(this)" ${k}></label>
-    <button class="pri mrSave" disabled onclick="event.stopPropagation();saveMemberRow('${e}',this)">✓ ${t('save')}</button>
-  </div>`;
-}
-function mrDirty(el) {
-  const card = el.closest('.mcard'), b = card && card.querySelector('.mrSave');
-  if (!card || !b) return;
-  const ch = [...card.querySelectorAll('.md,.mp,.mn')].some(x => x.value !== x.dataset.orig);
-  b.disabled = !ch;
-}
-function saveMemberRow(email, el) {
-  const card = el.closest('.mcard');
-  const d = card.querySelector('.md'), p = card.querySelector('.mp'), nmEl = card.querySelector('.mn');
-  const bad = v => v.trim() === '' || isNaN(num(v));
-  if (bad(d.value) || bad(p.value)) { toast(t('needDateAmt')); return; }
-  if (nmEl && !nmEl.value.trim()) { toast(t('needDateAmt')); return; }
-  const days = num(d.value), dep = num(p.value);
-  const nm = nmEl ? nmEl.value.trim() : '';
-  ADBm('members').doc(email).set({ days, deposit: dep, ...(nm ? { name: nm } : {}) }, { merge: true })
-    .then(() => { toast(t('saved')); closeMemEditSheet(); logAct('Days/deposit · ' + email + ' · ' + days + ' / ' + dep); })
-    .catch(showErr);
 }
 /* popup previous / next: same order as the member list (sort choice), search is not applied */
 function memOrder() {
@@ -3403,17 +3310,12 @@ function memNav(email) {
   if (i < 0 || list.length < 2) return '';
   return `<div class="row" style="gap:10px;margin-top:12px"><button class="ghost grow" ${i === 0 ? 'disabled' : ''} onclick="memStep(-1)">← ${bn ? 'আগের' : 'Previous'}</button><button class="ghost grow" ${i === list.length - 1 ? 'disabled' : ''} onclick="memStep(1)">${bn ? 'পরের' : 'Next'} →</button></div>`;
 }
-async function memStep(dir) {
+function memStep(dir) {
   const list = memOrder(), i = list.indexOf(memOpen), j = i + dir;
   if (i < 0 || j < 0 || j >= list.length) return;
-  const dirty = ['mdName', 'mdDays', 'mdDep'].some(id => { const el = $(id); return el && el.value !== el.dataset.orig; });
-  if (dirty) {
-    const ok = await sheet({ title: lang === 'bn' ? 'সেভ না করা বদল আছে। তবু যাবে?' : 'You have unsaved changes. Continue anyway?', input: false, okText: lang === 'bn' ? 'হ্যাঁ, যাও' : 'Yes, continue' });
-    if (!ok) return;
-  }
   openMember(list[j]);
 }
-function memSearch() { const k = collectMemKeep(); renderMembers(); applyMemKeep(k); }
+function memSearch() { renderMembers(); }
 /* admin: select several members at once for bulk actions */
 let selMem = new Set();
 function toggleMem(email, on) { on ? selMem.add(email) : selMem.delete(email); renderMembers(); }
@@ -3764,9 +3666,8 @@ function renderAdmin() {
   const gh = label => `<div class="gh">${label}</div>`;
   const active = document.activeElement;
   const keep = active && active.closest && active.closest('#pgAdmin') ? { id: active.id, v: active.value, pos: active.selectionStart } : null;
-  const memKeep = collectMemKeep();
   const typed = {};
-  ['nEmail', 'nName', 'nPw', 'mSearch', 'mName', 'nmName', 'nmAdmin', 'bcTxt', 'memEditSearch', 'mdDayIn', 'mdDepIn'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
+  ['nEmail', 'nName', 'nPw', 'mSearch', 'mName', 'nmName', 'nmAdmin', 'bcTxt', 'mdDayIn', 'mdDepIn'].forEach(i => { const el = $(i); if (el && el.value) typed[i] = el.value; });
 
   const pending = entries.filter(x => x.status !== 'approved').sort(byNewest);
   const tabBtn = (k, label) => `<button class="admTab ${admTab === k ? 'pri' : 'ghost'}" onclick="admTabSet('${k}')">${label}</button>`;
@@ -3774,8 +3675,8 @@ function renderAdmin() {
   // one line under the tabs: what this tab is for
   const TAB_HINT = {
     wait: isBn ? 'সদস্যদের জমা দেওয়া, অনুমোদনের অপেক্ষায় থাকা এন্ট্রি' : 'Member entries waiting for approval',
-    entries: isBn ? 'সব এন্ট্রি খোঁজো, ফিল্টার করো, অনুমোদন বা সম্পাদনা করো' : 'Search, filter, approve or edit all entries',
-    members: isBn ? 'সদস্যের নামে চাপলে হিসাব খুলবে, ধরে রাখলে তথ্য বদলানো যাবে' : 'Tap a member to view the account, press and hold to edit',
+    entries: isBn ? 'এন্ট্রি খোঁজো, অনুমোদন বা সম্পাদনা করো, সদস্যের দিন ও জমাও বদলাও' : 'Search and approve entries, and set member days and deposit',
+    members: isBn ? 'সদস্যের নামে চাপলে পুরো হিসাব খুলবে' : 'Tap a member to open the full account',
     settings: isBn ? 'মেসের নাম, সদস্যদের তথ্য, বাজার, মাস বন্ধ ও রিপোর্ট' : 'Mess name, member details, bazar, month close and reports'
   };
   h += `<div class="sub" id="tabHint" style="text-align:center;margin:-4px 0 10px">${TAB_HINT[admTab] || ''}</div>`;
@@ -3819,7 +3720,7 @@ function renderAdmin() {
   }
   if (admTab === 'members') {
   h += reqCardHtml();
-  h += `<details class="sec" id="memSec" ${memListOpen ? 'open' : ''} ontoggle="memListOpen=this.open" style="margin:0 0 12px"><summary>${isBn ? 'সব সদস্য' : 'All members'} <span class="sub" id="memCount"></span> <button class="ghost" aria-label="info" style="min-height:28px;width:28px;padding:0;border-radius:50%;margin:0 0 0 6px" onclick="event.preventDefault();event.stopPropagation();memInfo()">ⓘ</button></summary><div class="secBody"><input id="mSearch" placeholder="${t('search')}" oninput="memSearch()" style="margin-bottom:10px"><div id="memberList"></div></div></details>`;
+  h += `<details class="sec" id="memSec" ${memListOpen ? 'open' : ''} ontoggle="memListOpen=this.open" style="margin:0 0 12px"><summary>${isBn ? 'সব সদস্য' : 'All members'} <span class="sub" id="memCount"></span></summary><div class="secBody"><input id="mSearch" placeholder="${t('search')}" oninput="memSearch()" style="margin-bottom:10px"><div id="memberList"></div></div></details>`;
   h += sec(isBn ? 'নতুন সদস্য যোগ' : 'Add member', `
       <input id="nEmail" type="email" placeholder="${isBn ? 'ইমেইল' : 'Email'}">
       <input id="nName" placeholder="${isBn ? 'নাম' : 'Name'}" style="margin-top:8px">
@@ -3863,7 +3764,7 @@ function renderAdmin() {
   applyEntriesOpen();
   Object.entries(typed).forEach(([i, v]) => { const el = $(i); if (el) el.value = v; });
   memDaysDirty();
-  if (admTab === 'members') { renderMembers(); applyMemKeep(memKeep); }
+  if (admTab === 'members') renderMembers();
   if (keep) { const el = $(keep.id); if (el) { el.value = keep.v; el.focus(); try { el.setSelectionRange(keep.pos, keep.pos); } catch (e) {} } }
 }
 
@@ -4300,13 +4201,8 @@ function memPick(id) { memPickId = memPickId === id ? '' : id; openMember(memOpe
 function memMonthSet(m) { memMonth = m; memPage = 1; openMember(memOpen); }
 function openMember(email) {
   // keep days/deposit the admin is typing when this modal is redrawn by a live update
-  const oldD = $('mdDays'), oldP = $('mdDep');
   const sameM = $('memBody').dataset.email === email;
   if (!sameM) memPage = 1;
-  const keepD = sameM && oldD && oldD.value !== oldD.dataset.orig ? oldD.value : null;
-  const keepP = sameM && oldP && oldP.value !== oldP.dataset.orig ? oldP.value : null;
-  const oldN = $('mdName');
-  const keepN = sameM && oldN && oldN.value !== oldN.dataset.orig ? oldN.value : null;
   const oldDet = $('memBody').querySelector('details.mgrDet');
   const oldBaz = $('memBody').querySelector('details.bazDet');
   const keepBaz = sameM && oldBaz ? oldBaz.open : false;
@@ -4372,10 +4268,6 @@ function openMember(email) {
     ${memNav(email)}
     <button class="ghost" style="width:100%;margin-top:14px" onclick="closeMember()">← ${t('back')}</button>
 `;
-  if (keepD !== null) $('mdDays').value = keepD;
-  if (keepP !== null) $('mdDep').value = keepP;
-  if (keepN !== null && $('mdName')) $('mdName').value = keepN;
-  mdDirty();
   const newDet = $('memBody').querySelector('details.mgrDet');
   if (newDet && keepOpen) newDet.open = true;
   const newBaz = $('memBody').querySelector('details.bazDet');
@@ -4387,10 +4279,6 @@ function openMember(email) {
   hydrateSlips();
 }
 /* freeze: the member can still log in and see their own history, but cannot add or change bazar entries. Nothing is deleted */
-function mdDirty() {
-  const ch = ['mdName', 'mdDays', 'mdDep'].some(id => { const el = $(id); return el && el.value !== el.dataset.orig; });
-  const b = $('mdSave'); if (b) b.disabled = !ch;
-}
 async function toggleFreeze(email, freeze) {
   const bn = lang === 'bn';
   const who = nameOf(email);
@@ -4419,14 +4307,6 @@ async function toggleAdmin(email, make) {
   ADBm('members').doc(email).set({ admin: make }, { merge: true })
     .then(() => { toast(t('saved')); logAct((make ? 'Made admin · ' : 'Removed admin · ') + email); if (memOpen) openMember(memOpen); })
     .catch(showErr);
-}
-function saveMemberFields(email) {
-  const nm = $('mdName').value.trim();
-  ADBm('members').doc(email).set({
-    ...(nm ? { name: nm } : {}),
-    days: num($('mdDays').value),
-    deposit: num($('mdDep').value)
-  }, { merge: true }).then(() => { toast(t('saved')); logAct('Days/deposit · ' + email + ' · ' + num($('mdDays').value) + ' / ' + num($('mdDep').value)); if (memOpen) openMember(memOpen); }).catch(showErr);
 }
 function closeMember() { memOpen = null; $('memBox').classList.add('hidden'); dropLayer('memBox'); }
 
